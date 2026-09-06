@@ -177,3 +177,133 @@ That is the answer to "how do we let people view social posts without hurting th
 **you don't show them the post — you show them the content, and you keep the platform out
 of it entirely.** The customer gets a better answer, you get 10x the revenue per response,
 and there is nothing for anyone to enforce against.
+
+---
+
+## 10. The credit-exchange / engagement-pod variant — evaluated and rejected
+
+**The proposal:** don't pay cash for views. Give members credits. They earn credits by
+viewing others' social content and spend credits to have their own content viewed. A
+community that shares each other's posts.
+
+**Verdict: this is worse than paying cash, on every axis.** Recording the reasoning here so
+it doesn't get relitigated.
+
+### 10.1 The dilemma that has no third option
+
+Either credits can be bought with money, or they can't.
+
+- **If they can be bought** → cash buys credits, credits buy views. You have sold paid views with one extra step. Platforms and regulators both read through form to substance; the extra step changes nothing about what happened.
+- **If they can't be bought** → no money enters the system and there is no revenue.
+
+There is no configuration that is both compliant and a business. That alone settles it, but
+the rest matters too.
+
+### 10.2 Credits are compensation
+
+Platform policies do not say "paid with money." They describe artificial, inauthentic or
+incentivized engagement. A credit redeemable for views on your own content has value — that
+is barter, and barter is compensation.
+
+More pointedly, **exchange schemes are named explicitly** in several of these policies, not
+merely implied. TikTok's fake-engagement guidelines reach the trading of engagement. Meta's
+inauthentic-behavior standards cover coordinated efforts to inflate engagement, and
+Instagram has acted against engagement pods specifically and repeatedly. YouTube's
+fake-engagement policy reaches views obtained through incentives or exchange.
+
+A credit pod isn't an untested grey area. It's a named, well-known abuse pattern with a
+decade of enforcement history behind it. *(Verify current policy text before any final
+decision — but the substance here has been stable for years.)*
+
+### 10.3 It is dramatically **more** detectable, not less
+
+This is the counterintuitive part and the one that decides it.
+
+Cash-paid views produce **one-directional** traffic: viewers who never appear again and have
+no relationship to each other. Bad, but diffuse.
+
+A credit exchange produces **reciprocal closed loops**: A views B, B views C, C views A,
+repeatedly, among the same bounded population. That is a densely clustered, bidirectional
+engagement graph — the single most recognizable inauthentic pattern in existence, and the
+exact thing a decade of pod-detection tooling was built to find.
+
+And it gets worse: every participant must be **logged into their real account** on the
+platform, because they need somewhere for their own content to live. So the platform sees
+the entire ring, fully mapped, attached to real identities. Cash viewers are at least
+pseudonymous. Pod members are not.
+
+### 10.4 The blast radius multiplies
+
+Paid traffic risks **one customer's** asset per campaign. A credit pod risks **every
+member's account simultaneously**, and every member is your user.
+
+A single platform sweep could remove or restrict thousands of your members' accounts in one
+action, all traceable to your product. That is not a support ticket — it's a brand-ending
+event, and it would be entirely deserved.
+
+### 10.5 It destroys the research panel, which is the actual business
+
+The quietest problem and possibly the most expensive.
+
+A credit exchange self-selects for **people who want promotion** — creators, marketers,
+affiliates, small-business owners pushing their own content. That is the opposite of the
+population your research customers pay for.
+
+The whole value of [01-strategy.md](01-strategy.md)'s core product is that respondents are
+**ordinary consumers** giving honest first impressions. A panel of marketers evaluating a
+landing page produces systematically unrepresentative answers: they notice funnel mechanics
+a real customer never sees, and they miss the confusion a real customer actually feels.
+
+So the credit model doesn't merely fail to make money. It contaminates the asset that does.
+
+### 10.6 Barter has its own tax exposure **[counsel]**
+
+Formal barter exchanges carry specific IRS reporting obligations — broadly, Form 1099-B
+filing for members' barter transactions, distinct from the 1099-NEC handling already
+planned in [05-risk-compliance.md](05-risk-compliance.md) §5. Running a credit exchange may
+pull you into a reporting regime you have not scoped, on top of everything above. Worth
+knowing before anyone finds it attractive again.
+
+### 10.7 The legitimate versions of the same instinct
+
+The instinct — *a community where people discover each other's content* — is good. Three
+ways to have it cleanly:
+
+**A. Creator feedback exchange — recommended, and genuinely promising.**
+Members upload their thumbnail, title or creative **to PromoMonster**. They earn credits by
+giving thoughtful critiques of other members' creative, and spend credits to get critiques
+of their own. **No platform is ever touched.** Nobody views anything on YouTube; nobody's
+metrics move. It is a peer-review community for creative work, which is a real and
+underserved product — essentially the creator-facing sibling of your business product, with
+feedback as the currency instead of views.
+
+Two conditions: run it as a **separate pool** from the consumer panel and never fulfil
+business studies from it (§10.5), and pay credits for *quality* of critique, judged by the
+recipient, not for volume.
+
+**B. Business-owner barter for B2B studies — a good cold-start mechanic.**
+A small-business owner answers 20 studies and earns credits toward running their own. Clean:
+no platform involved, and it's straightforward barter for your own service. Restrict it to
+**B2B studies**, where business owners are the correct respondent population rather than a
+contaminant. This is a genuinely useful way to seed the marketplace before you have cash
+customers.
+
+**C. An unrewarded discovery feed.**
+Members can browse each other's work, with no credits, no obligation, no reciprocity
+tracking. Perfectly legitimate, because nothing is incentivized — but it is a community
+feature, not a business. Worth building later for retention; not worth building for revenue.
+
+### 10.8 Summary
+
+| Model | Revenue? | Platform-safe? | Builds the panel? |
+|---|---|---|---|
+| Credit exchange for live views (purchasable) | Yes | **No** | **No — contaminates it** |
+| Credit exchange for live views (not purchasable) | **No** | **No** | **No — contaminates it** |
+| Creator feedback exchange (uploaded assets) | Yes | **Yes** | Separate pool, cleanly |
+| B2B barter for study participation | Indirect | **Yes** | Yes, for B2B |
+| Unrewarded discovery feed | No | **Yes** | Retention only |
+
+The pattern across this document holds again: **every clean mechanism keeps the platform out
+of the loop entirely.** The moment a member's action has to register on YouTube or Instagram
+for the product to work, you're in the same place regardless of whether the incentive was a
+nickel or a credit.
