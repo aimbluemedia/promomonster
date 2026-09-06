@@ -307,3 +307,112 @@ The pattern across this document holds again: **every clean mechanism keeps the 
 of the loop entirely.** The moment a member's action has to register on YouTube or Instagram
 for the product to work, you're in the same place regardless of whether the incentive was a
 nickel or a credit.
+
+---
+
+## 11. The hybrid: paid tier buys out of viewing, free tier fills the orders
+
+**The proposal:** two tiers. Paid members pay cash and don't have to view anyone. Free
+members earn credits by viewing, and their viewing fills the paid members' orders.
+
+This is a real answer to §10.1 — money genuinely enters the system now. It's also the
+classic traffic-exchange architecture (EasyHits4U, 10KHits, Hitleap), so it's a proven
+*structure*. The problem is what's flowing through it.
+
+### 11.1 It doesn't escape the dilemma — it lands on both horns at once
+
+Trace the two paths separately:
+
+- **Paid member:** pays cash → receives views on their social content. That is a paid view. The fact that free members' labour is what produced it doesn't change what the buyer bought.
+- **Free member:** performs views → receives credits → redeems for views. That is an engagement pod, exactly as in §10.
+
+So the hybrid is **simultaneously** paid views *and* a pod. It doesn't dodge either failure
+mode; it runs both concurrently, with the pod supplying the paid views.
+
+### 11.2 Selling the paid tier destroys the "credits aren't compensation" argument
+
+In §10 the weakest point of a pure credit exchange was arguing that credits have no cash
+value. **The paid tier eliminates that argument, and you eliminate it yourself.**
+
+If a paid member pays $29 for 1,000 views, you have publicly established that a view is
+worth $0.029 and a credit is worth whatever your rate card says. Free members earning
+credits are now demonstrably earning money-equivalent, at a rate **you published**.
+
+That also makes the barter tax exposure in §10.6 concrete rather than theoretical — the
+value is documented — and it means paying contributors in scrip redeemable only for your own
+services, which is its own uncomfortable posture. **[counsel]**
+
+### 11.3 It makes the paying customers the most conspicuous accounts in the system
+
+The graph problem from §10.3 gets worse, and it now targets the people paying you.
+
+Free members both give and receive, so they look roughly reciprocal. Paid members
+**receive only** — a cluster of accounts absorbing concentrated engagement from a bounded
+viewer population and returning none.
+
+Zero-reciprocity concentration is close to the textbook signature of purchased engagement.
+You would be selling your paying customers the most detectable position in the network,
+which is an unusually bad thing to charge for.
+
+### 11.4 The economics are roughly 8x worse than the same structure carrying opinions
+
+Hold the architecture fixed and change only what members produce:
+
+| | Views | Feedback |
+|---|---|---|
+| Paid tier | $29/mo → 1,000 views | $49/mo → 50 critiques |
+| Member labour to fill it | 1,000 × 30s = **8.3 hours** | 50 × 2 min = **1.7 hours** |
+| Revenue per hour of member time | **$3.48** | **$29.40** |
+
+Same two tiers. Same fill mechanic. Same free-labour-serves-paid-orders design. **Eight times
+the revenue per hour of member effort**, because an opinion is worth more than an eyeball.
+
+That gap is the entire thesis of this plan, restated inside your own structure.
+
+### 11.5 The one real distinction worth knowing
+
+Website traffic exchanges have run for twenty years without much interference, and social
+engagement exchanges get shut down. The difference isn't enforcement appetite — it's that
+**a website exchange has no third-party victim.** The site owner wants the traffic; no
+platform's metrics are being inflated; there's nobody to complain.
+
+Point the same machine at YouTube or Instagram and a third party's measurement system is
+now being corrupted, which is exactly where enforcement lives.
+
+So if an exchange is something you're determined to build, aiming it at plain websites
+(with the ad-network block from [05-risk-compliance.md](05-risk-compliance.md) §2 still
+absolute) is far safer than aiming it at social platforms. I still wouldn't build it — it's
+low-margin, it's the business model most likely to cost you Stripe, and it fills the
+community with marketers instead of consumers — but the platform-policy objection largely
+evaporates, and that distinction is worth understanding rather than blurring.
+
+### 11.6 Keep the structure. Change the labour.
+
+Your marketplace design is sound. Free contributors service paid orders; paying customers
+buy their way out of contributing. That's a legitimate and well-proven two-sided mechanic,
+and it solves cold start. **The only thing wrong with it is the unit of work.**
+
+**Creator Exchange** — free members critique other members' uploaded thumbnails, titles and
+creative, earning credits. Paid members skip contributing and buy critiques outright.
+No platform is touched by anyone. Creators are a real, underserved market with money.
+
+**B2B Study Exchange** — free members answer research studies as respondents, earning
+credits. Paid members buy studies with cash. Free members' responses fill paid members'
+studies. Restrict to B2B studies where business owners are the correct respondents
+([01-strategy.md](01-strategy.md) §5), and it seeds the marketplace at near-zero cost.
+
+Both are the identical architecture you proposed. Both are clean. Both build the data asset
+instead of contaminating it. Neither can cost a member their account.
+
+### 11.7 Summary
+
+| Variant | Money in? | Platform-safe? | $/hr of member labour | Builds the asset? |
+|---|---|---|---|---|
+| Pure credit pod (§10) | No | No | — | No |
+| **Hybrid: paid buys out, free fills** | **Yes** | **No — both failure modes** | **~$3.50** | **No** |
+| Website-only exchange | Yes | Mostly¹ | ~$3.50 | No |
+| **Creator Exchange (critiques)** | **Yes** | **Yes** | **~$29** | **Yes, separate pool** |
+| **B2B Study Exchange** | **Yes** | **Yes** | **~$29** | **Yes** |
+
+¹ no third-party platform involved, but the ad-network block still applies absolutely, and
+the processor and panel-contamination objections in §11.5 remain.
