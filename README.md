@@ -71,6 +71,13 @@ unsigned and trivially forged. It exists so the areas can be built and
 reviewed, it is refused outright in production, and it gets deleted when real
 auth (Clerk or Supabase Auth) lands in Phase 1.
 
+## Deploying
+
+See [`DEPLOYMENT.md`](DEPLOYMENT.md). Short version: this is a Node
+application, so it needs a host that runs Node — Vercel is the path of least
+resistance. Uploading files to shared hosting produces a 403 from Apache,
+because the app never starts.
+
 ## Scripts
 
 | Command | Does |
