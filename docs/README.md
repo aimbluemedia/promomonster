@@ -11,6 +11,7 @@ Working documents for PromoMonster.com. Read in order.
 | [04-data-model.md](04-data-model.md) | Schema, money ledger, task leasing, indexes |
 | [05-risk-compliance.md](05-risk-compliance.md) | Legal register, payments, tax, privacy, trademark |
 | [06-platform-enforcement.md](06-platform-enforcement.md) | Why paid social/search views were cut, platform by platform |
+| [07-social-product-design.md](07-social-product-design.md) | How to show panelists social content legitimately — what to build instead |
 
 **Operating constraints these documents assume:** solo founder building it, under $25,000
 of Year-1 cash. [00-execution-plan.md](00-execution-plan.md) is the plan that fits those;

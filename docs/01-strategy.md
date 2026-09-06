@@ -30,7 +30,8 @@ Ordered by gross profit contribution, not by how easy they are to explain.
 | **Site Feedback Study** | 50–500 real people visit your page and answer 3–6 questions. First impression, comprehension, objection, intent. | 12 credits/response (~$0.90–1.20) |
 | **Head-to-Head Test** | Two headlines / hero images / offers / logos. Which wins, and *why*, in the respondent's words. | 15 credits/response |
 | **Search Result Test** | Your listing against three real competitors' SERP snippets. Which would they click, and why — reviews, brand, headline, offer? | 15 credits/response |
-| **Social Creative Test** | Real thumbnail + title + first three seconds. Would they click? What did they expect? | 15 credits/response |
+| **Social Creative Test** | Real thumbnail + title + first three seconds, rendered in a feed frame on our own page. Would they click? What did they expect? Thumb-stop and 3-second recall variants. See [07](07-social-product-design.md). | 15 credits/response |
+| **Awareness Tracking** | Same five brand-recall questions to a fresh sample monthly, trended. No platform contact, natural subscription product. | 12 credits/response |
 | **Targeted Study** | Any of the above, filtered on profile: state, ZIP, age, income band, homeowner, B2B job function, category intent. | 30–60 credits/response |
 
 This is the category with real comparables — PickFu, Wynter, UserTesting, Prolific — where

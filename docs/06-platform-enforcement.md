@@ -170,7 +170,9 @@ for 15 credits instead of 1.5.
 
 ## 6. What replaces them
 
-Every insight the cut products supposedly delivered, available legitimately at higher margin:
+Every insight the cut products supposedly delivered, available legitimately at higher margin.
+[07-social-product-design.md](07-social-product-design.md) specs these out — how to put
+social content in front of panelists without the platform ever registering it.
 
 | They wanted | Cut product | Replacement | Credits |
 |---|---|---|---|
