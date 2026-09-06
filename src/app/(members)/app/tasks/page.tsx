@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { PageHeading, SampleDataNotice } from "@/components/app-shell";
 import { Card } from "@/components/ui";
 
@@ -35,13 +36,12 @@ export default function TasksPage() {
               <span className="text-lg font-semibold text-earn">
                 {task.pay}
               </span>
-              <button
-                type="button"
-                disabled
-                className="rounded-lg bg-earn px-4 py-2 text-sm font-semibold text-white opacity-50"
+              <Link
+                href="/app/tasks/site-feedback-home-services"
+                className="rounded-lg bg-earn px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
               >
                 Start
-              </button>
+              </Link>
             </div>
           </Card>
         ))}

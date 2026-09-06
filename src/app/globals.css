@@ -13,6 +13,16 @@
   --color-lime: var(--lime);
   --color-earn: var(--earn);
 
+  /* Ordinal ramp for rating distributions (1-5). Light->dark, single hue.
+     Validated with the dataviz validateOrdinal check in both modes:
+     lightness monotone, adjacent dL >= 0.06, light-end contrast >= 2:1,
+     hue spread <= 3deg. Do not hand-tune these without re-running it. */
+  --color-scale-1: var(--scale-1);
+  --color-scale-2: var(--scale-2);
+  --color-scale-3: var(--scale-3);
+  --color-scale-4: var(--scale-4);
+  --color-scale-5: var(--scale-5);
+
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
@@ -30,6 +40,12 @@
   --brand-ink: #063f35;
   --lime: #8ed03f;
   --earn: #c2621d;
+
+  --scale-1: #78bfb0;
+  --scale-2: #5daa9b;
+  --scale-3: #429586;
+  --scale-4: #268070;
+  --scale-5: #0b6b5b;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -45,6 +61,12 @@
     --brand-ink: #9ff0dd;
     --lime: #a8e055;
     --earn: #e8955a;
+
+    --scale-1: #1a5a4e;
+    --scale-2: #377c6e;
+    --scale-3: #559f8f;
+    --scale-4: #72c1af;
+    --scale-5: #8fe3cf;
   }
 }
 

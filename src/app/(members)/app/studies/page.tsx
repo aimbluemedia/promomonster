@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { PageHeading, SampleDataNotice } from "@/components/app-shell";
 import { Card } from "@/components/ui";
 
@@ -15,6 +16,14 @@ export default function StudiesPage() {
       <PageHeading
         title="Studies"
         description="Every study you've run, and what came back."
+        action={
+          <Link
+            href="/app/studies/new"
+            className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+          >
+            New study
+          </Link>
+        }
       />
       <SampleDataNotice>
         The study builder and live results view are Phase 1 — see
@@ -34,7 +43,14 @@ export default function StudiesPage() {
           <tbody className="divide-y divide-line">
             {studies.map((study) => (
               <tr key={study.name}>
-                <td className="px-5 py-3.5 font-medium">{study.name}</td>
+                <td className="px-5 py-3.5 font-medium">
+                  <Link
+                    href="/app/studies/homepage-first-impressions"
+                    className="hover:text-brand hover:underline"
+                  >
+                    {study.name}
+                  </Link>
+                </td>
                 <td className="hidden px-5 py-3.5 text-muted sm:table-cell">{study.type}</td>
                 <td className="px-5 py-3.5 font-mono text-xs text-muted">{study.n}</td>
                 <td className="hidden px-5 py-3.5 font-mono text-xs text-muted sm:table-cell">{study.cost}</td>

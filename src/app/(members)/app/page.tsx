@@ -17,7 +17,7 @@ export default async function MembersOverview() {
           description="Your studies at a glance."
           action={
             <Link
-              href="/app/studies"
+              href="/app/studies/new"
               className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
             >
               New study
