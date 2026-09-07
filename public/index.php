@@ -15,9 +15,39 @@ declare(strict_types=1);
 if (PHP_SAPI === 'cli-server') {
     $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
     $candidate = realpath(__DIR__ . urldecode($path));
+    // Only ever hand back known static assets. Anything else -- above all a
+    // .php file -- must fall through so it is executed, never emitted as
+    // source. Returning the raw bytes of a stray config.php would leak
+    // credentials.
+    $types = [
+        'css' => 'text/css', 'js' => 'text/javascript', 'svg' => 'image/svg+xml',
+        'png' => 'image/png', 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg',
+        'gif' => 'image/gif', 'webp' => 'image/webp', 'ico' => 'image/x-icon',
+        'woff' => 'font/woff', 'woff2' => 'font/woff2', 'txt' => 'text/plain',
+    ];
+    $ext = strtolower(pathinfo((string) $candidate, PATHINFO_EXTENSION));
+
     if ($candidate !== false
         && is_file($candidate)
         && str_starts_with($candidate, __DIR__ . DIRECTORY_SEPARATOR)
+        && isset($types[$ext])
+    ) {
+        // Emitted directly rather than via `return false`, because the built-in
+        // server resolves that against ITS document root, which is the project
+        // root under the shared-hosting fallback layout.
+        header('Content-Type: ' . $types[$ext]);
+        readfile($candidate);
+        return true;
+    }
+
+    // A real .php file under public/ (diagnose.php, say) is handed back to the
+    // server so it EXECUTES it. `return false` is what makes that happen —
+    // reading the bytes ourselves would emit the source instead.
+    if ($candidate !== false
+        && is_file($candidate)
+        && str_starts_with($candidate, __DIR__ . DIRECTORY_SEPARATOR)
+        && $ext === 'php'
+        && $candidate !== __FILE__
     ) {
         return false;
     }

@@ -22,6 +22,13 @@ final class Router
     public function dispatch(string $method, string $uri): void
     {
         $path = '/' . trim(parse_url($uri, PHP_URL_PATH) ?: '/', '/');
+
+        // When the document root is the project root rather than public/, the
+        // root .htaccess rewrites into public/ and the request URI keeps that
+        // prefix. Strip it so routes match under either layout.
+        if ($path === '/public' || str_starts_with($path, '/public/')) {
+            $path = '/' . ltrim(substr($path, 7), '/');
+        }
         $method = strtoupper($method);
 
         // HEAD is GET without a body; PHP discards the body for us.
