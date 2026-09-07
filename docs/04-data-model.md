@@ -1,7 +1,14 @@
 # 04 — Data Model
 
-Postgres 16. Money is **`bigint` cents**, everywhere, no exceptions. Credits are
-`numeric(12,2)` because task types cost fractional credits (1.5).
+> **The shipped schema is MySQL.** This document is written in Postgres dialect
+> as the design reference; the build runs on MySQL/MariaDB, and the executable
+> port lives in [`database/migrations/`](../database/migrations/) with
+> [`database/full-schema.sql`](../database/full-schema.sql) as a single
+> phpMyAdmin import. Where the two differ — partial unique indexes, `CITEXT`,
+> `JSONB` + GIN, `TIMESTAMPTZ` — the migration files carry the porting notes.
+
+Money is **integer cents**, everywhere, no exceptions. Credits are
+`numeric(12,2)` / `DECIMAL(12,2)` because task types cost fractional credits (1.5).
 
 The draft's schema had `transactions.amount` untyped, a mutable `earners.balance` column,
 and `tasks` assigned rather than leased. Each of those is a production incident waiting to

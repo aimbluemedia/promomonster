@@ -27,8 +27,9 @@ app/             application code, kept out of the web root
   Controllers/
   Views/
 database/
-  migrate.php    applies every migration in order
-  migrations/
+  migrate.php       applies pending migrations, tracked so re-runs are safe
+  migrations/       001 = Phase 0; 002-005 = Phase 1 platform schema
+  full-schema.sql   every migration in one file, for phpMyAdmin import
 docs/            business plan and product specs
 ```
 
@@ -44,6 +45,25 @@ Phase 0 per the execution plan — the public site and waitlist capture:
 
 The members area, admin area and study tooling are **Phase 1**, gated behind 20
 hand-sold studies — see [`docs/00-execution-plan.md`](docs/00-execution-plan.md) §3.
+
+## Database
+
+Two ways to build it:
+
+```bash
+php database/migrate.php          # tracked, idempotent, safe to re-run
+```
+
+or, with no SSH access, import [`database/full-schema.sql`](database/full-schema.sql)
+through phpMyAdmin's SQL tab.
+
+`001` is all Phase 0 needs. `002`–`005` are the Phase 1 platform schema — users,
+campaigns, task slots, the double-entry ledger, payouts, fraud and audit — and
+are harmless to create ahead of time.
+
+**Requires MySQL 8.0+ or MariaDB 10.6+.** The task-slot claim uses
+`SELECT ... FOR UPDATE SKIP LOCKED`; without it, two panel members can be handed
+the same slot. `migrate.php` checks the server version and warns.
 
 ## Local development
 
