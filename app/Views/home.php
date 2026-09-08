@@ -3,12 +3,18 @@
 <section class="section">
   <div class="container hero">
     <?php
-      // Drop a licensed photograph at public/assets/img/hero.jpg and it is used
-      // automatically -- no code change. Until then, a placeholder that reads as
-      // deliberate rather than broken.
-      $heroJpg = BASE_PATH . '/public/assets/img/hero.jpg';
-      $hasHero = is_file($heroJpg);
-      $heroSrc = $hasHero ? '/assets/img/hero.jpg' : '/assets/img/hero-placeholder.svg';
+      // Drop a licensed photograph at public/assets/img/hero.png and it is used
+      // automatically -- no code change. jpg and webp are accepted too, so a
+      // file saved in either still works; png wins if more than one exists.
+      // Until then, a placeholder that reads as deliberate rather than broken.
+      $heroSrc = '/assets/img/hero-placeholder.svg';
+      foreach (['hero.png', 'hero.jpg', 'hero.webp'] as $candidate) {
+          if (is_file(BASE_PATH . '/public/assets/img/' . $candidate)) {
+              $heroSrc = '/assets/img/' . $candidate;
+              break;
+          }
+      }
+      $hasHero = $heroSrc !== '/assets/img/hero-placeholder.svg';
     ?>
     <div class="hero__media">
       <img src="<?= View::e($heroSrc) ?>" width="1000" height="800" fetchpriority="high"
