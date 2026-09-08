@@ -153,6 +153,46 @@ h3{ font-size:1.0625rem; font-weight:700; letter-spacing:-.01em; }
 .feature h3{ margin-bottom:.4rem; }
 .feature p{ margin:0; font-size:.94rem; color:var(--body); }
 
+/* Hero — photo left, content right, mirroring the reference layout */
+.hero{ display:grid; gap:2.5rem; align-items:center; }
+@media (min-width:960px){
+  /* Stretch, not centre: the right column is taller than a 5:4 image, and
+     centring left dead space above and below the photo. */
+  .hero{ grid-template-columns:0.92fr 1.08fr; gap:3.5rem; align-items:stretch; }
+  .hero__media{ display:flex; }
+  .hero__media img{ height:100%; aspect-ratio:auto; min-height:34rem; }
+}
+
+.hero__media{ position:relative; }
+.hero__media img{ width:100%; aspect-ratio:5/4; object-fit:cover;
+  border-radius:var(--radius); border:1px solid var(--line); background:var(--tint); }
+/* A photograph should crop to fill; the placeholder must not, or its own
+   caption gets cut off. */
+.hero__media img.is-placeholder{ object-fit:contain; padding:2rem; }
+
+/* Floating proof card. Stays useful once a real photograph replaces the
+   placeholder, which is the point of overlapping it rather than insetting it. */
+.hero__float{ position:absolute; left:1rem; bottom:-1.35rem; right:1rem;
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-sm);
+  box-shadow:0 12px 28px rgba(11,27,43,.10); padding:.85rem 1rem;
+  display:flex; align-items:center; gap:.85rem; }
+@media (min-width:520px){ .hero__float{ right:auto; max-width:22rem; } }
+@media (prefers-color-scheme: dark){ .hero__float{ box-shadow:0 12px 28px rgba(0,0,0,.45); } }
+.hero__float .stars{ font-size:1rem; }
+.hero__float p{ margin:.1rem 0 0; font-size:.82rem; color:var(--body); }
+.hero__float strong{ font-size:.9rem; color:var(--ink); }
+
+/* Compact numbered card for the hero row */
+.step--sm{ padding:1.15rem .85rem; }
+.step--sm .chip{ width:2.4rem; height:2.4rem; margin-bottom:.65rem; }
+.step--sm .chip svg{ width:1.2rem; height:1.2rem; }
+.step--sm h3{ font-size:.98rem; }
+.step--sm p{ font-size:.84rem; line-height:1.45; }
+.hero__cards{ display:grid; gap:.85rem; margin-top:2rem; }
+@media (min-width:560px){ .hero__cards{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+
+.hero__note{ margin:1.5rem 0 0; font-size:.9rem; color:var(--body); }
+
 /* Availability tag — never let a roadmap item read as a shipped one */
 .tag{ display:inline-block; font-size:.68rem; font-weight:800; letter-spacing:.07em;
   text-transform:uppercase; border-radius:999px; padding:.2rem .55rem; margin-left:.5rem;

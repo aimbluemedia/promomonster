@@ -1,47 +1,60 @@
 <?php use App\Support\Icon; use App\Support\View; ?>
 
 <section class="section">
-  <div class="container split">
+  <div class="container hero">
+    <?php
+      // Drop a licensed photograph at public/assets/img/hero.jpg and it is used
+      // automatically -- no code change. Until then, a placeholder that reads as
+      // deliberate rather than broken.
+      $heroJpg = BASE_PATH . '/public/assets/img/hero.jpg';
+      $hasHero = is_file($heroJpg);
+      $heroSrc = $hasHero ? '/assets/img/hero.jpg' : '/assets/img/hero-placeholder.svg';
+    ?>
+    <div class="hero__media">
+      <img src="<?= View::e($heroSrc) ?>" width="1000" height="800" fetchpriority="high"
+           class="<?= $hasHero ? '' : 'is-placeholder' ?>"
+           alt="<?= $hasHero ? 'A home service professional finishing a job at a customer&rsquo;s home.' : '' ?>">
+      <div class="hero__float">
+        <span class="stars" aria-hidden="true">★★★★★</span>
+        <span>
+          <strong>+38 reviews in 90 days</strong>
+          <p>Acme Pools &middot; Mesa, AZ</p>
+        </span>
+      </div>
+    </div>
+
     <div>
       <p class="eyebrow">Reputation Management</p>
       <h1>Reviews. Reputation. Growth.</h1>
-      <p class="lede">Ask every customer for a review, respond to what comes
-        back, and put it to work — automatically. Built for local businesses
-        that know reviews decide who gets called first.</p>
+      <p class="lede">Ask every customer for a review, reply to what comes back,
+        and put it to work on your website — automatically. Built for local
+        businesses that get chosen, or skipped, on their star rating.</p>
+
+      <div class="hero__cards">
+        <?php foreach ([
+          ['01','users','Collect','Every customer asked, at the right moment.'],
+          ['02','sparkle','Respond','Drafted replies, sent in a click by you.'],
+          ['03','chart','Grow','Reviews on your site, working for you.'],
+        ] as [$num,$icon,$title,$body]): ?>
+          <div class="step step--sm">
+            <?= Icon::chip($icon) ?>
+            <div class="step__num"><?= $num ?></div>
+            <h3><?= View::e($title) ?></h3>
+            <p><?= View::e($body) ?></p>
+          </div>
+        <?php endforeach; ?>
+      </div>
+
+      <ul class="pills">
+        <li>Google</li><li>SMS &amp; email</li><li>QR codes</li><li>AI replies</li>
+      </ul>
+
+      <p class="hero__note">Everything compliant. We never gate, incentivise or
+        write reviews.</p>
+
       <div class="btn-row">
         <a class="btn btn--primary" href="/audit">Get your free review audit</a>
         <a class="btn btn--ghost" href="/how-it-works">See how it works</a>
-      </div>
-      <ul class="pills">
-        <li>Google</li><li>SMS &amp; email</li><li>QR codes</li>
-        <li>AI replies</li><li>Website widget</li>
-      </ul>
-    </div>
-
-    <div class="media" aria-hidden="true">
-      <div class="media__bar">
-        <span class="media__dot"></span><span class="media__dot"></span><span class="media__dot"></span>
-      </div>
-      <div class="media__body">
-        <div>
-          <div class="score">
-            <span class="score__val">4.8</span><span class="score__max">★ · 214 reviews</span>
-          </div>
-          <div class="meter"><span style="width:78%"></span></div>
-          <p class="muted" style="margin:.6rem 0 0;font-size:.85rem;">+38 reviews in the last 90 days</p>
-        </div>
-        <div class="review">
-          <div class="review__top">
-            <span class="review__who">Denise R.</span><span class="stars">★★★★★</span>
-          </div>
-          <p>Turned up when they said, cleaned up after, and the price was the price. No notes.</p>
-        </div>
-        <div class="review">
-          <div class="review__top">
-            <span class="review__who">Marcus T.</span><span class="stars">★★★★★</span>
-          </div>
-          <p>Second time using them. Same crew, same standard.</p>
-        </div>
       </div>
     </div>
   </div>
