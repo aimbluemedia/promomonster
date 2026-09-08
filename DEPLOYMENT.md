@@ -108,6 +108,22 @@ set for the directory.
 
 You haven't created `app/config.php` yet. See step 3.
 
+### Hero image not showing
+
+The page looks for `assets/img/hero.png` **relative to your document root** —
+the same folder that holds `index.php` and `assets/`.
+
+- Preferred layout (document root is `public_html`): put it at `public_html/assets/img/hero.png`
+- Fallback layout (whole project in `public_html`): put it at `public_html/public/assets/img/hero.png`
+
+Confirm it is reachable directly at `https://your-domain/assets/img/hero.png`.
+If that 404s, the file is in the wrong folder. If it loads but the page still
+shows the placeholder, check the filename is exactly `hero.png` — lowercase,
+no `.PNG`, no trailing space, no `hero (1).png`. Linux servers are
+case-sensitive where your computer may not be.
+
+`.jpg` and `.webp` also work.
+
 ### Styles missing
 
 `assets/` didn't upload, or it landed in the wrong place. `app.css` must be

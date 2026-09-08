@@ -53,6 +53,13 @@ if (PHP_SAPI === 'cli-server') {
     }
 }
 
+/**
+ * Absolute path to the web root. Resolved from this file rather than from the
+ * project root, because in the recommended deployment the contents of public/
+ * are copied into public_html and no `public` directory exists on the server.
+ */
+define('PUBLIC_PATH', __DIR__);
+
 require dirname(__DIR__) . '/app/bootstrap.php';
 
 use App\Controllers\LeadController;

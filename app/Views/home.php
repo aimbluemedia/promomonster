@@ -9,7 +9,7 @@
       // Until then, a placeholder that reads as deliberate rather than broken.
       $heroSrc = '/assets/img/hero-placeholder.svg';
       foreach (['hero.png', 'hero.jpg', 'hero.webp'] as $candidate) {
-          if (is_file(BASE_PATH . '/public/assets/img/' . $candidate)) {
+          if (is_file(PUBLIC_PATH . '/assets/img/' . $candidate)) {
               $heroSrc = '/assets/img/' . $candidate;
               break;
           }

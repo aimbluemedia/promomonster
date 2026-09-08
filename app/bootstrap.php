@@ -13,6 +13,12 @@ declare(strict_types=1);
 define('APP_ROOT', __DIR__);
 define('BASE_PATH', dirname(__DIR__));
 
+// public/index.php defines this before loading us. CLI entry points (migrate.php)
+// do not, so fall back to the repository layout for them.
+if (!defined('PUBLIC_PATH')) {
+    define('PUBLIC_PATH', BASE_PATH . '/public');
+}
+
 spl_autoload_register(static function (string $class): void {
     if (!str_starts_with($class, 'App\\')) {
         return;
