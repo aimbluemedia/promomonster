@@ -1,5 +1,5 @@
 <?php
-/** @var string $content @var ?string $title @var ?string $description */
+/** @var string $content @var ?string $title @var ?string $description @var ?string $current */
 use App\Support\View;
 ?>
 <!doctype html>

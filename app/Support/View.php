@@ -28,6 +28,7 @@ final class View
             'content' => $content,
             'title' => $data['title'] ?? null,
             'description' => $data['description'] ?? null,
+            'current' => $data['current'] ?? null,
         ]);
     }
 

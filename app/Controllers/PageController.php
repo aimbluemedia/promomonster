@@ -8,43 +8,51 @@ use App\Support\View;
 
 final class PageController
 {
-    public function home(): void
-    {
-        echo View::page('home', [
-            'title' => 'PromoMonster — Real People. Real Answers.',
-            'description' => 'Find out what real people think of your website, your content and your ad creative. Studies from 50 to 500 real respondents, usually back the same day.',
-        ]);
-    }
+    private const PAGES = [
+        'home' => [
+            'home',
+            'PromoMonster — Reviews. Reputation. Growth.',
+            'Ask every customer for a review, respond to what comes back, and put it to work. Reputation management for local businesses, from $39/month.',
+        ],
+        'howItWorks' => [
+            'how-it-works',
+            'How it works · PromoMonster',
+            'Ask everyone, reply to everyone, show the result. A review process built for your kind of business, running on its own.',
+        ],
+        'features' => [
+            'features',
+            'Features · PromoMonster',
+            'Collect reviews by SMS, email and QR code. Monitor and reply with AI-drafted responses. Show them on your site. Track every location.',
+        ],
+        'pricing' => [
+            'pricing',
+            'Pricing · PromoMonster',
+            'From $39/month. No setup fee, no contract, no sales call. Competitors charge $300-$600 for this.',
+        ],
+        'agencies' => [
+            'agencies',
+            'For agencies · PromoMonster',
+            'Add reputation management to what you already sell. White-label reports, one login for every client, revenue share.',
+        ],
+        'audit' => [
+            'audit',
+            'Free review audit · PromoMonster',
+            'See your rating, your review velocity, what is going unanswered, and how you compare to your three nearest competitors. Free.',
+        ],
+    ];
 
-    public function business(): void
+    public function __call(string $name, array $arguments): void
     {
-        echo View::page('business', [
-            'title' => 'Find out what real people think of your site · PromoMonster',
-            'description' => 'Studies from 50 to 500 real US respondents. First impressions, head-to-head tests, competitor comparisons and ad creative testing.',
-        ]);
-    }
+        $page = self::PAGES[$name] ?? null;
+        if ($page === null) {
+            throw new \BadMethodCallException("Unknown page: {$name}");
+        }
+        [$template, $title, $description] = $page;
 
-    public function earn(): void
-    {
-        echo View::page('earn', [
-            'title' => 'Get paid to share your opinion · PromoMonster',
-            'description' => 'Look at a website, answer a few honest questions, get paid. Around $8–$16 an hour, cash out at $10, work whenever you want.',
-        ]);
-    }
-
-    public function content(): void
-    {
-        echo View::page('services/content', [
-            'title' => 'Content testing · PromoMonster',
-            'description' => 'Find out whether your article, landing page or guide actually lands.',
-        ]);
-    }
-
-    public function social(): void
-    {
-        echo View::page('services/social', [
-            'title' => 'Social creative testing · PromoMonster',
-            'description' => 'Test your thumbnail, title and hook on real people before you post.',
+        echo View::page($template, [
+            'title'       => $title,
+            'description' => $description,
+            'current'     => $template === 'home' ? '/' : '/' . $template,
         ]);
     }
 }

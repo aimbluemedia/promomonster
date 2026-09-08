@@ -55,8 +55,8 @@ if (PHP_SAPI === 'cli-server') {
 
 require dirname(__DIR__) . '/app/bootstrap.php';
 
+use App\Controllers\LeadController;
 use App\Controllers\PageController;
-use App\Controllers\WaitlistController;
 use App\Support\Router;
 
 header('X-Content-Type-Options: nosniff');
@@ -66,13 +66,14 @@ header('Referrer-Policy: strict-origin-when-cross-origin');
 $router = new Router();
 $pages = new PageController();
 
-$router->get('/',                  [$pages, 'home']);
-$router->get('/business',          [$pages, 'business']);
-$router->get('/earn',              [$pages, 'earn']);
-$router->get('/services/content',  [$pages, 'content']);
-$router->get('/services/social',   [$pages, 'social']);
+$router->get('/',             [$pages, 'home']);
+$router->get('/how-it-works', [$pages, 'howItWorks']);
+$router->get('/features',     [$pages, 'features']);
+$router->get('/pricing',      [$pages, 'pricing']);
+$router->get('/agencies',     [$pages, 'agencies']);
+$router->get('/audit',        [$pages, 'audit']);
 
-$router->post('/waitlist', [new WaitlistController(), 'store']);
+$router->post('/leads', [new LeadController(), 'store']);
 
 $router->dispatch(
     $_SERVER['REQUEST_METHOD'] ?? 'GET',
