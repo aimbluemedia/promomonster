@@ -18,6 +18,8 @@
       <a href="/pricing">Pricing</a>
       <a href="/agencies">For Agencies</a>
       <a href="/audit">Free Review Audit</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
     </nav>
   </div>
   <div class="container site-footer__legal">

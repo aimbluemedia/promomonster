@@ -72,6 +72,8 @@ $router->get('/features',     [$pages, 'features']);
 $router->get('/pricing',      [$pages, 'pricing']);
 $router->get('/agencies',     [$pages, 'agencies']);
 $router->get('/audit',        [$pages, 'audit']);
+$router->get('/privacy',      [$pages, 'privacy']);
+$router->get('/terms',        [$pages, 'terms']);
 
 $router->post('/leads', [new LeadController(), 'store']);
 

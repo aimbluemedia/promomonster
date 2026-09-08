@@ -28,6 +28,7 @@ $plans = [
   ]],
 ];
 $faqs = [
+  ['When can I actually sign up?', 'Not yet. Right now we run review audits and setups by hand for a small number of businesses while the platform is built. That is deliberate: it is how we learn what to build. Request an audit and we will tell you honestly whether we can help you now or whether you should check back.'],
   ['Why does SMS start at Growth and not Starter?', 'Because sending review requests by text requires each business to be registered with the mobile carriers, and that carries a real monthly cost. At $39 those fees would eat most of the plan. Starter stays genuinely useful without it, and Growth covers it properly rather than us pretending it is free.'],
   ['Do you filter out unhappy customers before asking?', 'No, and we never will. That is called review gating: Google prohibits it and the FTC treats it as deceptive. Some tools still do it quietly. It puts the profile you have spent years building at risk.'],
   ['Can I offer a discount for leaving a review?', 'No. Google prohibits any incentive for a review, regardless of what the review says. Our templates keep you on the right side of that automatically.'],
@@ -42,6 +43,13 @@ $faqs = [
     <h1>Straightforward monthly pricing</h1>
     <p class="lede">No setup fee, no contract, no sales call. Competitors charge
       $300–$600 a month for this.</p>
+    <div class="notice" style="margin-top:2rem;max-width:44rem;margin-inline:auto;text-align:left;">
+      <strong>These plans are not open yet.</strong>
+      <p>We are in early access: audits and setups are run by hand while the
+        platform is built, and there is nothing to pay for today. This is what
+        pricing will look like when self-serve opens. Start with the free audit
+        and you will be first in.</p>
+    </div>
   </div>
 </section>
 

@@ -34,6 +34,16 @@ final class PageController
             'For agencies · PromoMonster',
             'Add reputation management to what you already sell. White-label reports, one login for every client, revenue share.',
         ],
+        'privacy' => [
+            'privacy',
+            'Privacy policy · PromoMonster',
+            'What we collect, what we do with it, and how to have it deleted.',
+        ],
+        'terms' => [
+            'terms',
+            'Terms of use · PromoMonster',
+            'The terms covering this website, and what we will and will not do.',
+        ],
         'audit' => [
             'audit',
             'Free review audit · PromoMonster',
