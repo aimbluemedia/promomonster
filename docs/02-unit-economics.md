@@ -1,176 +1,148 @@
-# 02 — Unit Economics & Financial Model
+# 02 — Unit Economics
 
-All figures USD. Panelist payouts are the primary cost of goods; treat them as COGS.
+All figures USD and directional. **Verify SMS and 10DLC pricing with your chosen
+provider before committing to a price list** — it is the one input that can
+invert a tier's margin.
 
-## 1. The governing rule
+## 1. Headline
 
-> **credits_required × floor_credit_price ≥ 2.4 × panelist_payout**
+Ordinary SaaS margins, which the click model never had:
 
-Floor credit price is **$0.070** (the deepest volume discount permitted, 30% off the $0.10
-list price). Any task type that fails this rule cannot be listed. This single constraint is
-what the original draft was missing, and it's why its pricing collapsed at volume.
-
-**What went wrong in the draft:** the 5,000-credit pack at $349 puts a credit at $0.0698.
-A basic visit was 1 credit paying the worker $0.05 — that's $0.0198 of gross margin, or
-**28% before Stripe (2.9% + $0.30) and PayPal payout fees ($0.25/payout)**. Your largest
-and most valuable customers would have been your least profitable. Meanwhile a feedback
-response at 5 credits = **$0.35–0.44** against a market that pays $1.50–$3.00 for the
-identical deliverable — underpriced by roughly 3–4x.
-
-## 2. Credit price ladder
-
-1 credit = **$0.10** list.
-
-| Purchase | Price | $/credit | Discount |
-|---|---|---|---|
-| Pay-as-you-go (min $25) | — | $0.1000 | — |
-| 500 pack | $47 | $0.0940 | 6% |
-| 1,500 pack | $129 | $0.0860 | 14% |
-| 4,000 pack | $319 | $0.0798 | 20% |
-| 10,000 pack | $749 | $0.0749 | 25% |
-| **Starter** | $49/mo | 600 cr → $0.0817 | 18% |
-| **Growth** | $149/mo | 2,000 cr → $0.0745 | 26% |
-| **Scale** | $399/mo | 5,500 cr → $0.0725 | 28% |
-
-The discount curve flattens at the top on purpose. Discount the *unit* by at most 30%;
-sell the top tiers on **seats, targeting, active-study limits, API, white-label reporting
-and priority fielding** instead. Enterprise/annual commits can go below the floor only with
-a signed contract and explicit margin approval.
-
-Credits **do not expire** while the account is active or subscribed. Expiring credits on an
-SMB is a chargeback generator and a review-site liability for the sake of a rounding error.
-
-## 3. Task pricing table
-
-Margin shown at the **floor** ($0.070/credit) — the worst case, not the average.
-
-| Task type | Credits | Rev @ list | Rev @ floor | Panelist | GM @ floor | Ratio |
-|---|---|---|---|---|---|---|
-| Unverified visit | 1.5 | $0.15 | $0.105 | $0.04 | 62% | 2.6x |
-| Verified visit (60s, tagged) | 2 | $0.20 | $0.140 | $0.05 | 64% | 2.8x |
-| Targeted visit (geo/device) | 3 | $0.30 | $0.210 | $0.08 | 62% | 2.6x |
-| Content read (2 min + check) | 4 | $0.40 | $0.280 | $0.11 | 61% | 2.5x |
-| **Feedback response (3–6 Q)** | **12** | **$1.20** | **$0.840** | **$0.35** | **58%** | **2.4x** |
-| Head-to-head / SERP / creative test | 15 | $1.50 | $1.050 | $0.42 | 60% | 2.5x |
-| Long-form open response | 20 | $2.00 | $1.400 | $0.58 | 59% | 2.4x |
-| Screened + profiled study | 30–60 | $3–6 | $2.10–4.20 | $0.85–1.60 | 60% | 2.5x |
-
-Every row clears the 2.4x rule. Screener rejections are paid at $0.03 (panelists must be
-paid for screen-outs or they stop attempting screened studies) and are billed to the
-customer at 1 credit.
-
-## 4. Panelist compensation — the number that decides whether this works
-
-The draft's implied wage is the thing that would have killed it. A 60-second task at $0.05
-is **$3.00/hour if tasks are always available** — and they won't be. Realized earnings at a
-40% feed fill rate are under $1.50/hour. Nobody stays. The panel is the business, so the
-wage is not a cost to minimize; it is the input that determines whether you have a company.
-
-| Task | Time | Pay | Effective rate |
-|---|---|---|---|
-| Verified visit | 60s | $0.05 | $3.00/hr |
-| Targeted visit | 75s | $0.08 | $3.84/hr |
-| Content read | 150s | $0.11 | $2.64/hr |
-| Feedback response | 90s | $0.35 | **$14.00/hr** |
-| Head-to-head test | 100s | $0.42 | **$15.12/hr** |
-| Long-form response | 180s | $0.58 | **$11.60/hr** |
-| Profile completion (one-time) | 4 min | $0.50 | $7.50/hr |
-
-Traffic tasks pay badly per hour and always will — the ceiling is set by what the
-destination is worth. That is a second reason they can't be the main product. **Research
-tasks pay $11–15/hour, which clears Prolific's recommended participant rate and is well
-above MTurk's typical realized wage.** That is a genuinely attractive side income, and it
-is what lets you recruit honestly on Reddit without getting torn apart.
-
-Practical consequence for the product: **the task feed must prioritize research tasks.**
-Traffic is the filler shown when research inventory is empty.
-
-## 5. Gross profit per active panelist — the core comparison
-
-Assume an engaged panelist works ~40 minutes/month.
-
-**Traffic-only panel**
-- 40 visits/month × $0.17 gross ($0.25 blended rev − $0.08 blended pay) = **$6.80 GP/panelist/mo**
-- Panelist earns 40 × $0.08 = **$3.20/month** → churns
-
-**Research-led panel**
-- 30 responses/month × $1.15 gross ($1.50 blended rev − $0.35 pay) = **$34.50 GP/panelist/mo**
-- Panelist earns 30 × $0.35 = **$10.50/month** at $14/hr → stays
-
-**~5.1x the gross profit, ~3.3x the panelist income, from the same person.** And to reach
-$60k/month revenue you need ~1,300 active research panelists versus ~6,000 traffic
-panelists — a cold start you can actually execute.
-
-## 6. Blended margin after real costs
-
-Per $1,000 of customer spend, research-weighted mix:
-
-| Line | Amount | Note |
+| | Click model | Reviews platform |
 |---|---|---|
-| Revenue | $1,000 | |
-| Stripe | −$32 | 2.9% + $0.30, ~$250 avg transaction |
-| Panelist payouts | −$355 | |
-| Payout rails | −$9 | $0.25/payout, ~$35 avg payout |
-| Fraud/rejection re-fielding | −$28 | 8% of panel cost re-fielded |
-| Free re-fields under quality guarantee | −$18 | capped at 20% of responses |
-| **Gross profit** | **$558** | **55.8%** |
+| Gross margin | ~55% | **~85%** |
+| Cost of goods | Panelist payouts | SMS + Stripe |
+| Marginal cost of a customer | High and permanent | Near zero on email-only tiers |
 
-Budget **55% blended gross margin**, not the 50% the draft implied and not the 66% the
-task table suggests. Rejection, re-fielding and the quality guarantee are real and must be
-in the model from day one.
+## 2. Cost of goods, per tier
 
-## 7. Year-1 bottom-up model
+Assumes a business contacting ~100 customers/month on Growth, ~300 on Pro.
 
-The operative model is the **bootstrap case** in
-[00-execution-plan.md](00-execution-plan.md) §6: solo founder, under $25k cash, concierge
-first, self-serve live in month 8.
+| | Starter $39 | Growth $99 | Pro $199 |
+|---|---|---|---|
+| Stripe (2.9% + $0.30) | $1.43 | $3.17 | $6.07 |
+| 10DLC campaign fee | — | $10.00 | $12.00 |
+| SMS (2 msgs × ~$0.024) | — | $4.80 | $14.40 |
+| Email | $0.05 | $0.15 | $0.40 |
+| Infrastructure share | $0.50 | $1.00 | $2.00 |
+| **Total COGS** | **$1.98** | **$19.12** | **$34.87** |
+| **Gross margin** | **95%** | **81%** | **82%** |
 
-**Summary:** ~$109,500 Year-1 revenue · ~$60,200 gross profit · $19,700 cash costs ·
-**~$40,500 cash-positive** before founder compensation · exit run-rate ~$281k ARR ·
-700–1,100 active panelists required at month 12.
+A review request runs to two SMS segments once the link and the required opt-out
+language are included, so budget per-message cost at roughly double the quoted
+per-segment rate.
 
-Unit economics at month 12 (ARPU $170, 55% GM, 8% monthly churn):
+## 3. Blended
 
-- LTV = $170 × 0.55 ÷ 0.08 = **$1,169**
-- CAC ≈ **$120** blended (outbound and content are founder time, not cash)
-- **LTV:CAC ≈ 9.7x**, payback **~1.3 months**
+At a realistic mix — 20% Starter, 60% Growth, 20% Pro — blended ARPU is about
+**$105** with roughly **84% gross margin**. Model **80%** to leave room for
+support, refunds and the customers who send far more than the average.
 
-Those ratios look implausibly good because the largest input — your labour — isn't costed.
-Charge yourself a notional $6,000/month and CAC rises to roughly $400, LTV:CAC to ~2.9x and
-payback to ~4.3 months. **That is the number to plan against**, and it's still healthy. It
-is healthy because of the research mix: rerun it at traffic-only ARPU (~$60/mo) and payback
-goes past 12 months, which is not a business.
+## 4. The number that decides the pricing floor
 
-### If funding later becomes available
+**A2P 10DLC registration is charged per business, not per platform.** Every
+customer who sends SMS needs their own brand and campaign registered, with a
+recurring monthly campaign fee and one-off vetting costs.
 
-A funded variant — contract developer, self-serve live in month 3 — reaches ~$215k Year-1
-revenue and ~$594k exit ARR against ~$219k of costs, so roughly a **$101k loss** with
-founder labour uncosted. It buys about five months of calendar time for around $140k of
-additional burn. Worth considering only once Phase 0 has proven demand; before that it's
-purchasing speed toward an unvalidated destination.
+Run it against the draft's $29 tier:
 
-## 8. Metrics that decide whether this is working
+| | $29 tier with SMS |
+|---|---|
+| Revenue | $29.00 |
+| Stripe | −$1.14 |
+| 10DLC campaign | −$10.00 |
+| SMS, 100 customers | −$4.80 |
+| Infrastructure | −$0.50 |
+| **Gross profit** | **$12.56 — 43%** |
 
-**Leading, watch weekly**
-- Median tasks available per panelist (target ≥ 5) — if this hits zero, the panel dies
-- Study fill time, p50 and p95 (target: 100 responses in < 6 hours)
-- Response rejection rate (target < 10%; > 20% means fraud or bad screening)
-- Panelist D30 retention (target > 30%)
-- Business 2nd-purchase rate within 30 days (target > 45%) — the real PMF signal
+43% before a single support ticket, on the tier that generates the most support
+tickets. And that assumes the cheaper sole-proprietor registration path; on
+standard brand registration the tier loses money.
 
-**Lagging, watch monthly**
-- MRR, ARPU, logo and revenue churn
-- Blended gross margin (alarm below 50%)
-- CAC by channel, LTV:CAC, payback months
-- Fraud loss as % of panel spend (target < 5%)
-- Refund + chargeback rate (alarm above 2% — processors act at 1%)
+**Two decisions follow:**
 
-## 9. Sensitivities worth pre-computing
+1. **Starter is email-only, at $39.** It stays at 95% margin and remains a real product — link, QR code, email requests, monitoring and the playbook are genuinely useful without SMS.
+2. **SMS starts at Growth ($99)**, where a ~$15 all-in messaging cost is comfortably absorbed. This also makes the Starter→Growth upgrade self-evident, since SMS is what customers actually want.
 
-| If… | Then… | Mitigation |
+**Watch multi-location.** A Pro customer with five locations may need five brand
+registrations depending on how the entities are structured. Either cap
+locations per brand or price locations separately — do not discover this after
+signing a franchise.
+
+## 5. Year-1 model
+
+Solo founder, under $25k cash, Phase 0 concierge then self-serve. Assumes 5%
+monthly churn — lower than the 8% used for the panel model, because reviews
+accumulate on the customer's own Google profile and leaving means losing the
+system that produced them.
+
+| Mo | Customers | ARPU | Revenue | GP @84% |
+|---|---|---|---|---|
+| 1 | 4 | $75 | $300 | $252 |
+| 2 | 9 | $78 | $702 | $590 |
+| 3 | 16 | $80 | $1,280 | $1,075 |
+| 4 | 26 | $82 | $2,132 | $1,791 |
+| 5 | 38 | $85 | $3,230 | $2,713 |
+| 6 | 54 | $88 | $4,752 | $3,992 |
+| 7 | 74 | $90 | $6,660 | $5,594 |
+| 8 | 98 | $92 | $9,016 | $7,573 |
+| 9 | 126 | $94 | $11,844 | $9,949 |
+| 10 | 158 | $96 | $15,168 | $12,741 |
+| 11 | 194 | $98 | $19,012 | $15,970 |
+| 12 | 235 | $100 | $23,500 | $19,740 |
+| **Y1** | **235** | | **~$97,600** | **~$82,000** |
+
+**Exit run-rate ~$23.5k MRR ≈ $282k ARR.**
+
+### Cash costs
+
+| Line | Amount |
+|---|---|
+| Legal — terms, privacy, DPA, TCPA and 10DLC review | $4,000 |
+| Entity, banking, registered agent | $500 |
+| Trademark clearance and opinion | $1,000 |
+| Infrastructure, Stripe, email, tooling | $1,500 |
+| SMS provider setup and testing | $500 |
+| Content production for playbooks | $1,500 |
+| Outreach tooling and small ad tests | $2,000 |
+| Design and miscellaneous | $1,000 |
+| Contingency | $4,000 |
+| **Total** | **~$16,000** |
+
+**Gross profit $82,000 − $16,000 = ~$66,000** before founder compensation.
+Cash-positive, self-funding into year two, and roughly 60% better than the
+research-panel version of this plan — almost entirely because gross margin is
+84% instead of 55%.
+
+Legal is the largest line and should stay that way. SMS compliance is where the
+avoidable disasters live.
+
+### Unit economics at month 12
+
+- LTV = $100 × 0.84 ÷ 0.05 = **$1,680**
+- CAC ≈ **$250** once founder time is costed at a notional $6,000/month
+- **LTV:CAC ≈ 6.7x**, payback **~3 months**
+
+Healthy, and healthier than the panel model at every point, because the margin
+is structurally better and reviews retain.
+
+## 6. The assumption most likely to be wrong
+
+235 paying customers means roughly **310 gross adds** across the year, about
+30/month by Q4, while also being the entire engineering and support team.
+
+That is the number to watch. Two things make it achievable, and if adds stall
+around 15/month both are where the time should go:
+
+- **The free audit converting.** Showing an owner that a competitor has four times their reviews is the single strongest motivator in this market.
+- **Playbook pages ranking.** Long-tail vertical queries are low-competition and high-intent, and each page ends in the audit.
+
+## 7. Sensitivities
+
+| If… | Then… | Response |
 |---|---|---|
-| Panel wage must rise to $0.50/response | GM 58% → 40% | Raise to 15 credits; lean on targeted studies |
-| Churn is 12% not 8% | LTV $1,031 → $688, LTV:CAC 2.8x | Annual plans; agency accounts churn less |
-| CAC is $400 not $250 | Payback 4.8 months | Ecosystem distribution is the lever — it's ~free |
-| Fraud loss hits 15% | GM −6 pts | Trust score gating; ID verification above $50 lifetime |
-| Stripe classifies you as high-risk | Rails lost | See [05-risk-compliance.md](05-risk-compliance.md) §4 — this is the top existential risk |
+| 10DLC costs $25/mo per brand | Growth margin 81% → 66% | Raise Growth to $119, or meter SMS above an included allowance |
+| Churn is 8%, not 5% | LTV $1,680 → $1,050 | Annual plans at two months free; the Growth Score is the retention mechanism |
+| Google denies GBP API access | No monitoring or replies | Request-and-track still works on Place ID alone — ship that first regardless |
+| A customer's SMS gets them a TCPA complaint | Legal exposure, carrier scrutiny | Consent capture and quiet hours enforced in code, not policy — see [05-compliance.md](05-compliance.md) §4 |
+| Field-service platforms bundle harder | Home services closes off | Verticals they don't serve, and integrate rather than compete — [01-strategy.md](01-strategy.md) §6 |
