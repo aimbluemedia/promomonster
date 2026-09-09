@@ -106,6 +106,26 @@ foreach ([$base . '/app', $base . '/public', $base . '/public/assets'] as $dir) 
 add($checks, 'Directory permissions', $unreadable === [] ? 'pass' : 'fail',
     $unreadable === [] ? 'Readable.' : 'Not readable by PHP: ' . implode(', ', $unreadable) . ' — set directories to 755 and files to 644.');
 
+// --- Hero image -----------------------------------------------------------
+$heroRoots = array_unique(array_filter([
+    $layout === 'project-as-docroot' ? $here . '/public' : $here,
+    rtrim((string) ($_SERVER['DOCUMENT_ROOT'] ?? ''), '/') ?: null,
+]));
+$heroFound = null;
+$heroTried = [];
+foreach (['hero.png', 'hero.jpg', 'hero.webp'] as $candidate) {
+    foreach ($heroRoots as $root) {
+        $path = $root . '/assets/img/' . $candidate;
+        $heroTried[] = $path;
+        if (is_file($path)) { $heroFound = $path; break 2; }
+    }
+}
+add($checks, 'Hero image', $heroFound !== null ? 'pass' : 'info',
+    $heroFound !== null
+        ? 'Found at ' . $heroFound
+        : 'Not found, so the placeholder is shown. Searched: ' . implode('  |  ', $heroTried)
+          . ' — filenames are case-sensitive on Linux.');
+
 // --- Config and database --------------------------------------------------
 $configPath = $base . '/app/config.php';
 if (!is_file($configPath)) {

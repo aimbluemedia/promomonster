@@ -3,15 +3,23 @@
 <section class="section">
   <div class="container hero">
     <?php
-      // Drop a licensed photograph at public/assets/img/hero.png and it is used
-      // automatically -- no code change. jpg and webp are accepted too, so a
-      // file saved in either still works; png wins if more than one exists.
-      // Until then, a placeholder that reads as deliberate rather than broken.
+      // Drop a licensed photograph at <web root>/assets/img/hero.png and it is
+      // used automatically -- no code change. jpg and webp are accepted too.
+      //
+      // Two roots are searched: PUBLIC_PATH (the directory the front controller
+      // lives in, correct for every documented layout) and DOCUMENT_ROOT, as a
+      // belt-and-braces fallback for hosts that serve from somewhere unusual.
       $heroSrc = '/assets/img/hero-placeholder.svg';
+      $roots = array_unique(array_filter([
+          PUBLIC_PATH,
+          rtrim((string) ($_SERVER['DOCUMENT_ROOT'] ?? ''), '/') ?: null,
+      ]));
       foreach (['hero.png', 'hero.jpg', 'hero.webp'] as $candidate) {
-          if (is_file(PUBLIC_PATH . '/assets/img/' . $candidate)) {
-              $heroSrc = '/assets/img/' . $candidate;
-              break;
+          foreach ($roots as $root) {
+              if (is_file($root . '/assets/img/' . $candidate)) {
+                  $heroSrc = '/assets/img/' . $candidate;
+                  break 2;
+              }
           }
       }
       $hasHero = $heroSrc !== '/assets/img/hero-placeholder.svg';
