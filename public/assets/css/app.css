@@ -165,10 +165,10 @@ h3{ font-size:1.0625rem; font-weight:700; letter-spacing:-.01em; }
 
 .hero__media{ position:relative; }
 .hero__media img{ width:100%; aspect-ratio:5/4; object-fit:cover;
-  border-radius:var(--radius); border:1px solid var(--line); background:var(--tint); }
-/* A photograph should crop to fill; the placeholder must not, or its own
-   caption gets cut off. */
-.hero__media img.is-placeholder{ object-fit:contain; padding:2rem; }
+  border-radius:var(--radius); border:1px solid var(--line);
+  /* If the file is missing the tinted panel shows through rather than a bare
+     broken-image box. */
+  background:var(--tint) url("/assets/img/hero-placeholder.svg") center/60% no-repeat; }
 
 /* Floating proof card. Stays useful once a real photograph replaces the
    placeholder, which is the point of overlapping it rather than insetting it. */

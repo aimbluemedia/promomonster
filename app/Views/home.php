@@ -2,32 +2,13 @@
 
 <section class="section">
   <div class="container hero">
-    <?php
-      // Drop a licensed photograph at <web root>/assets/img/hero.png and it is
-      // used automatically -- no code change. jpg and webp are accepted too.
-      //
-      // Two roots are searched: PUBLIC_PATH (the directory the front controller
-      // lives in, correct for every documented layout) and DOCUMENT_ROOT, as a
-      // belt-and-braces fallback for hosts that serve from somewhere unusual.
-      $heroSrc = '/assets/img/hero-placeholder.svg';
-      $roots = array_unique(array_filter([
-          PUBLIC_PATH,
-          rtrim((string) ($_SERVER['DOCUMENT_ROOT'] ?? ''), '/') ?: null,
-      ]));
-      foreach (['hero.png', 'hero.jpg', 'hero.webp'] as $candidate) {
-          foreach ($roots as $root) {
-              if (is_file($root . '/assets/img/' . $candidate)) {
-                  $heroSrc = '/assets/img/' . $candidate;
-                  break 2;
-              }
-          }
-      }
-      $hasHero = $heroSrc !== '/assets/img/hero-placeholder.svg';
-    ?>
     <div class="hero__media">
-      <img src="<?= View::e($heroSrc) ?>" width="1000" height="800" fetchpriority="high"
-           class="<?= $hasHero ? '' : 'is-placeholder' ?>"
-           alt="<?= $hasHero ? 'A home service professional finishing a job at a customer&rsquo;s home.' : '' ?>">
+      <!-- Served straight from the web root at /assets/img/hero.png. No
+           server-side existence check: it silently swallowed a wrong path
+           twice, where a plain 404 in the network tab says exactly what is
+           wrong. -->
+      <img src="/assets/img/hero.png" width="1000" height="800" fetchpriority="high"
+           alt="A home service professional finishing a job at a customer&rsquo;s home.">
       <div class="hero__float">
         <span class="stars" aria-hidden="true">★★★★★</span>
         <span>
