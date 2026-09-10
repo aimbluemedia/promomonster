@@ -6,9 +6,9 @@
 </div>
 
 <div class="filters">
-  <a href="/admin/audits"<?= $filter === '' ? ' aria-current="page"' : '' ?>>All</a>
+  <a href="/superadmin/audits"<?= $filter === '' ? ' aria-current="page"' : '' ?>>All</a>
   <?php foreach ($statuses as $s): ?>
-    <a href="/admin/audits?status=<?= View::e($s) ?>"<?= $filter === $s ? ' aria-current="page"' : '' ?>>
+    <a href="/superadmin/audits?status=<?= View::e($s) ?>"<?= $filter === $s ? ' aria-current="page"' : '' ?>>
       <?= View::e(ucfirst(str_replace('_', ' ', $s))) ?>
     </a>
   <?php endforeach; ?>
@@ -48,7 +48,7 @@
               <?php endif; ?>
             </td>
             <td class="wrap">
-              <form class="row-form" method="post" action="/admin/audits/update">
+              <form class="row-form" method="post" action="/superadmin/audits/update">
                 <?= Csrf::field() ?>
                 <input type="hidden" name="id" value="<?= (int) $r['id'] ?>">
                 <select name="status" aria-label="Status">

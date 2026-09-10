@@ -33,12 +33,22 @@ final class View
     }
 
     /** Renders a view inside the admin layout. @param array<string,mixed> $data */
-    public static function admin(string $template, array $data = []): string
+    public static function superadmin(string $template, array $data = []): string
     {
         $content = self::render($template, $data);
-        return self::render('admin/layout', $data + [
+        return self::render('superadmin/layout', $data + [
             'content' => $content,
-            'title' => $data['title'] ?? 'Admin',
+            'title' => $data['title'] ?? 'Superadmin',
+        ]);
+    }
+
+    /** Renders a view inside the members layout. @param array<string,mixed> $data */
+    public static function members(string $template, array $data = []): string
+    {
+        $content = self::render($template, $data);
+        return self::render('members/layout', $data + [
+            'content' => $content,
+            'title' => $data['title'] ?? 'PromoMonster',
         ]);
     }
 

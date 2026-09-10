@@ -29,7 +29,7 @@
             <td class="wrap"><?= View::e($r['goal'] ?? '—') ?></td>
             <td>
               <span class="pill-status st-<?= View::e($r['status']) ?>"><?= View::e($r['status']) ?></span>
-              <form class="row-form" method="post" action="/admin/leads/update" style="margin-top:.4rem;">
+              <form class="row-form" method="post" action="/superadmin/leads/update" style="margin-top:.4rem;">
                 <?= Csrf::field() ?>
                 <input type="hidden" name="id" value="<?= (int) $r['id'] ?>">
                 <select name="status" aria-label="Status">

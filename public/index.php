@@ -62,9 +62,10 @@ define('PUBLIC_PATH', __DIR__);
 
 require dirname(__DIR__) . '/app/bootstrap.php';
 
-use App\Controllers\AdminController;
+use App\Controllers\SuperadminController;
 use App\Controllers\AuthController;
 use App\Controllers\LeadController;
+use App\Controllers\MembersController;
 use App\Controllers\PageController;
 use App\Support\Router;
 
@@ -86,21 +87,32 @@ $router->get('/terms',        [$pages, 'terms']);
 
 $router->post('/leads', [new LeadController(), 'store']);
 
-// Admin. AdminController's constructor calls Auth::requireAdmin(), so it is
-// instantiated lazily inside each closure — building it eagerly would redirect
-// every public request to the login form.
+// Superadmin (PromoMonster staff). SuperadminController's constructor calls
+// Auth::requireStaff(), so it is built lazily inside each closure — creating it
+// eagerly would redirect every public request to the login form.
 $auth = new AuthController();
-$router->get('/admin/login',  [$auth, 'showLogin']);
-$router->post('/admin/login', [$auth, 'login']);
-$router->post('/admin/logout', [$auth, 'logout']);
+$router->get('/superadmin/login',   static fn () => $auth->showLogin('superadmin'));
+$router->post('/superadmin/login',  static fn () => $auth->login('superadmin'));
+$router->post('/superadmin/logout', static fn () => $auth->logout('superadmin'));
 
-$router->get('/admin',                  static fn () => (new AdminController())->overview());
-$router->get('/admin/audits',           static fn () => (new AdminController())->audits());
-$router->post('/admin/audits/update',   static fn () => (new AdminController())->updateAudit());
-$router->get('/admin/leads',            static fn () => (new AdminController())->leads());
-$router->post('/admin/leads/update',    static fn () => (new AdminController())->updateLead());
-$router->get('/admin/compliance',       static fn () => (new AdminController())->compliance());
-$router->get('/admin/activity',         static fn () => (new AdminController())->activity());
+$router->get('/superadmin',                  static fn () => (new SuperadminController())->overview());
+$router->get('/superadmin/audits',           static fn () => (new SuperadminController())->audits());
+$router->post('/superadmin/audits/update',   static fn () => (new SuperadminController())->updateAudit());
+$router->get('/superadmin/leads',            static fn () => (new SuperadminController())->leads());
+$router->post('/superadmin/leads/update',    static fn () => (new SuperadminController())->updateLead());
+$router->get('/superadmin/compliance',       static fn () => (new SuperadminController())->compliance());
+$router->get('/superadmin/activity',         static fn () => (new SuperadminController())->activity());
+
+// Members (customers). Same lazy-construction reason as above.
+$router->get('/members/login',   static fn () => $auth->showLogin('members'));
+$router->post('/members/login',  static fn () => $auth->login('members'));
+$router->post('/members/logout', static fn () => $auth->logout('members'));
+
+$router->get('/members',          static fn () => (new MembersController())->overview());
+$router->get('/members/reviews',  static fn () => (new MembersController())->reviews());
+$router->get('/members/requests', static fn () => (new MembersController())->requests());
+$router->get('/members/playbook', static fn () => (new MembersController())->playbook());
+$router->get('/members/settings', static fn () => (new MembersController())->settings());
 
 $router->dispatch(
     $_SERVER['REQUEST_METHOD'] ?? 'GET',

@@ -11,14 +11,14 @@ use App\Support\Database;
 use App\Support\Request;
 use App\Support\View;
 
-final class AdminController
+final class SuperadminController
 {
     private const AUDIT_STATUSES = ['new', 'in_progress', 'delivered', 'converted', 'declined'];
     private const LEAD_STATUSES  = ['new', 'contacted', 'approved', 'declined'];
 
     public function __construct()
     {
-        Auth::requireAdmin();
+        Auth::requireStaff();
     }
 
     public function overview(): void
@@ -35,8 +35,8 @@ final class AdminController
                (SELECT COUNT(*) FROM suppressions)                        AS suppressions_total"
         ) ?? [];
 
-        echo View::admin('admin/overview', [
-            'title'  => 'Overview · Admin',
+        echo View::superadmin('superadmin/overview', [
+            'title'  => 'Overview · Superadmin',
             'counts' => $counts,
             'recent' => Database::all(
                 'SELECT id, business_name, email, vertical, status, created_at
@@ -51,8 +51,8 @@ final class AdminController
         $where = in_array($filter, self::AUDIT_STATUSES, true) ? 'WHERE a.status = :status' : '';
         $params = $where !== '' ? ['status' => $filter] : [];
 
-        echo View::admin('admin/audits', [
-            'title'  => 'Audit requests · Admin',
+        echo View::superadmin('superadmin/audits', [
+            'title'  => 'Audit requests · Superadmin',
             'filter' => $where !== '' ? $filter : '',
             'rows'   => Database::all(
                 "SELECT a.*, u.first_name AS handler_first, u.last_name AS handler_last
@@ -69,7 +69,7 @@ final class AdminController
     public function updateAudit(): void
     {
         if (!Csrf::check($_POST['_csrf'] ?? null)) {
-            Request::redirect('/admin/audits');
+            Request::redirect('/superadmin/audits');
         }
 
         $id = (int) ($_POST['id'] ?? 0);
@@ -77,12 +77,12 @@ final class AdminController
         $notes = trim((string) ($_POST['notes'] ?? ''));
 
         if ($id <= 0 || !in_array($status, self::AUDIT_STATUSES, true)) {
-            Request::redirect('/admin/audits');
+            Request::redirect('/superadmin/audits');
         }
 
         $before = Database::first('SELECT status, notes FROM audits WHERE id = :id', ['id' => $id]);
         if ($before === null) {
-            Request::redirect('/admin/audits');
+            Request::redirect('/superadmin/audits');
         }
 
         Database::run(
@@ -100,13 +100,13 @@ final class AdminController
 
         Audit::log('audit.update', 'audit', $id, $before, ['status' => $status, 'notes' => $notes]);
         $_SESSION['admin_flash'] = 'Audit request updated.';
-        Request::redirect('/admin/audits');
+        Request::redirect('/superadmin/audits');
     }
 
     public function leads(): void
     {
-        echo View::admin('admin/leads', [
-            'title'    => 'Agency applications · Admin',
+        echo View::superadmin('superadmin/leads', [
+            'title'    => 'Agency applications · Superadmin',
             'rows'     => Database::all(
                 "SELECT * FROM waitlist WHERE role = 'agency' ORDER BY created_at DESC LIMIT 200"
             ),
@@ -117,12 +117,12 @@ final class AdminController
     public function updateLead(): void
     {
         if (!Csrf::check($_POST['_csrf'] ?? null)) {
-            Request::redirect('/admin/leads');
+            Request::redirect('/superadmin/leads');
         }
         $id = (int) ($_POST['id'] ?? 0);
         $status = (string) ($_POST['status'] ?? '');
         if ($id <= 0 || !in_array($status, self::LEAD_STATUSES, true)) {
-            Request::redirect('/admin/leads');
+            Request::redirect('/superadmin/leads');
         }
 
         $before = Database::first('SELECT status FROM waitlist WHERE id = :id', ['id' => $id]);
@@ -131,13 +131,13 @@ final class AdminController
         Audit::log('lead.update', 'waitlist', $id, $before, ['status' => $status]);
 
         $_SESSION['admin_flash'] = 'Application updated.';
-        Request::redirect('/admin/leads');
+        Request::redirect('/superadmin/leads');
     }
 
     public function compliance(): void
     {
-        echo View::admin('admin/compliance', [
-            'title'        => 'Compliance · Admin',
+        echo View::superadmin('superadmin/compliance', [
+            'title'        => 'Compliance · Superadmin',
             'suppressions' => Database::all(
                 'SELECT channel, reason, created_at FROM suppressions ORDER BY created_at DESC LIMIT 100'
             ),
@@ -151,8 +151,8 @@ final class AdminController
 
     public function activity(): void
     {
-        echo View::admin('admin/activity', [
-            'title' => 'Activity · Admin',
+        echo View::superadmin('superadmin/activity', [
+            'title' => 'Activity · Superadmin',
             'rows'  => Database::all(
                 'SELECT l.*, u.email AS actor_email
                    FROM audit_log l

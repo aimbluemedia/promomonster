@@ -26,6 +26,9 @@ final class Auth
     /** @var array<string,mixed>|null */
     private static ?array $cached = null;
 
+    /** @var array<string,mixed>|false|null  false means "looked, found none" */
+    private static array|false|null $account = null;
+
     /** @return array<string,mixed>|null */
     public static function user(): ?array
     {
@@ -43,9 +46,9 @@ final class Auth
             ['id' => (int) $id],
         );
 
-        // Revoking admin or suspending the account ends the session on the next
-        // request rather than whenever the cookie happens to expire.
-        if ($user === null || (int) $user['is_admin'] !== 1 || $user['status'] !== 'active') {
+        // Suspending an account ends the session on the next request rather
+        // than whenever the cookie happens to expire.
+        if ($user === null || $user['status'] !== 'active') {
             self::logout();
             return null;
         }
@@ -58,11 +61,55 @@ final class Auth
         return self::user() !== null;
     }
 
-    /** Redirects to the login form unless a live admin session exists. */
-    public static function requireAdmin(): void
+    public static function isStaff(): bool
     {
-        if (!self::check()) {
-            Request::redirect('/admin/login');
+        $user = self::user();
+        return $user !== null && (int) $user['is_admin'] === 1;
+    }
+
+    /** PromoMonster staff only. */
+    public static function requireStaff(): void
+    {
+        if (!self::isStaff()) {
+            Request::redirect('/superadmin/login');
+        }
+    }
+
+    /**
+     * The account this user belongs to, or null. A customer is a user with a
+     * row in account_users; staff have none, which is why the two guards are
+     * separate rather than one role column.
+     *
+     * @return array<string,mixed>|null
+     */
+    public static function account(): ?array
+    {
+        $user = self::user();
+        if ($user === null) {
+            return null;
+        }
+        if (self::$account !== null) {
+            return self::$account ?: null;
+        }
+
+        $row = Database::first(
+            'SELECT a.*, au.role AS member_role
+               FROM account_users au
+               JOIN accounts a ON a.id = au.account_id
+              WHERE au.user_id = :uid
+           ORDER BY au.created_at LIMIT 1',
+            ['uid' => (int) $user['id']],
+        );
+
+        self::$account = $row ?? false;
+        return $row;
+    }
+
+    /** Customers only. */
+    public static function requireMember(): void
+    {
+        if (self::account() === null) {
+            Request::redirect('/members/login');
         }
     }
 
@@ -83,12 +130,13 @@ final class Auth
         $email = mb_strtolower(trim($email));
 
         $user = Database::first(
-            'SELECT id, password_hash, is_admin, status FROM users WHERE email = :email LIMIT 1',
+            'SELECT id, password_hash, status FROM users WHERE email = :email LIMIT 1',
             ['email' => $email],
         );
 
+        // Credentials only. Whether this user may reach a given area is decided
+        // by requireStaff() / requireMember() after the session exists.
         $ok = $user !== null
-            && (int) $user['is_admin'] === 1
             && $user['status'] === 'active'
             && password_verify($password, (string) $user['password_hash']);
 
@@ -117,9 +165,10 @@ final class Auth
         session_regenerate_id(true);
         $_SESSION[self::SESSION_KEY] = (int) $user['id'];
         self::$cached = null;
+        self::$account = null;
 
         Database::run('UPDATE users SET last_login_at = NOW() WHERE id = :id', ['id' => $user['id']]);
-        Audit::log('admin.login', 'user', (int) $user['id']);
+        Audit::log('auth.login', 'user', (int) $user['id']);
 
         return true;
     }
@@ -128,6 +177,7 @@ final class Auth
     {
         unset($_SESSION[self::SESSION_KEY]);
         self::$cached = null;
+        self::$account = null;
         session_regenerate_id(true);
     }
 }

@@ -29,7 +29,7 @@ use App\Support\View;
       <div class="alert" role="alert" style="margin-bottom:1rem;"><?= View::e($error) ?></div>
     <?php endif; ?>
 
-    <form class="form" method="post" action="/admin/login">
+    <form class="form" method="post" action="/superadmin/login">
       <?= Csrf::field() ?>
       <div>
         <label class="sr-only" for="email">Email</label>

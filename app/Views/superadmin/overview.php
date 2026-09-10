@@ -50,4 +50,4 @@
     </table>
   <?php endif; ?>
 </div>
-<p style="margin-top:1rem;"><a href="/admin/audits" style="color:var(--brand);font-weight:700;">All audit requests →</a></p>
+<p style="margin-top:1rem;"><a href="/superadmin/audits" style="color:var(--brand);font-weight:700;">All audit requests →</a></p>
