@@ -152,6 +152,57 @@ if (!is_file($configPath)) {
                 $tables === []
                     ? 'No tables. Import database/full-schema.sql through phpMyAdmin.'
                     : count($tables) . ' found: ' . implode(', ', array_slice($tables, 0, 25)));
+
+            // --- Pending migrations -------------------------------------
+            // The usual cause of "login works, next page is a 500": a column
+            // the app selects has not been added yet.
+            $files = glob($base . '/database/migrations/*.sql') ?: [];
+            sort($files);
+            $names = array_map('basename', $files);
+
+            $applied = [];
+            if (in_array('migrations', $tables, true)) {
+                $applied = $pdo->query('SELECT filename FROM migrations')->fetchAll(PDO::FETCH_COLUMN);
+            }
+            $pending = array_values(array_diff($names, $applied));
+
+            if ($names === []) {
+                add($checks, 'Migrations', 'info',
+                    'No migration files found at ' . $base . '/database/migrations — upload that folder to check.');
+            } elseif (!in_array('migrations', $tables, true)) {
+                add($checks, 'Migrations', 'fail',
+                    'No migrations table, so nothing has been tracked. Run php database/migrate.php, or apply each file in database/migrations/ in order through phpMyAdmin.');
+            } elseif ($pending !== []) {
+                add($checks, 'Migrations', 'fail',
+                    count($pending) . ' NOT applied: ' . implode(', ', $pending)
+                    . ' — apply them in order. This is the usual cause of a 500 after signing in.');
+            } else {
+                add($checks, 'Migrations', 'pass', count($applied) . ' applied, none pending.');
+            }
+
+            // --- Columns the app selects --------------------------------
+            $required = [
+                'users'  => ['is_admin', 'must_change_password', 'password_changed_at'],
+                'audits' => ['status', 'notes', 'handled_by_user_id'],
+            ];
+            $missing = [];
+            foreach ($required as $table => $columns) {
+                if (!in_array($table, $tables, true)) {
+                    $missing[] = $table . ' (table missing)';
+                    continue;
+                }
+                $have = $pdo->query('SHOW COLUMNS FROM `' . $table . '`')->fetchAll(PDO::FETCH_COLUMN);
+                foreach ($columns as $column) {
+                    if (!in_array($column, $have, true)) {
+                        $missing[] = $table . '.' . $column;
+                    }
+                }
+            }
+            add($checks, 'Required columns', $missing === [] ? 'pass' : 'fail',
+                $missing === []
+                    ? 'All present.'
+                    : 'MISSING: ' . implode(', ', $missing)
+                      . ' — the sign-in pages will return a 500 until the migration that adds them is applied.');
         } catch (Throwable $e) {
             add($checks, 'Database connection', 'fail', $e->getMessage());
         }
