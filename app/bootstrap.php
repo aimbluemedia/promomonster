@@ -41,14 +41,11 @@ $config = require $configFile;
 
 date_default_timezone_set($config['timezone'] ?? 'UTC');
 
-if ($config['debug'] ?? false) {
-    error_reporting(E_ALL);
-    ini_set('display_errors', '1');
-} else {
-    error_reporting(E_ALL);
-    ini_set('display_errors', '0');
-    ini_set('log_errors', '1');
-}
+error_reporting(E_ALL);
+ini_set('display_errors', '0');   // ErrorHandler decides what the visitor sees
+ini_set('log_errors', '1');
+
+App\Support\ErrorHandler::register((bool) ($config['debug'] ?? false));
 
 session_set_cookie_params([
     'lifetime' => 0,

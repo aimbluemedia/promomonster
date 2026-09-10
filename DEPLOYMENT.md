@@ -94,9 +94,21 @@ Apache found no `index.php` where it was looking, and directory listing is off.
 
 ### 500 Internal Server Error
 
-Set `'debug' => true` in `app/config.php` temporarily and reload — the real
-error will print. Set it back to `false` afterwards. Common causes: wrong
-database credentials, or a PHP version below 8.1.
+You should no longer see a bare 500. The error page carries a **reference** like
+`11AC64C3`. Open `/diagnose.php` — it lists the most recent errors with that
+reference, the message, and the file and line.
+
+The full detail is written to `storage/logs/error.log` (denied to the web by its
+own `.htaccess`). Make sure the `storage/` folder uploaded and is writable —
+if it is not, errors fall back to the host's PHP error log instead.
+
+To see the error in the page itself while you work, set `'debug' => true` in
+`app/config.php` and set it back to `false` afterwards. With debug off, nothing
+about the failure reaches the visitor.
+
+The most common cause right after a deploy is a **pending migration** — a
+column the app selects that has not been added yet. `/diagnose.php` reports
+those separately.
 
 ### Pages work but every link 404s
 

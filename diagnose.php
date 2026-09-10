@@ -209,6 +209,22 @@ if (!is_file($configPath)) {
     }
 }
 
+// --- Recent errors --------------------------------------------------------
+// The whole point: a 500 should never again be a dead end.
+$logPath = $base . '/storage/logs/error.log';
+$recentErrors = [];
+if (is_file($logPath)) {
+    $raw = (string) @file_get_contents($logPath);
+    // Entries start with "[date] REFERENCE  Class: message".
+    $blocks = preg_split('/\n(?=\[\d{4}-)/', trim($raw)) ?: [];
+    $recentErrors = array_slice(array_reverse($blocks), 0, 5);
+}
+add($checks, 'Error log',
+    $recentErrors === [] ? 'pass' : 'fail',
+    $recentErrors === []
+        ? (is_file($logPath) ? 'Empty — nothing has crashed.' : 'No log yet — nothing has crashed.')
+        : count($recentErrors) . ' recent error(s). Newest is shown below.');
+
 $failures = array_values(array_filter($checks, static fn($c) => $c['state'] === 'fail'));
 ?>
 <!doctype html>
@@ -264,6 +280,18 @@ $failures = array_values(array_filter($checks, static fn($c) => $c['state'] === 
     </tr>
   <?php endforeach; ?>
 </table>
+
+<?php if ($recentErrors !== []): ?>
+  <h2 style="font-size:1.05rem;margin:2.25rem 0 .5rem;">Most recent errors</h2>
+  <p style="color:#56606d;margin:0 0 1rem;font-size:.92rem;">
+    Newest first. The first line of each carries the reference shown on the error page.</p>
+  <?php foreach ($recentErrors as $block): ?>
+    <pre style="background:#fff;border:1px solid #e3e1da;border-radius:10px;padding:1rem;
+      overflow-x:auto;font:12px ui-monospace,Menlo,monospace;white-space:pre-wrap;
+      color:#7a2d12;margin:0 0 .75rem;"><?= htmlspecialchars(
+        implode("\n", array_slice(explode("\n", $block), 0, 12)), ENT_QUOTES) ?></pre>
+  <?php endforeach; ?>
+<?php endif; ?>
 
 <p class="warn">Delete diagnose.php from the server once the site is working.</p>
 </div></body></html>
