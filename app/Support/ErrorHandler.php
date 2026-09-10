@@ -48,6 +48,14 @@ final class ErrorHandler
         $reference = strtoupper(substr(bin2hex(random_bytes(4)), 0, 8));
         self::write($reference, $e);
 
+        // On the command line there is no browser to render for, and a page of
+        // HTML in a terminal hides the very message the operator needs.
+        if (PHP_SAPI === 'cli') {
+            fwrite(STDERR, "\nERROR {$reference}: " . get_class($e) . ': ' . $e->getMessage()
+                . "\n  at " . $e->getFile() . ':' . $e->getLine() . "\n");
+            return;
+        }
+
         if (!headers_sent()) {
             http_response_code(500);
             header('Content-Type: text/html; charset=utf-8');

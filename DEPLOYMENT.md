@@ -65,9 +65,22 @@ With SSH:
 php database/migrate.php
 ```
 
-Without SSH: open **phpMyAdmin**, select your database, go to the **SQL** tab,
-and paste the contents of `database/migrations/001_create_waitlist.sql`. It's
-plain SQL with no placeholders.
+Without SSH, use the browser runner:
+
+1. Open `migrate-web.php` and change `const MIGRATE_TOKEN = '';` to a long
+   random string.
+2. Upload it into `public_html`.
+3. Visit `https://promomonster.com/migrate-web.php?token=YOUR-TOKEN`. A GET only
+   shows you the plan; nothing changes until you press the button.
+4. **Delete the file from the server afterwards.**
+
+On a database you have already built by hand, the runner records what is
+already there rather than re-running it, and it refuses to drop any table that
+has rows in it.
+
+> **Do not paste the migration files into phpMyAdmin one after another.**
+> `006_drop_panel_schema.sql` drops `users` — on a live database that deletes
+> every login. Apply a single file by hand only when you know what it contains.
 
 ## 5. Check it
 

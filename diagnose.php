@@ -171,11 +171,15 @@ if (!is_file($configPath)) {
                     'No migration files found at ' . $base . '/database/migrations — upload that folder to check.');
             } elseif (!in_array('migrations', $tables, true)) {
                 add($checks, 'Migrations', 'fail',
-                    'No migrations table, so nothing has been tracked. Run php database/migrate.php, or apply each file in database/migrations/ in order through phpMyAdmin.');
+                    'No migrations table, so nothing has been tracked. Set a token in migrate-web.php, '
+                    . 'upload it and open /migrate-web.php?token=... — it records what is already here '
+                    . 'instead of replaying it. Do NOT paste the migration files in by hand: '
+                    . '006_drop_panel_schema.sql drops the users table.');
             } elseif ($pending !== []) {
                 add($checks, 'Migrations', 'fail',
                     count($pending) . ' NOT applied: ' . implode(', ', $pending)
-                    . ' — apply them in order. This is the usual cause of a 500 after signing in.');
+                    . ' — run /migrate-web.php?token=... to apply them. This is the usual cause of a '
+                    . '500 after signing in.');
             } else {
                 add($checks, 'Migrations', 'pass', count($applied) . ' applied, none pending.');
             }
