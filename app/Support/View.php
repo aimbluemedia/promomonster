@@ -32,6 +32,16 @@ final class View
         ]);
     }
 
+    /** Renders a view inside the admin layout. @param array<string,mixed> $data */
+    public static function admin(string $template, array $data = []): string
+    {
+        $content = self::render($template, $data);
+        return self::render('admin/layout', $data + [
+            'content' => $content,
+            'title' => $data['title'] ?? 'Admin',
+        ]);
+    }
+
     /** Escape for HTML output. Every dynamic value in a template goes through this. */
     public static function e(?string $value): string
     {

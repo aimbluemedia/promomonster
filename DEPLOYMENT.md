@@ -131,6 +131,26 @@ reachable at `https://your-domain/assets/css/app.css`.
 
 ---
 
+## Creating your admin login
+
+After the migrations run, over SSH:
+
+```bash
+php bin/create-admin.php you@promomonster.com "First" "Last"
+```
+
+No SSH? Generate a hash locally with
+`php -r 'echo password_hash("your-password", PASSWORD_DEFAULT);'` and insert
+the row through phpMyAdmin:
+
+```sql
+INSERT INTO users (email, password_hash, first_name, last_name, is_admin, status, email_verified_at)
+VALUES ('you@promomonster.com', '<paste the hash>', 'First', 'Last', 1, 'active', NOW());
+```
+
+Then sign in at `/admin/login`. The admin area is `noindex, nofollow` and every
+route redirects to the login form when signed out.
+
 ## Local development
 
 ```bash

@@ -62,6 +62,8 @@ define('PUBLIC_PATH', __DIR__);
 
 require dirname(__DIR__) . '/app/bootstrap.php';
 
+use App\Controllers\AdminController;
+use App\Controllers\AuthController;
 use App\Controllers\LeadController;
 use App\Controllers\PageController;
 use App\Support\Router;
@@ -83,6 +85,22 @@ $router->get('/privacy',      [$pages, 'privacy']);
 $router->get('/terms',        [$pages, 'terms']);
 
 $router->post('/leads', [new LeadController(), 'store']);
+
+// Admin. AdminController's constructor calls Auth::requireAdmin(), so it is
+// instantiated lazily inside each closure — building it eagerly would redirect
+// every public request to the login form.
+$auth = new AuthController();
+$router->get('/admin/login',  [$auth, 'showLogin']);
+$router->post('/admin/login', [$auth, 'login']);
+$router->post('/admin/logout', [$auth, 'logout']);
+
+$router->get('/admin',                  static fn () => (new AdminController())->overview());
+$router->get('/admin/audits',           static fn () => (new AdminController())->audits());
+$router->post('/admin/audits/update',   static fn () => (new AdminController())->updateAudit());
+$router->get('/admin/leads',            static fn () => (new AdminController())->leads());
+$router->post('/admin/leads/update',    static fn () => (new AdminController())->updateLead());
+$router->get('/admin/compliance',       static fn () => (new AdminController())->compliance());
+$router->get('/admin/activity',         static fn () => (new AdminController())->activity());
 
 $router->dispatch(
     $_SERVER['REQUEST_METHOD'] ?? 'GET',
