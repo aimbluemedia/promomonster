@@ -133,6 +133,63 @@ Consequences:
 - Have a fallback: request-and-track works with only a Place ID, so the product must be useful before API access lands.
 - Respect the API's caching and display terms. **[counsel]**
 
+### 5a. "Can we post reviews to Google through an API?"
+
+No. Not with permission, not with the customer's blessing, not through any
+partner tier. It will be asked repeatedly — by you, by customers, by agency
+partners — so here is the answer once, in full.
+
+**No such API exists, and that is deliberate.** Google's review corpus is only
+worth anything because each review is tied to a real Google account that
+personally wrote it. An endpoint that let software post on someone's behalf
+would destroy that in a week, so it has never existed and will not.
+
+What the Google Business Profile API can do is **read** reviews and **post
+replies as the business owner**. That is the whole surface. There is no create,
+no import, no migrate, no bulk upload.
+
+**What the members area can legitimately do**
+
+| Want | Mechanism |
+|---|---|
+| Get a customer to Google's review box in one tap | Deep link `https://search.google.com/local/writereview?placeid=<PLACE_ID>` |
+| Look up the Place ID | Places API |
+| Know a review arrived, and which request produced it | GBP API polling, matched against `review_requests.sent_at` |
+| Reply to a review from our UI | GBP API reply endpoint, as the owner |
+| Show reviews on the customer's own site | GBP API read + our widget |
+
+The deep link is the entire posting mechanism. Everything else is measurement
+and response around it. That is not a limitation to engineer around — it is the
+product.
+
+**The grey pattern, assessed honestly.** Some tools capture the review text in
+their own UI, copy it to the clipboard, then open Google so the customer pastes
+it. Where the customer wrote every word themselves and posts it under their own
+account, that is defensible and several established tools do it. Two things
+make it indefensible, and the line is sharp:
+
+- **The product drafting or suggesting the text.** Then the business is
+  authoring reviews and the customer is a signature. That is a fabricated
+  review under the FTC rule regardless of who clicked post.
+- **Templated output at volume.** A hundred reviews with the same shape is
+  exactly the pattern Google's filters look for, and the removals land on the
+  customer's profile.
+
+Recommendation: don't build it. The extra conversion is small, the failure mode
+lands on the customer, and it undercuts the one claim the whole brand rests on.
+If it is ever built, the customer must type their own words with no
+suggestions, no starter text and no AI assistance whatsoever.
+
+**Other platforms differ.** Trustpilot has a genuine invitation API, and some
+industry platforms do too. Google and Yelp do not. Do not let a customer's
+experience of Trustpilot set their expectation of Google.
+
+**The API worth building is your own.** A members-area API that creates
+contacts, triggers requests, and reports review status is genuinely useful to
+agencies and to customers with a CRM — and it is on the roadmap. It moves data
+into PromoMonster and pulls results out. It never posts to Google, because
+nothing can.
+
 ## 6. Handling what customers write
 
 - **Private feedback is not a review.** Never republish it as one, and never display it publicly without explicit permission. That would be manufacturing testimonials.
