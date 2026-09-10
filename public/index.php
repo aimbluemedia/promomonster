@@ -66,6 +66,7 @@ use App\Controllers\SuperadminController;
 use App\Controllers\AuthController;
 use App\Controllers\LeadController;
 use App\Controllers\MembersController;
+use App\Controllers\PasswordController;
 use App\Controllers\PageController;
 use App\Support\Router;
 
@@ -94,6 +95,8 @@ $auth = new AuthController();
 $router->get('/superadmin/login',   static fn () => $auth->showLogin('superadmin'));
 $router->post('/superadmin/login',  static fn () => $auth->login('superadmin'));
 $router->post('/superadmin/logout', static fn () => $auth->logout('superadmin'));
+$router->get('/superadmin/password',  static fn () => (new PasswordController())->show('superadmin'));
+$router->post('/superadmin/password', static fn () => (new PasswordController())->update('superadmin'));
 
 $router->get('/superadmin',                  static fn () => (new SuperadminController())->overview());
 $router->get('/superadmin/audits',           static fn () => (new SuperadminController())->audits());
@@ -107,6 +110,8 @@ $router->get('/superadmin/activity',         static fn () => (new SuperadminCont
 $router->get('/members/login',   static fn () => $auth->showLogin('members'));
 $router->post('/members/login',  static fn () => $auth->login('members'));
 $router->post('/members/logout', static fn () => $auth->logout('members'));
+$router->get('/members/password',  static fn () => (new PasswordController())->show('members'));
+$router->post('/members/password', static fn () => (new PasswordController())->update('members'));
 
 $router->get('/members',          static fn () => (new MembersController())->overview());
 $router->get('/members/reviews',  static fn () => (new MembersController())->reviews());

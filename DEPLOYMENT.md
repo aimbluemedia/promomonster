@@ -139,6 +139,9 @@ After the migrations run, over SSH:
 php bin/create-admin.php you@promomonster.com "First" "Last"
 ```
 
+It prints a one-time temporary password. Sign in at `/superadmin/login` and
+you will be required to choose your own before anything else opens.
+
 No SSH? Generate a hash locally with
 `php -r 'echo password_hash("your-password", PASSWORD_DEFAULT);'` and insert
 the row through phpMyAdmin:

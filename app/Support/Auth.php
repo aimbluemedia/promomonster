@@ -41,7 +41,7 @@ final class Auth
         }
 
         $user = Database::first(
-            'SELECT id, email, first_name, last_name, is_admin, status
+            'SELECT id, email, first_name, last_name, is_admin, status, must_change_password
                FROM users WHERE id = :id LIMIT 1',
             ['id' => (int) $id],
         );
@@ -67,12 +67,35 @@ final class Auth
         return $user !== null && (int) $user['is_admin'] === 1;
     }
 
+    public static function mustChangePassword(): bool
+    {
+        $user = self::user();
+        return $user !== null && (int) $user['must_change_password'] === 1;
+    }
+
+    /**
+     * A temporary password gets you exactly one place: the change form. Called
+     * from the area guards, so every route is covered rather than each
+     * controller having to remember.
+     */
+    private static function enforcePasswordChange(string $area): void
+    {
+        if (!self::mustChangePassword()) {
+            return;
+        }
+        $path = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
+        if ($path !== "/{$area}/password") {
+            Request::redirect("/{$area}/password");
+        }
+    }
+
     /** PromoMonster staff only. */
     public static function requireStaff(): void
     {
         if (!self::isStaff()) {
             Request::redirect('/superadmin/login');
         }
+        self::enforcePasswordChange('superadmin');
     }
 
     /**
@@ -111,6 +134,29 @@ final class Auth
         if (self::account() === null) {
             Request::redirect('/members/login');
         }
+        self::enforcePasswordChange('members');
+    }
+
+    /** True if this password is the one already on the account. */
+    public static function attemptPasswordOnly(int $userId, string $password): bool
+    {
+        $row = Database::first('SELECT password_hash FROM users WHERE id = :id', ['id' => $userId]);
+        return $row !== null && password_verify($password, (string) $row['password_hash']);
+    }
+
+    /** Replaces the password and clears the temporary flag. */
+    public static function setPassword(int $userId, string $password): void
+    {
+        Database::run(
+            'UPDATE users
+                SET password_hash = :hash, must_change_password = 0, password_changed_at = NOW()
+              WHERE id = :id',
+            ['hash' => password_hash($password, PASSWORD_DEFAULT), 'id' => $userId],
+        );
+        self::$cached = null;
+        // A password change is a good moment to cut any other live session.
+        session_regenerate_id(true);
+        Audit::log('auth.password_changed', 'user', $userId);
     }
 
     public static function lockedOut(string $email): bool
