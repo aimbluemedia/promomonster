@@ -191,3 +191,29 @@ Then open http://127.0.0.1:8080. You still need a local MySQL and an
 The `public/index.php` router hands real files back to the built-in server, so
 CSS and images load in development the same way Apache serves them in
 production.
+
+---
+
+## Locked out of /superadmin
+
+`bin/create-admin.php` is CLI-only on purpose, so on hosting with no shell use
+the browser reset instead:
+
+1. Open `reset-admin.php` and set `const RESET_TOKEN` to a long random string.
+2. Upload it into `public_html`.
+3. Visit `https://promomonster.com/reset-admin.php?token=YOUR-TOKEN`, enter the
+   admin's email address, and copy the temporary password it shows once.
+4. Sign in at `/superadmin/login`; you are asked to choose your own password
+   immediately.
+5. **Delete `reset-admin.php` from the server.**
+
+It resets an account that is already an admin, and can create one only while the
+database has no admin at all — so it cannot be used to add a second way in. It
+also clears the failed-attempt lockout that may have been keeping you out.
+
+## The hero image is not showing
+
+The photograph belongs at `public_html/assets/img/hero.png`. Check
+`/diagnose.php` — the "Hero image" row lists every file actually in that folder,
+which catches `hero,png`, `Hero.png` and `hero.png.jpg` immediately. Filenames
+are case-sensitive on Linux.

@@ -9,6 +9,18 @@
     RewriteCond %{REQUEST_URI} !^/$
     RewriteRule ^(.*)/$ /$1 [R=301,L]
 
+    # A missing file under /assets/ is a missing file, not a page. Without this
+    # the front controller answers image and stylesheet requests with a whole
+    # HTML page, so a mistyped filename looks like a mysteriously broken <img>
+    # instead of the 404 it is.
+    #
+    # The optional /public prefix matters: in the root-fallback layout the outer
+    # .htaccess has already rewritten the request, and REQUEST_URI reads
+    # /public/assets/... by the time these rules run.
+    RewriteCond %{REQUEST_URI} ^/(public/)?assets/
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ - [R=404,L]
+
     # Serve real files and directories as-is; route everything else through
     # index.php. This is what stops Apache returning 403 for a directory with
     # no index file.

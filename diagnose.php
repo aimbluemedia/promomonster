@@ -108,23 +108,40 @@ add($checks, 'Directory permissions', $unreadable === [] ? 'pass' : 'fail',
 
 // --- Hero image -----------------------------------------------------------
 $heroRoots = array_unique(array_filter([
-    $layout === 'project-as-docroot' ? $here . '/public' : $here,
+    $here,
+    $here . '/public',
     rtrim((string) ($_SERVER['DOCUMENT_ROOT'] ?? ''), '/') ?: null,
 ]));
+
+// Listing what IS there beats listing what was looked for: it catches 'hero,png',
+// 'Hero.png' and 'hero.png.jpg' at a glance, which guessing at paths never does.
 $heroFound = null;
-$heroTried = [];
-foreach (['hero.png', 'hero.jpg', 'hero.webp'] as $candidate) {
-    foreach ($heroRoots as $root) {
-        $path = $root . '/assets/img/' . $candidate;
-        $heroTried[] = $path;
-        if (is_file($path)) { $heroFound = $path; break 2; }
+$heroDirs = [];
+foreach ($heroRoots as $root) {
+    $dir = $root . '/assets/img';
+    if (!is_dir($dir)) {
+        $heroDirs[] = $dir . '  →  no such folder';
+        continue;
+    }
+
+    $names = array_values(array_diff(scandir($dir) ?: [], ['.', '..']));
+    $heroDirs[] = $dir . '  →  ' . ($names === [] ? 'empty' : implode(', ', $names));
+
+    foreach ($names as $name) {
+        if ($heroFound === null
+            && preg_match('/^hero\.(png|jpe?g|webp)$/', $name)
+            && is_file($dir . '/' . $name)) {
+            $heroFound = $dir . '/' . $name;
+        }
     }
 }
-add($checks, 'Hero image', $heroFound !== null ? 'pass' : 'info',
+
+add($checks, 'Hero image', $heroFound !== null ? 'pass' : 'fail',
     $heroFound !== null
-        ? 'Found at ' . $heroFound
-        : 'Not found, so the placeholder is shown. Searched: ' . implode('  |  ', $heroTried)
-          . ' — filenames are case-sensitive on Linux.');
+        ? 'Found at ' . $heroFound . ' — served as /assets/img/' . basename($heroFound)
+        : 'No hero.png / .jpg / .webp found, so the placeholder shows instead. '
+          . 'Filenames are case-sensitive on Linux, and the extension must be a dot, not a comma. '
+          . 'What is actually in each image folder: ' . implode('   |   ', $heroDirs));
 
 // --- Config and database --------------------------------------------------
 $configPath = $base . '/app/config.php';

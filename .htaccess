@@ -16,6 +16,21 @@
 
     # The diagnostic lives at the root and must not be rewritten away.
     RewriteRule ^diagnose\.php$ - [L]
+    RewriteRule ^migrate-web\.php$ - [L]
+    RewriteRule ^reset-admin\.php$ - [L]
+
+    # Serve a real file under /assets/ from the project root if one is there.
+    #
+    # Without this, EVERY request is mapped into public/, so an image uploaded
+    # to public_html/assets/img/ is unreachable — which is where the documented
+    # layout puts it, and where anyone would sensibly put it. Both locations now
+    # work the same way.
+    #
+    # Scoped to /assets/ deliberately: a blanket "serve any file that exists"
+    # would hand out app/config.php, database passwords and all.
+    RewriteCond %{REQUEST_URI} ^/assets/
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
 
     # Map every other request into public/.
     RewriteRule ^(.*)$ public/$1 [L]
