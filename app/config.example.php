@@ -23,4 +23,11 @@ return [
 
     // Where waitlist notifications go. Leave null to disable email.
     'notify_email' => null,
+
+    // Powers the competitor comparison in the superadmin audit screen. Without
+    // a key that one feature is disabled; nothing else depends on it.
+    // Billed per use — roughly $0.05-$0.15 per audit.
+    'anthropic' => [
+        'api_key' => '',
+    ],
 ];

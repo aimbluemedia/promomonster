@@ -27,7 +27,8 @@
           $extra = json_decode((string) ($r['results'] ?? '{}'), true) ?: []; ?>
           <tr>
             <td>
-              <strong><?= View::e($r['business_name']) ?></strong>
+              <a href="/superadmin/audit?id=<?= (int) $r['id'] ?>"
+                 style="color:var(--brand);font-weight:700;"><?= View::e($r['business_name']) ?></a>
               <?php if (!empty($extra['website'])): ?>
                 <div class="mono" style="margin-top:.2rem;"><?= View::e($extra['website']) ?></div>
               <?php endif; ?>

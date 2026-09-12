@@ -101,6 +101,8 @@ $router->post('/superadmin/password', static fn () => (new PasswordController())
 
 $router->get('/superadmin',                  static fn () => (new SuperadminController())->overview());
 $router->get('/superadmin/audits',           static fn () => (new SuperadminController())->audits());
+$router->get('/superadmin/audit',            static fn () => (new SuperadminController())->audit());
+$router->post('/superadmin/audits/compare',  static fn () => (new SuperadminController())->compareAudit());
 $router->post('/superadmin/audits/update',   static fn () => (new SuperadminController())->updateAudit());
 $router->get('/superadmin/leads',            static fn () => (new SuperadminController())->leads());
 $router->post('/superadmin/leads/update',    static fn () => (new SuperadminController())->updateLead());

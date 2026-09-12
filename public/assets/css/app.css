@@ -594,3 +594,12 @@ table.data td.wrap{ white-space:normal; max-width:22rem; }
 /* The hero headline takes the same accent-phrase treatment as the section
    headings, so the page reads as one system. */
 .hero h1 em{ font-style:normal; color:var(--brand); }
+
+/* Superadmin: competitor comparison form */
+.compare-block{ border:1px solid var(--line); border-radius:var(--radius);
+  padding:1.1rem 1.25rem 1.25rem; margin:0 0 1.1rem; }
+.compare-block legend{ font-size:.8rem; font-weight:800; text-transform:uppercase;
+  letter-spacing:.06em; color:var(--brand); padding:0 .45rem; }
+.compare-block label{ display:block; font-size:.82rem; font-weight:600;
+  color:var(--ink); margin-bottom:.35rem; }
+.compare-block textarea.field{ font-family:inherit; line-height:1.5; resize:vertical; }

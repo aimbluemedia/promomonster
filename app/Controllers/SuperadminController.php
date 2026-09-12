@@ -7,10 +7,13 @@ namespace App\Controllers;
 use App\Support\Audit;
 use App\Support\Auth;
 use App\Support\Csrf;
+use App\Support\Claude;
 use App\Support\Database;
+use App\Support\ReviewComparison;
 use App\Support\Plans;
 use App\Support\Request;
 use App\Support\View;
+use Throwable;
 
 final class SuperadminController
 {
@@ -116,6 +119,112 @@ final class SuperadminController
     {
         $_SESSION['admin_flash'] = $message;
         Request::redirect($to);
+    }
+
+    /** One audit request, with the competitor comparison tool. */
+    public function audit(): void
+    {
+        $id = (int) ($_GET['id'] ?? 0);
+        $audit = Database::first('SELECT * FROM audits WHERE id = :id', ['id' => $id]);
+
+        if ($audit === null) {
+            $this->flash('/superadmin/audits', 'No audit with that id.');
+        }
+
+        $results = null;
+        if (!empty($audit['results'])) {
+            $decoded = json_decode((string) $audit['results'], true);
+            $results = is_array($decoded) ? $decoded : null;
+        }
+
+        echo View::superadmin('superadmin/audit', [
+            'title'      => 'Audit #' . $id . ' · Superadmin',
+            'audit'      => $audit,
+            'results'    => $results,
+            'aiReady'    => Claude::isConfigured(),
+            'statuses'   => self::AUDIT_STATUSES,
+        ]);
+    }
+
+    /**
+     * Runs the review comparison and stores it on the audit.
+     *
+     * Deliberately synchronous: this is a person pressing a button and waiting,
+     * not a background job, and one audit takes seconds. A queue here would be
+     * infrastructure with nothing to do.
+     */
+    public function compareAudit(): void
+    {
+        if (!Csrf::check($_POST['_csrf'] ?? null)) {
+            $this->flash('/superadmin/audits', 'Your session expired. Please try again.');
+        }
+
+        $id = (int) ($_POST['audit_id'] ?? 0);
+        $back = '/superadmin/audit?id=' . $id;
+        $audit = Database::first('SELECT id, business_name FROM audits WHERE id = :id', ['id' => $id]);
+
+        if ($audit === null) {
+            $this->flash('/superadmin/audits', 'No audit with that id.');
+        }
+
+        $subject = $this->readBusiness('subject', (string) $audit['business_name']);
+        $competitors = [];
+        foreach (['c1', 'c2', 'c3'] as $key) {
+            $competitor = $this->readBusiness($key, '');
+            if ($competitor['name'] !== '') {
+                $competitors[] = $competitor;
+            }
+        }
+
+        if ($competitors === []) {
+            $this->flash($back, 'Add at least one competitor before running the comparison.');
+        }
+
+        try {
+            $results = ReviewComparison::run($subject, $competitors);
+        } catch (Throwable $e) {
+            // The message is written for the operator — an API key problem and a
+            // refusal need different responses, so say which happened.
+            $this->flash($back, 'Comparison failed: ' . $e->getMessage());
+        }
+
+        Database::run(
+            'UPDATE audits SET results = :results, handled_by_user_id = :user, handled_at = NOW(),
+                    status = CASE WHEN status = \'new\' THEN \'in_progress\' ELSE status END
+              WHERE id = :id',
+            [
+                'results' => json_encode($results, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
+                'user'    => (int) (Auth::user()['id'] ?? 0),
+                'id'      => $id,
+            ],
+        );
+
+        Audit::log('audit.comparison_run', 'audit', $id);
+        $this->flash($back, 'Comparison ready.');
+    }
+
+    /**
+     * @return array{name:string,rating:?float,review_count:?int,reviews:array<int,string>}
+     */
+    private function readBusiness(string $prefix, string $fallbackName): array
+    {
+        $name = trim((string) ($_POST[$prefix . '_name'] ?? ''));
+        $rating = trim((string) ($_POST[$prefix . '_rating'] ?? ''));
+        $count  = trim((string) ($_POST[$prefix . '_count'] ?? ''));
+
+        // One review per blank-line-separated block: pasting from a profile
+        // gives you paragraphs, and splitting on single newlines would shred
+        // every multi-line review into fragments.
+        $raw = trim((string) ($_POST[$prefix . '_reviews'] ?? ''));
+        $reviews = $raw === '' ? [] : (preg_split('/\n\s*\n/', $raw) ?: []);
+        $reviews = array_values(array_filter(array_map('trim', $reviews)));
+
+        return [
+            'name'         => $name !== '' ? $name : $fallbackName,
+            'rating'       => is_numeric($rating) ? (float) $rating : null,
+            'review_count' => is_numeric($count) ? (int) $count : null,
+            'reviews'      => array_slice($reviews, 0, 25),
+        ];
     }
 
     public function audits(): void
