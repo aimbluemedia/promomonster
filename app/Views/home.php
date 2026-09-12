@@ -3,12 +3,17 @@
 <section class="section">
   <div class="container hero">
     <div class="hero__media">
-      <!-- Served straight from the web root at /assets/img/hero.png. No
+      <!-- Served straight from the web root at /assets/img/hero.jpg. No
            server-side existence check: it silently swallowed a wrong path
            twice, where a plain 404 in the network tab says exactly what is
-           wrong. -->
-      <img src="/assets/img/hero.png" width="1000" height="800" fetchpriority="high"
-           alt="A home service professional finishing a job at a customer&rsquo;s home.">
+           wrong.
+
+           width/height are the file's real pixels (portrait), so the browser
+           reserves the right box and the page does not jump as it loads. The
+           JPEG is the same photograph as hero.png at a ninetieth of the weight;
+           this is the largest asset on the page, so that matters. -->
+      <img src="/assets/img/hero.jpg" width="1122" height="1402" fetchpriority="high"
+           alt="A home service professional outside a customer&rsquo;s home, holding a tablet.">
       <div class="hero__float">
         <span class="stars" aria-hidden="true">★★★★★</span>
         <span>

@@ -160,11 +160,15 @@ h3{ font-size:1.0625rem; font-weight:700; letter-spacing:-.01em; }
      centring left dead space above and below the photo. */
   .hero{ grid-template-columns:0.92fr 1.08fr; gap:3.5rem; align-items:stretch; }
   .hero__media{ display:flex; }
+  /* Desktop: fill the column height and let object-fit crop, so the photo
+     matches the taller text column beside it. */
   .hero__media img{ height:100%; aspect-ratio:auto; min-height:34rem; }
 }
 
 .hero__media{ position:relative; }
-.hero__media img{ width:100%; aspect-ratio:5/4; object-fit:cover;
+/* 4/5 matches the photograph. A landscape box here crops a portrait subject to
+   a horizontal band across the chest, which is what 5/4 was doing. */
+.hero__media img{ width:100%; aspect-ratio:4/5; object-fit:cover;
   border-radius:var(--radius); border:1px solid var(--line);
   /* If the file is missing the tinted panel shows through rather than a bare
      broken-image box. */
