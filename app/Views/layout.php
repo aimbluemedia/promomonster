@@ -17,5 +17,7 @@ use App\Support\View;
 <?php require APP_ROOT . '/Views/partials/header.php'; ?>
 <main id="main"><?= $content ?></main>
 <?php require APP_ROOT . '/Views/partials/footer.php'; ?>
+<?php /* Deferred and entirely optional: the page is complete without it. */ ?>
+<script src="/assets/js/app.js" defer></script>
 </body>
 </html>

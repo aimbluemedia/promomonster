@@ -32,8 +32,14 @@ final class Icon
     public static function render(string $name, string $class = ''): string
     {
         $body = self::PATHS[$name] ?? self::PATHS['star'];
-        $cls = $class !== '' ? ' class="' . View::e($class) . '"' : '';
-        return '<svg' . $cls . ' viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+
+        // Every icon carries `icon`, which is where the stroke-not-fill
+        // presentation lives. These paths are outlines: without it they render
+        // as solid black blobs, which is exactly what happened the first time
+        // one was used outside a .chip.
+        $cls = 'icon' . ($class !== '' ? ' ' . View::e($class) : '');
+
+        return '<svg class="' . $cls . '" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
             . $body . '</svg>';
     }
 

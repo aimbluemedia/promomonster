@@ -1,24 +1,33 @@
 /* PromoMonster — Reviews. Reputation. Growth.
    Hand-written: shared hosting has no Node, so there is no build step here.
 
-   Palette contrast was computed, not eyeballed. The vivid cyan (#00A3E0) sits
-   at 2.87:1 on white, so it is never used for text or for a button label — it
-   appears only on large graphic elements. Anything interactive or read uses
-   --brand (#0475A3, 5.15:1 both directions). */
+   Every pair below was computed, not eyeballed (see the palette note in the
+   commit). The short version:
+     --brand  #006CB8  5.47:1 on white, 5.24 on wash, 4.77 on tint, and white
+                       on it is 5.47 — so it is safe for text, links and button
+                       labels on every surface the site uses.
+     --vivid  #009FE0  2.98:1. Decorative ONLY: gradients and large fills that
+                       carry no information. Never text, never a lone icon.
+     --star   #C2760A  3.57:1 on white, 3.11 on tint. Stars are large glyphs, so
+                       3.0 is the bar — and the rating is always printed as a
+                       number beside them, so colour is never the only carrier. */
 
 :root {
   --paper:  #ffffff;
-  --wash:   #f6fafc;
+  --wash:   #f5fbff;
   --surface:#ffffff;
-  --tint:   #eaf7fd;
-  --ink:    #0b1b2b;
-  --body:   #5a6b7c;
-  --muted:  #64748b;
-  --line:   #e4ebf1;
-  --brand:  #0475a3;
-  --brand-hover: #05628a;
-  --vivid:  #00a3e0;
-  --star:   #f5a623;
+  --tint:   #e0f2fe;
+  --tint-2: #f0f9ff;
+  --ink:    #0a0a0a;
+  --body:   #4b5563;
+  --muted:  #5b6876;
+  --line:   #e2e8f0;
+  --line-2: #cfe6f5;
+  --brand:  #006cb8;
+  --brand-hover: #005694;
+  --vivid:  #009fe0;
+  --star:   #c2760a;
+  --good:   #15803d;
 
   --radius: 14px;
   --radius-sm: 9px;
@@ -26,6 +35,8 @@
   --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --ease: cubic-bezier(.22,.61,.36,1);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -34,13 +45,17 @@
     --wash:   #0e1721;
     --surface:#111c27;
     --tint:   #102c3d;
+    --tint-2: #0d2534;
     --ink:    #eef4f8;
     --body:   #a9b8c6;
     --muted:  #93a3b3;
     --line:   #1e2c39;
-    --brand:  #4fc3f0;
-    --brand-hover: #74d2f5;
-    --vivid:  #00a3e0;
+    --line-2: #24455c;
+    --brand:  #58c4f2;
+    --brand-hover: #85d6f7;
+    --vivid:  #009fe0;
+    --star:   #f0a83a;
+    --good:   #4ade80;
   }
 }
 
@@ -137,8 +152,12 @@ h3{ font-size:1.0625rem; font-weight:700; letter-spacing:-.01em; }
 /* Icon chip — the tinted rounded square from the reference layout */
 .chip{ width:2.75rem; height:2.75rem; border-radius:10px; background:var(--tint);
   display:inline-flex; align-items:center; justify-content:center; color:var(--brand); }
-.chip svg{ width:1.35rem; height:1.35rem; stroke:currentColor; fill:none;
-  stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
+/* The icon paths are outlines, so they must be stroked and not filled. This
+   lives on the icon itself rather than on .chip, so an icon used anywhere else
+   is right by default. */
+.icon{ stroke:currentColor; fill:none; stroke-width:1.9;
+  stroke-linecap:round; stroke-linejoin:round; }
+.chip svg{ width:1.35rem; height:1.35rem; }
 
 /* Numbered step card */
 .step{ background:var(--surface); border:1px solid var(--line);
@@ -414,3 +433,164 @@ table.data td.wrap{ white-space:normal; max-width:22rem; }
   border-radius:var(--radius); padding:1.1rem 1.25rem; }
 .plan-strip__now{ font-size:1.15rem; font-weight:800; color:var(--ink); }
 .plan-strip__meta{ margin:.2rem 0 0; font-size:.86rem; color:var(--muted); }
+
+/* ========================================================================
+   Long-form landing page components
+   ======================================================================== */
+
+/* --- Accent ticker strip, used as a section divider ---------------------- */
+.ticker{ background:var(--brand); color:#fff; overflow:hidden;
+  padding:.65rem 0; position:relative; }
+.ticker__track{ display:flex; width:max-content; gap:0;
+  animation:ticker-scroll 38s linear infinite; }
+.ticker:hover .ticker__track{ animation-play-state:paused; }
+.ticker__group{ display:flex; gap:0; flex-shrink:0; }
+.ticker span{ display:inline-flex; align-items:center; gap:.7rem;
+  padding:0 1.4rem; font-size:.8rem; font-weight:700; letter-spacing:.04em;
+  text-transform:uppercase; white-space:nowrap; }
+.ticker span::after{ content:"★"; color:#fff; opacity:.55; font-size:.7rem; }
+@keyframes ticker-scroll{ from{ transform:translateX(0); } to{ transform:translateX(-50%); } }
+@media (prefers-reduced-motion: reduce){
+  /* Stop the marquee outright: a slowed one still moves, and movement is the
+     thing being opted out of. */
+  .ticker__track{ animation:none; width:100%; justify-content:center;
+    flex-wrap:wrap; gap:.5rem 0; }
+  .ticker__group:nth-child(2){ display:none; }
+}
+
+/* --- Big display headline with an accent phrase -------------------------- */
+.display{ font-size:clamp(2rem,5.2vw,3.4rem); line-height:1.08; letter-spacing:-.025em;
+  font-weight:800; margin:0 0 1rem; color:var(--ink); }
+.display em{ font-style:normal; color:var(--brand); }
+.display--tight{ max-width:24ch; }
+
+/* --- Benefit strip: small icon + label, in a row ------------------------- */
+.benefits{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:.25rem; border:1px solid var(--line); border-radius:var(--radius);
+  background:var(--surface); overflow:hidden; }
+@media (min-width:700px){ .benefits{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media (min-width:1000px){ .benefits{ grid-template-columns:repeat(6,minmax(0,1fr)); } }
+.benefit{ display:flex; flex-direction:column; align-items:center; gap:.5rem;
+  text-align:center; padding:1.35rem .85rem; position:relative; }
+.benefit + .benefit::before{ content:""; position:absolute; left:0; top:18%; bottom:18%;
+  width:1px; background:var(--line); }
+@media (max-width:999px){ .benefit + .benefit::before{ display:none; } }
+.benefit svg{ width:1.5rem; height:1.5rem; color:var(--brand); }
+.benefit strong{ font-size:.84rem; color:var(--ink); line-height:1.3; }
+.benefit span{ font-size:.74rem; color:var(--muted); }
+
+/* --- Calculator ---------------------------------------------------------- */
+.calc{ display:grid; gap:1.25rem; }
+@media (min-width:900px){ .calc{ grid-template-columns:1.05fr .95fr; gap:1.75rem; align-items:start; } }
+
+.calc__panel{ background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--radius); padding:1.5rem; }
+.calc__panel h3{ font-size:1rem; margin:0 0 1.25rem; color:var(--ink); }
+
+.calc__field{ margin-bottom:1.5rem; }
+.calc__field:last-child{ margin-bottom:0; }
+.calc__label{ display:flex; justify-content:space-between; align-items:baseline;
+  gap:1rem; margin-bottom:.6rem; }
+.calc__label span{ font-size:.88rem; font-weight:600; color:var(--ink); }
+.calc__out{ font-variant-numeric:tabular-nums; font-weight:800; font-size:1.05rem;
+  color:var(--brand); }
+.calc__hint{ margin:.45rem 0 0; font-size:.78rem; color:var(--muted); }
+
+/* Range input. Styled on both engines; the thumb is 24px so it is a real
+   touch target, and focus is visible because the browser default is removed. */
+.calc input[type=range]{ -webkit-appearance:none; appearance:none; width:100%;
+  height:24px; background:transparent; cursor:pointer; margin:0; display:block; }
+.calc input[type=range]:focus-visible{ outline:2px solid var(--brand); outline-offset:4px; border-radius:4px; }
+.calc input[type=range]::-webkit-slider-runnable-track{ height:6px; border-radius:99px;
+  background:linear-gradient(90deg, var(--brand) var(--pct,50%), var(--line) var(--pct,50%)); }
+.calc input[type=range]::-moz-range-track{ height:6px; border-radius:99px; background:var(--line); }
+.calc input[type=range]::-moz-range-progress{ height:6px; border-radius:99px; background:var(--brand); }
+.calc input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; appearance:none;
+  width:22px; height:22px; margin-top:-8px; border-radius:50%; background:#fff;
+  border:3px solid var(--brand); box-shadow:0 1px 4px rgba(0,0,0,.2); }
+.calc input[type=range]::-moz-range-thumb{ width:16px; height:16px; border-radius:50%;
+  background:#fff; border:3px solid var(--brand); box-shadow:0 1px 4px rgba(0,0,0,.2); }
+
+/* Result side */
+.calc__result{ background:linear-gradient(165deg, var(--tint-2), var(--tint));
+  border:1px solid var(--line-2); border-radius:var(--radius); padding:1.75rem 1.5rem; }
+.calc__eyebrow{ font-size:.72rem; font-weight:800; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--brand); margin:0 0 .5rem; }
+.calc__hero{ font-size:clamp(3rem,9vw,4.5rem); font-weight:800; line-height:1;
+  letter-spacing:-.03em; color:var(--ink); font-variant-numeric:tabular-nums;
+  margin:0; }
+.calc__hero-unit{ font-size:.95rem; font-weight:700; color:var(--body);
+  margin:.4rem 0 0; }
+.calc__impossible{ font-size:1.15rem; font-weight:700; color:var(--ink);
+  margin:.35rem 0 0; line-height:1.4; }
+
+.calc__rows{ margin:1.5rem 0 0; padding:1.25rem 0 0; border-top:1px solid var(--line-2);
+  display:grid; gap:.8rem; }
+.calc__row{ display:flex; justify-content:space-between; align-items:baseline; gap:1rem;
+  font-size:.9rem; }
+.calc__row dt{ color:var(--body); margin:0; }
+.calc__row dd{ margin:0; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums;
+  text-align:right; }
+.calc__row dd .up{ color:var(--good); font-weight:800; }
+
+/* Before / after rating, as two star rows. The number is always printed, so the
+   comparison never rests on the star colour alone. */
+.rating-pair{ display:grid; gap:.7rem; margin:1.5rem 0 0; padding:1.25rem 0 0;
+  border-top:1px solid var(--line-2); }
+.rating-line{ display:flex; align-items:center; gap:.75rem; flex-wrap:wrap; }
+.rating-line__label{ font-size:.78rem; font-weight:700; text-transform:uppercase;
+  letter-spacing:.06em; color:var(--muted); min-width:3.6rem; }
+.rating-line__val{ font-size:1.15rem; font-weight:800; color:var(--ink);
+  font-variant-numeric:tabular-nums; min-width:2.6rem; }
+.rating-line--now .rating-line__val{ color:var(--body); }
+
+/* Star meter: a 5-wide track with a clipped gold overlay, so a 4.3 shows as
+   4.3 stars rather than being rounded to a whole one. */
+.stars-meter{ position:relative; display:inline-block; line-height:1;
+  font-size:1.15rem; letter-spacing:.12em; }
+.stars-meter__bg{ color:var(--line-2); }
+.stars-meter__fg{ position:absolute; inset:0; overflow:hidden; white-space:nowrap;
+  color:var(--star); width:var(--fill,0%); }
+@media (prefers-reduced-motion: no-preference){
+  .stars-meter__fg{ transition:width .5s var(--ease); }
+}
+
+/* --- Comparison cards ---------------------------------------------------- */
+.compare{ display:grid; gap:1.1rem; }
+@media (min-width:640px){ .compare{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (min-width:1000px){ .compare{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+
+/* --- Proof band ---------------------------------------------------------- */
+.band{ background:linear-gradient(180deg, var(--tint-2), var(--paper)); }
+.band__grid{ display:grid; gap:1.5rem; text-align:center;
+  grid-template-columns:repeat(2,minmax(0,1fr)); }
+@media (min-width:760px){ .band__grid{ grid-template-columns:repeat(4,minmax(0,1fr)); } }
+.band__n{ font-size:clamp(2rem,5vw,2.9rem); font-weight:800; line-height:1;
+  color:var(--brand); font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
+.band__l{ margin:.5rem 0 0; font-size:.86rem; color:var(--body); }
+
+/* --- Scroll reveal ------------------------------------------------------- */
+/* Applied by JS only (the .js-reveal class is added by script), so with
+   JavaScript off or broken nothing is ever left invisible. */
+@media (prefers-reduced-motion: no-preference){
+  .js-reveal [data-reveal]{ opacity:0; transform:translateY(14px);
+    transition:opacity .55s var(--ease), transform .55s var(--ease); }
+  .js-reveal [data-reveal].is-in{ opacity:1; transform:none; }
+  .js-reveal [data-reveal][data-reveal-delay="1"]{ transition-delay:.08s; }
+  .js-reveal [data-reveal][data-reveal-delay="2"]{ transition-delay:.16s; }
+  .js-reveal [data-reveal][data-reveal-delay="3"]{ transition-delay:.24s; }
+}
+
+/* --- Motion on existing pieces ------------------------------------------- */
+@media (prefers-reduced-motion: no-preference){
+  .card, .step{ transition:transform .22s var(--ease), box-shadow .22s var(--ease),
+    border-color .22s var(--ease); }
+  .card:hover, .step:hover{ transform:translateY(-3px);
+    box-shadow:0 14px 32px rgba(10,40,70,.09); border-color:var(--line-2); }
+  .btn{ transition:transform .16s var(--ease), background .16s var(--ease); }
+  .btn--primary:hover{ transform:translateY(-1px); }
+}
+
+/* The hero headline takes the same accent-phrase treatment as the section
+   headings, so the page reads as one system. */
+.hero h1 em{ font-style:normal; color:var(--brand); }
