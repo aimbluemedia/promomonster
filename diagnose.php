@@ -230,6 +230,89 @@ if (!is_file($configPath)) {
     }
 }
 
+// --- Claude / competitor comparison ----------------------------------------
+// Three separate things can be wrong here and they need different fixes: the
+// code is not uploaded, the key is not in config.php, or the key is wrong.
+$claudeFiles = [
+    'app/Support/Claude.php'           => 'API client',
+    'app/Support/ReviewComparison.php' => 'Comparison engine',
+    'app/Views/superadmin/audit.php'   => 'Audit screen',
+];
+$missingClaude = [];
+foreach ($claudeFiles as $rel => $what) {
+    if (!is_file($base . '/' . $rel)) {
+        $missingClaude[] = $rel;
+    }
+}
+
+if ($missingClaude !== []) {
+    add($checks, 'Competitor comparison', 'fail',
+        'NOT UPLOADED. Missing: ' . implode(', ', $missingClaude)
+        . ' — upload the app/ folder again. Saving the API key alone does nothing '
+        . 'until these files are on the server.');
+} else {
+    $apiKey = '';
+    if (isset($config) && is_array($config)) {
+        $apiKey = trim((string) ($config['anthropic']['api_key'] ?? ''));
+    }
+
+    if ($apiKey === '') {
+        add($checks, 'Competitor comparison', 'fail',
+            "Code is uploaded, but app/config.php has no 'anthropic' => ['api_key' => '...'] entry, "
+            . 'so the feature stays disabled.');
+    } elseif (!extension_loaded('curl')) {
+        add($checks, 'Competitor comparison', 'fail',
+            'A key is set, but the curl PHP extension is off. Enable it in hPanel → PHP Configuration.');
+    } else {
+        add($checks, 'Competitor comparison', 'pass',
+            'Code uploaded and a key is configured (' . strlen($apiKey) . ' characters, '
+            . 'ending ' . substr($apiKey, -4) . '). Add ?claude=1 to this URL to spend about '
+            . '$0.001 checking the key actually works.');
+
+        // Opt-in, because every run of this costs money. Tiny and cheap.
+        if (isset($_GET['claude'])) {
+            $payload = json_encode([
+                'model'      => 'claude-opus-5',
+                'max_tokens' => 16,
+                'messages'   => [['role' => 'user', 'content' => 'Reply with the single word: ready']],
+                'output_config' => ['effort' => 'low'],
+            ]);
+            $ch = curl_init('https://api.anthropic.com/v1/messages');
+            curl_setopt_array($ch, [
+                CURLOPT_POST           => true,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 45,
+                CURLOPT_HTTPHEADER     => [
+                    'content-type: application/json',
+                    'x-api-key: ' . $apiKey,
+                    'anthropic-version: 2023-06-01',
+                ],
+                CURLOPT_POSTFIELDS => $payload,
+            ]);
+            $raw = curl_exec($ch);
+            $code = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+            $curlErr = curl_error($ch);
+            curl_close($ch);
+
+            if ($raw === false) {
+                add($checks, 'Claude live check', 'fail',
+                    'Could not reach api.anthropic.com: ' . $curlErr
+                    . ' — Hostinger may be blocking outbound HTTPS on this plan.');
+            } elseif ($code === 401) {
+                add($checks, 'Claude live check', 'fail',
+                    'The key was rejected (401). Check for a stray space or a truncated paste.');
+            } elseif ($code === 200) {
+                add($checks, 'Claude live check', 'pass',
+                    'Claude answered. The comparison tool is ready to use.');
+            } else {
+                $body = json_decode((string) $raw, true);
+                add($checks, 'Claude live check', 'fail',
+                    'HTTP ' . $code . ': ' . ($body['error']['message'] ?? 'no detail given'));
+            }
+        }
+    }
+}
+
 // --- Recent errors --------------------------------------------------------
 // The whole point: a 500 should never again be a dead end.
 $logPath = $base . '/storage/logs/error.log';
