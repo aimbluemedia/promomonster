@@ -219,6 +219,22 @@ final class Auth
         return true;
     }
 
+    /**
+     * Establishes a session for a user who has just been created, without going
+     * back through the password. Signup has already proved who they are — the
+     * alternative is re-running attempt() with the plaintext still in memory.
+     */
+    public static function signIn(int $userId): void
+    {
+        session_regenerate_id(true);
+        $_SESSION[self::SESSION_KEY] = $userId;
+        self::$cached = null;
+        self::$account = null;
+
+        Database::run('UPDATE users SET last_login_at = NOW() WHERE id = :id', ['id' => $userId]);
+        Audit::log('auth.signup', 'user', $userId);
+    }
+
     public static function logout(): void
     {
         unset($_SESSION[self::SESSION_KEY]);

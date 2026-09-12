@@ -34,7 +34,7 @@
       <button class="btn btn--primary btn--block" type="submit">Sign in</button>
     </form>
     <p class="form__note" style="margin-top:1.25rem;">
-      Not a customer yet? <a href="/audit" style="color:var(--brand);font-weight:600;">Start with a free review audit</a>.
+      No account yet? <a href="/members/signup" style="color:var(--brand);font-weight:600;">Create one free</a>.
     </p>
   </div>
 </div>

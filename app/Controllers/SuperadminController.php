@@ -8,6 +8,7 @@ use App\Support\Audit;
 use App\Support\Auth;
 use App\Support\Csrf;
 use App\Support\Database;
+use App\Support\Plans;
 use App\Support\Request;
 use App\Support\View;
 
@@ -32,6 +33,7 @@ final class SuperadminController
                (SELECT COUNT(*) FROM waitlist WHERE role = 'agency')      AS agencies_total,
                (SELECT COUNT(*) FROM waitlist WHERE role = 'agency' AND status = 'new') AS agencies_new,
                (SELECT COUNT(*) FROM accounts)                            AS accounts_total,
+               (SELECT COUNT(*) FROM accounts WHERE requested_plan IS NOT NULL) AS upgrades_pending,
                (SELECT COUNT(*) FROM suppressions)                        AS suppressions_total"
         ) ?? [];
 
@@ -42,7 +44,78 @@ final class SuperadminController
                 'SELECT id, business_name, email, vertical, status, created_at
                    FROM audits ORDER BY created_at DESC LIMIT 8'
             ),
+            // Plan requests go nowhere unless somebody sees them. Until billing
+            // exists, this list IS the billing system.
+            'upgrades' => Database::all(
+                "SELECT a.id, a.name, a.plan, a.requested_plan, a.requested_plan_at,
+                        u.email AS owner_email
+                   FROM accounts a
+              LEFT JOIN account_users au ON au.account_id = a.id AND au.role = 'owner'
+              LEFT JOIN users u ON u.id = au.user_id
+                  WHERE a.requested_plan IS NOT NULL
+               ORDER BY a.requested_plan_at"
+            ),
         ]);
+    }
+
+    /**
+     * Applies or dismisses a member's plan request.
+     *
+     * This is the manual stand-in for billing. 'apply' moves the account onto
+     * the plan it asked for — do it once payment is actually arranged, because
+     * nothing here takes money.
+     */
+    public function updatePlan(): void
+    {
+        if (!Csrf::check($_POST['_csrf'] ?? null)) {
+            $this->flash('/superadmin', 'Your session expired. Please try again.');
+        }
+
+        $accountId = (int) ($_POST['account_id'] ?? 0);
+        $decision  = (string) ($_POST['decision'] ?? '');
+
+        $account = Database::first(
+            'SELECT id, name, plan, requested_plan FROM accounts WHERE id = :id',
+            ['id' => $accountId],
+        );
+
+        if ($account === null || $account['requested_plan'] === null) {
+            $this->flash('/superadmin', 'That account has no plan request outstanding.');
+        }
+        if (!in_array($decision, ['apply', 'dismiss'], true)) {
+            $this->flash('/superadmin', 'Unknown action.');
+        }
+
+        $wanted = (string) $account['requested_plan'];
+
+        if ($decision === 'apply') {
+            Database::run(
+                'UPDATE accounts
+                    SET plan = :plan, requested_plan = NULL, requested_plan_at = NULL,
+                        plan_changed_at = NOW()
+                  WHERE id = :id',
+                ['plan' => $wanted, 'id' => $accountId],
+            );
+            Audit::log('account.plan_applied', 'account', $accountId,
+                ['plan' => $account['plan']], ['plan' => $wanted]);
+
+            $this->flash('/superadmin', $account['name'] . ' is now on ' . Plans::name($wanted) . '.');
+        }
+
+        Database::run(
+            'UPDATE accounts SET requested_plan = NULL, requested_plan_at = NULL WHERE id = :id',
+            ['id' => $accountId],
+        );
+        Audit::log('account.plan_request_dismissed', 'account', $accountId,
+            ['requested_plan' => $wanted], null);
+
+        $this->flash('/superadmin', 'Cleared the ' . Plans::name($wanted) . ' request for ' . $account['name'] . '.');
+    }
+
+    private function flash(string $to, string $message): never
+    {
+        $_SESSION['admin_flash'] = $message;
+        Request::redirect($to);
     }
 
     public function audits(): void

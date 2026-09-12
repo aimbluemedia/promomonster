@@ -67,6 +67,7 @@ use App\Controllers\AuthController;
 use App\Controllers\LeadController;
 use App\Controllers\MembersController;
 use App\Controllers\PasswordController;
+use App\Controllers\SignupController;
 use App\Controllers\PageController;
 use App\Support\Router;
 
@@ -105,6 +106,7 @@ $router->get('/superadmin/leads',            static fn () => (new SuperadminCont
 $router->post('/superadmin/leads/update',    static fn () => (new SuperadminController())->updateLead());
 $router->get('/superadmin/compliance',       static fn () => (new SuperadminController())->compliance());
 $router->get('/superadmin/activity',         static fn () => (new SuperadminController())->activity());
+$router->post('/superadmin/accounts/plan',   static fn () => (new SuperadminController())->updatePlan());
 
 // Members (customers). Same lazy-construction reason as above.
 $router->get('/members/login',   static fn () => $auth->showLogin('members'));
@@ -113,11 +115,16 @@ $router->post('/members/logout', static fn () => $auth->logout('members'));
 $router->get('/members/password',  static fn () => (new PasswordController())->show('members'));
 $router->post('/members/password', static fn () => (new PasswordController())->update('members'));
 
+// Signup is public: SignupController has no guard in its constructor.
+$router->get('/members/signup',  static fn () => (new SignupController())->show());
+$router->post('/members/signup', static fn () => (new SignupController())->store());
+
 $router->get('/members',          static fn () => (new MembersController())->overview());
 $router->get('/members/reviews',  static fn () => (new MembersController())->reviews());
 $router->get('/members/requests', static fn () => (new MembersController())->requests());
 $router->get('/members/playbook', static fn () => (new MembersController())->playbook());
 $router->get('/members/settings', static fn () => (new MembersController())->settings());
+$router->post('/members/plan',   static fn () => (new MembersController())->requestPlan());
 
 $router->dispatch(
     $_SERVER['REQUEST_METHOD'] ?? 'GET',
