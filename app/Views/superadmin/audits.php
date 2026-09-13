@@ -29,6 +29,11 @@
             <td>
               <a href="/superadmin/audit?id=<?= (int) $r['id'] ?>"
                  style="color:var(--brand);font-weight:700;"><?= View::e($r['business_name']) ?></a>
+              <?php if (($r['source'] ?? '') === 'self_serve'): ?>
+                <?php /* Already has a comparison attached — no work needed unless
+                         you want to follow it up as a lead. */ ?>
+                <span class="pill-status" style="margin-left:.4rem;">Self-serve</span>
+              <?php endif; ?>
               <?php if (!empty($extra['website'])): ?>
                 <div class="mono" style="margin-top:.2rem;"><?= View::e($extra['website']) ?></div>
               <?php endif; ?>

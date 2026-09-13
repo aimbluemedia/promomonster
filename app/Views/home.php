@@ -259,7 +259,7 @@
       go unanswered, and how you compare to the three nearest businesses like
       yours. Free, and no card.</p>
     <div class="btn-row" style="justify-content:center;">
-      <a class="btn btn--primary" href="/audit">Get your free review audit</a>
+      <a class="btn btn--primary" href="/compare">Compare me with my competitors</a>
       <a class="btn btn--ghost" href="/members/signup">Create a free account</a>
     </div>
   </div>

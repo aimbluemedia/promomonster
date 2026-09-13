@@ -10,6 +10,7 @@
     </a>
     <nav class="site-nav">
       <?php foreach ([
+        '/compare'      => 'Free Comparison',
         '/how-it-works' => 'How It Works',
         '/features'     => 'Features',
         '/pricing'      => 'Pricing',

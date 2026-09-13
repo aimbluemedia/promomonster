@@ -64,6 +64,7 @@ require dirname(__DIR__) . '/app/bootstrap.php';
 
 use App\Controllers\SuperadminController;
 use App\Controllers\AuthController;
+use App\Controllers\CompareController;
 use App\Controllers\LeadController;
 use App\Controllers\MembersController;
 use App\Controllers\PasswordController;
@@ -88,6 +89,11 @@ $router->get('/privacy',      [$pages, 'privacy']);
 $router->get('/terms',        [$pages, 'terms']);
 
 $router->post('/leads', [new LeadController(), 'store']);
+
+// Public one-time AI comparison. Spends money per submission, so the guards
+// live in the controller rather than here.
+$router->get('/compare',  static fn () => (new CompareController())->show());
+$router->post('/compare', static fn () => (new CompareController())->run());
 
 // Superadmin (PromoMonster staff). SuperadminController's constructor calls
 // Auth::requireStaff(), so it is built lazily inside each closure — creating it
