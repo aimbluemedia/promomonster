@@ -10,6 +10,24 @@ $last  = min($page * $perPage, $total);
   </span>
 </div>
 
+<?php /* Reaches what the per-row delete cannot: an attempt that failed before
+         it produced a row still used up an allowance, and the bucket keys are
+         hashed so there is nothing to look them up by. */ ?>
+<div class="notice" style="margin-bottom:1.5rem;display:flex;flex-wrap:wrap;gap:1rem;
+     align-items:center;justify-content:space-between;">
+  <div>
+    <strong>Blocked and nothing here to delete?</strong>
+    <p style="margin:.2rem 0 0;">Failed attempts &mdash; a bad address, a site that
+      would not load &mdash; still count against the daily limit. This clears every
+      limit so you can try again.</p>
+  </div>
+  <form class="row-form" method="post" action="/superadmin/limits/clear"
+        onsubmit="return confirm('Clear all rate limits? Everyone gets their daily allowance back.');">
+    <?= Csrf::field() ?>
+    <button type="submit">Clear all rate limits</button>
+  </form>
+</div>
+
 <div class="table-wrap">
   <?php if ($rows === []): ?>
     <p class="empty">No scores yet. They appear here as visitors use the form on the homepage.</p>

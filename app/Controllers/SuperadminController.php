@@ -305,6 +305,31 @@ final class SuperadminController
         $this->flash($back, 'Deleted. ' . $row['email'] . ' can be scored again now.');
     }
 
+    /**
+     * Clears every rate-limit bucket.
+     *
+     * The escape hatch for the case the delete button cannot reach: an attempt
+     * that failed before it produced anything still filled a bucket, so there
+     * is no row to delete and no way back. Bucket keys are hashed, so they
+     * cannot be looked up by address either — clearing all of them is the only
+     * move available. Cheap to do: the worst case is that a handful of people
+     * get their daily allowance back.
+     */
+    public function clearLimits(): void
+    {
+        if (!Csrf::check($_POST['_csrf'] ?? null)) {
+            $this->flash('/superadmin/scores', 'Your session expired. Please try again.');
+        }
+
+        $cleared = RateLimiter::forgetAll();
+        Audit::log('ratelimits.cleared', null, null, ['cleared' => $cleared], null);
+
+        $this->flash('/superadmin/scores',
+            $cleared === 0
+                ? 'There were no rate limits to clear.'
+                : 'Cleared ' . $cleared . ' rate limit(s). Everyone can try again now.');
+    }
+
     public function audits(): void
     {
         $filter = $_GET['status'] ?? '';

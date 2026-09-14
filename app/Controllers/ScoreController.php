@@ -67,12 +67,17 @@ final class ScoreController
 
         $email = mb_strtolower((string) $email);
 
-        // Fetching costs us a request; scoring costs a little money. Same shape
-        // of guard as /compare, and for the same reason.
-        if (RateLimiter::tooManyAttempts('score:ip:' . Request::ip(), 5, 86400)) {
+        // Checked here, recorded only once a score actually exists. Counting the
+        // attempt instead would charge a visitor for a mistyped address or for
+        // our own crash, and there would be no row in superadmin to delete to
+        // give it back.
+        $ipKey    = 'score:ip:' . Request::ip();
+        $emailKey = 'score:email:' . $email;
+
+        if (RateLimiter::atLimit($ipKey, 5, 86400)) {
             $this->fail('That is the limit for one connection today.');
         }
-        if (RateLimiter::tooManyAttempts('score:email:' . $email, 3, 86400)) {
+        if (RateLimiter::atLimit($emailKey, 3, 86400)) {
             $this->fail('That address has been used a few times today already.');
         }
 
@@ -118,6 +123,10 @@ final class ScoreController
                 'ip'       => Request::ip(),
             ],
         );
+
+        // The work is done and the row exists: now it counts.
+        RateLimiter::record($ipKey);
+        RateLimiter::record($emailKey);
 
         $_SESSION['score_result'] = $result;
         Request::redirect('/score#result');

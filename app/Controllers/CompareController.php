@@ -118,11 +118,16 @@ final class CompareController
                 . 'Create a free account and you can run them whenever you like.');
         }
 
-        if (RateLimiter::tooManyAttempts('compare:ip:' . Request::ip(), 3, 86400)) {
+        // Checked now, recorded only after a comparison actually exists — a
+        // failed attempt costs nothing, so it must not cost an allowance.
+        $ipKey    = 'compare:ip:' . Request::ip();
+        $emailKey = 'compare:email:' . $email;
+
+        if (RateLimiter::atLimit($ipKey, 3, 86400)) {
             $this->fail('That is the limit for one connection today. Email hello@promomonster.com '
                 . 'and a person will run one for you.');
         }
-        if (RateLimiter::tooManyAttempts('compare:email:' . $email, 2, 86400)) {
+        if (RateLimiter::atLimit($emailKey, 2, 86400)) {
             $this->fail('That address has already been used today.');
         }
 
@@ -161,6 +166,9 @@ final class CompareController
                 'ip'       => Request::ip(),
             ],
         );
+
+        RateLimiter::record($ipKey);
+        RateLimiter::record($emailKey);
 
         $_SESSION['compare_result'] = $results;
         Request::redirect('/compare#result');

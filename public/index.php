@@ -116,6 +116,7 @@ $router->post('/superadmin/audits/compare',  static fn () => (new SuperadminCont
 $router->post('/superadmin/audits/update',   static fn () => (new SuperadminController())->updateAudit());
 $router->get('/superadmin/scores',           static fn () => (new SuperadminController())->scores());
 $router->post('/superadmin/scores/delete',   static fn () => (new SuperadminController())->deleteScore());
+$router->post('/superadmin/limits/clear',    static fn () => (new SuperadminController())->clearLimits());
 $router->get('/superadmin/leads',            static fn () => (new SuperadminController())->leads());
 $router->post('/superadmin/leads/update',    static fn () => (new SuperadminController())->updateLead());
 $router->get('/superadmin/compliance',       static fn () => (new SuperadminController())->compliance());
