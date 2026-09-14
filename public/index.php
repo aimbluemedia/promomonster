@@ -66,6 +66,7 @@ use App\Controllers\SuperadminController;
 use App\Controllers\AuthController;
 use App\Controllers\CompareController;
 use App\Controllers\LeadController;
+use App\Controllers\ScoreController;
 use App\Controllers\MembersController;
 use App\Controllers\PasswordController;
 use App\Controllers\SignupController;
@@ -92,6 +93,9 @@ $router->post('/leads', [new LeadController(), 'store']);
 
 // Public one-time AI comparison. Spends money per submission, so the guards
 // live in the controller rather than here.
+$router->get('/score',  static fn () => (new ScoreController())->show());
+$router->post('/score', static fn () => (new ScoreController())->run());
+
 $router->get('/compare',  static fn () => (new CompareController())->show());
 $router->post('/compare', static fn () => (new CompareController())->run());
 

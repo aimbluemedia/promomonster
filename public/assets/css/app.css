@@ -603,3 +603,72 @@ table.data td.wrap{ white-space:normal; max-width:22rem; }
 .compare-block label{ display:block; font-size:.82rem; font-weight:600;
   color:var(--ink); margin-bottom:.35rem; }
 .compare-block textarea.field{ font-family:inherit; line-height:1.5; resize:vertical; }
+
+/* ========================================================================
+   Free Review Score
+   ======================================================================== */
+
+/* The band under the hero. Tinted so it reads as the page's one call to
+   action rather than another content section. */
+.score-band{ background:linear-gradient(180deg, var(--tint-2), var(--paper));
+  border-block:1px solid var(--line-2); }
+
+.score-card{ padding:1.75rem; }
+@media (min-width:640px){ .score-card{ padding:2rem 2.25rem; } }
+.score-card--hero{ box-shadow:0 18px 44px rgba(10,40,70,.10); }
+
+.score-form__fields{ display:grid; gap:1rem; }
+@media (min-width:700px){ .score-form__fields{ grid-template-columns:1fr 1fr; gap:1.1rem; } }
+.score-form__field label{ display:block; font-size:.82rem; font-weight:700;
+  color:var(--ink); margin-bottom:.45rem; }
+
+/* Deliberately large: this is the one input that matters on the page. */
+.field--xl{ font-size:1.05rem; padding:1rem 1.1rem; border-radius:var(--radius-sm);
+  border-width:1.5px; }
+.btn--xl{ font-size:1.05rem; padding:1.05rem 1.6rem; margin-top:1.25rem; }
+.score-form__note{ margin:.9rem 0 0; text-align:center; font-size:.84rem; color:var(--muted); }
+
+/* --- The dial ------------------------------------------------------------
+   Colour supports the number, it never replaces it: the score is printed in
+   the middle and the band is written out beside it, so the readout works in
+   greyscale and for a colourblind reader. */
+.score-readout{ display:grid; gap:1.5rem; align-items:center; justify-items:center;
+  text-align:center; }
+@media (min-width:640px){
+  .score-readout{ grid-template-columns:auto 1fr; text-align:left; justify-items:start; }
+}
+.dial{ position:relative; width:11rem; height:11rem; flex-shrink:0; }
+.dial svg{ width:100%; height:100%; display:block; }
+.dial__track{ stroke:var(--line); }
+.dial--good .dial__value{ stroke:#15803d; }   /* 5.02:1 on white */
+.dial--mid  .dial__value{ stroke:#b45309; }   /* 5.02:1 */
+.dial--low  .dial__value{ stroke:#b3261e; }   /* 6.54:1 */
+@media (prefers-reduced-motion: no-preference){
+  .dial__value{ transition:stroke-dasharray .9s var(--ease); }
+}
+.dial__centre{ position:absolute; inset:0; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; line-height:1; }
+.dial__num{ font-size:3rem; font-weight:800; color:var(--ink);
+  font-variant-numeric:tabular-nums; letter-spacing:-.03em; }
+.dial__max{ font-size:.85rem; font-weight:700; color:var(--muted); margin-top:.2rem; }
+
+.score-readout__band{ margin:0; font-size:1.35rem; font-weight:800; color:var(--ink); }
+.score-readout__url{ margin:.2rem 0 0; font-size:.86rem; color:var(--muted);
+  word-break:break-all; }
+.score-readout__summary{ margin:.9rem 0 0; color:var(--body); }
+.score-readout .form__note{ margin-top:.7rem; }
+
+/* --- The seven checks ---------------------------------------------------- */
+.score-checks{ list-style:none; margin:1.75rem 0 0; padding:1.5rem 0 0;
+  border-top:1px solid var(--line); display:grid; gap:1rem; }
+.score-check{ display:flex; gap:.85rem; align-items:flex-start; }
+.score-check__mark{ flex-shrink:0; width:1.5rem; height:1.5rem; border-radius:50%;
+  display:inline-flex; align-items:center; justify-content:center;
+  font-size:.8rem; font-weight:800; background:var(--line); color:var(--muted); }
+.score-check.is-on .score-check__mark{ background:#15803d; color:#fff; }
+.score-check strong{ color:var(--ink); font-size:.95rem; }
+.score-check__pts{ display:inline-block; margin-left:.4rem; font-size:.75rem;
+  font-weight:800; color:var(--muted); font-variant-numeric:tabular-nums; }
+.score-check.is-on .score-check__pts{ color:#15803d; }
+.score-check__detail{ display:block; margin-top:.15rem; font-size:.88rem;
+  color:var(--body); line-height:1.5; }

@@ -10,7 +10,6 @@
     </a>
     <nav class="site-nav">
       <?php foreach ([
-        '/compare'      => 'Free Comparison',
         '/how-it-works' => 'How It Works',
         '/features'     => 'Features',
         '/pricing'      => 'Pricing',
@@ -18,7 +17,7 @@
       ] as $href => $label): ?>
         <a class="site-nav__link" href="<?= $href ?>"<?= $current === $href ? ' aria-current="page"' : '' ?>><?= View::e($label) ?></a>
       <?php endforeach; ?>
-      <a class="btn btn--primary" href="/audit" style="margin-left:.5rem;">Free Review Audit</a>
+      <a class="btn btn--primary" href="/score" style="margin-left:.5rem;">Free Review Score</a>
     </nav>
   </div>
 </header>

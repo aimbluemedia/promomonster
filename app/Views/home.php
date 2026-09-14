@@ -53,13 +53,32 @@
         write reviews.</p>
 
       <div class="btn-row">
-        <a class="btn btn--primary" href="/audit">Get your free review audit</a>
+        <a class="btn btn--primary" href="#score">Get your Free Review Score</a>
         <a class="btn btn--ghost" href="/how-it-works">See how it works</a>
       </div>
     </div>
   </div>
 </section>
 
+
+<?php /* ---- Free Review Score. Directly under the hero on purpose: it is the
+         one thing we want a first-time visitor to do. ------------------- */ ?>
+<section class="section score-band" id="score">
+  <div class="container" style="max-width:54rem;">
+    <div class="center" style="margin-bottom:1.75rem;">
+      <p class="eyebrow">Free Review Score</p>
+      <h2 class="display" style="margin-bottom:.6rem;">Try it right now &mdash;
+        <em>see your score in seconds</em></h2>
+      <p class="lede" style="margin-inline:auto;">We read your website and score it
+        out of 100 on how well it is set up to win customer reviews. No credit card,
+        no sales call.</p>
+    </div>
+
+    <div class="card score-card score-card--hero">
+      <?php require APP_ROOT . '/Views/partials/score-form.php'; ?>
+    </div>
+  </div>
+</section>
 
 <?php /* Ticker strips break the page into chapters the way the reference does,
          and carry the compliance line past anyone who only skims. */ ?>
@@ -168,7 +187,7 @@
       <h2 class="display">Know exactly what to <em>fix next</em></h2>
       <p class="lede">One number for how well your reputation engine is running,
         and one clear next step. No dashboards to interpret.</p>
-      <div class="btn-row"><a class="btn btn--primary" href="/audit">Score my business free</a></div>
+      <div class="btn-row"><a class="btn btn--primary" href="/score">Score my business free</a></div>
     </div>
     <div class="card" data-reveal data-reveal-delay="1">
       <div class="score"><span class="score__val" data-count="62">62</span><span class="score__max">/ 100</span></div>
