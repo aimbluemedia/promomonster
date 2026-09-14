@@ -154,7 +154,7 @@ TXT;
         $result = Claude::ask(self::SYSTEM, $prompt, self::schema());
 
         $result['_meta'] = [
-            'model'       => Claude::MODEL,
+            'model'       => Claude::model(),
             'generated_at'=> date('c'),
             'competitors' => count($competitors),
             'reviews_seen'=> count($subject['reviews'] ?? [])

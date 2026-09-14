@@ -96,6 +96,9 @@ function businessFields(string $prefix, string $label, string $name = '', bool $
     <button class="btn btn--primary" type="submit" <?= $aiReady ? '' : 'disabled' ?>>
       Run the comparison
     </button>
-    <p class="form__note">Takes 20&ndash;60 seconds. Roughly $0.05&ndash;$0.15 of API usage per audit.</p>
+    <p class="form__note">
+      Takes 20&ndash;60 seconds. About <?= View::e($costNote) ?> of API usage per run,
+      on <?= View::e($modelLabel) ?>.
+    </p>
   </form>
 </div>

@@ -32,8 +32,76 @@ final class Claude
     }
     private const VERSION  = '2023-06-01';
 
-    /** Opus 5: 1M context, $5/MTok in, $25/MTok out. */
-    public const MODEL = 'claude-opus-5';
+    /**
+     * What each supported model costs and which request fields it accepts.
+     *
+     * The shape of the request is NOT the same across models, and getting it
+     * wrong is a 400 rather than a degraded answer:
+     *   - Haiku 4.5 rejects output_config.effort outright, and takes thinking
+     *     only as {type:'enabled', budget_tokens:N}. We send neither.
+     *   - Opus 5 and Sonnet 5 take adaptive thinking and effort, and reject
+     *     budget_tokens.
+     *
+     * Prices are per million tokens, for the cost note shown to the operator.
+     *
+     * @var array<string,array{effort:bool,thinking:bool,in:float,out:float,label:string}>
+     */
+    private const MODELS = [
+        'claude-opus-5' => [
+            'effort' => true,  'thinking' => true,
+            'in' => 5.00, 'out' => 25.00, 'label' => 'Opus 5',
+        ],
+        'claude-sonnet-5' => [
+            'effort' => true,  'thinking' => true,
+            'in' => 2.00, 'out' => 10.00, 'label' => 'Sonnet 5',
+        ],
+        'claude-haiku-4-5' => [
+            'effort' => false, 'thinking' => false,
+            'in' => 1.00, 'out' => 5.00,  'label' => 'Haiku 4.5',
+        ],
+    ];
+
+    /**
+     * Sonnet 5 by default: a fifth of Opus 5's output price, and this job leans
+     * on instruction-following rather than raw reasoning depth. Haiku 4.5 is
+     * cheaper again and available in config, but it trades noticeably more
+     * accuracy than the saving is worth on a report whose whole value is that
+     * every line can be defended.
+     */
+    public const DEFAULT_MODEL = 'claude-sonnet-5';
+
+    public static function model(): string
+    {
+        $configured = trim((string) Config::get('anthropic.model', ''));
+
+        return isset(self::MODELS[$configured]) ? $configured : self::DEFAULT_MODEL;
+    }
+
+    /** @return array{effort:bool,thinking:bool,in:float,out:float,label:string} */
+    public static function modelInfo(?string $model = null): array
+    {
+        return self::MODELS[$model ?? self::model()] ?? self::MODELS[self::DEFAULT_MODEL];
+    }
+
+    /**
+     * A rough per-comparison cost for the configured model, for the note shown
+     * beside the button. Based on a measured worst case of about 2,000 input
+     * and 1,200 output tokens — the input caps on /compare are what make that
+     * a ceiling rather than a guess.
+     */
+    public static function costNote(): string
+    {
+        $info = self::modelInfo();
+        $dollars = (2000 / 1_000_000) * $info['in'] + (1200 / 1_000_000) * $info['out'];
+
+        return '$' . number_format($dollars, 2);
+    }
+
+    /** Every model this build knows how to talk to, for the config note. */
+    public static function supportedModels(): array
+    {
+        return array_keys(self::MODELS);
+    }
 
     public static function isConfigured(): bool
     {
@@ -56,9 +124,10 @@ final class Claude
         string $system,
         string $prompt,
         ?array $schema = null,
-        string $effort = 'high',
+        ?string $effort = null,
         int $maxTokens = 16000,
     ): array|string {
+        $effort ??= (string) Config::get('anthropic.effort', 'medium');
         if (!self::isConfigured()) {
             throw new RuntimeException(
                 'No Anthropic API key configured. Add an "anthropic" => ["api_key" => "..."] '
@@ -85,22 +154,35 @@ final class Claude
         string $system,
         string $prompt,
         ?array $schema = null,
-        string $effort = 'high',
+        ?string $effort = null,
         int $maxTokens = 16000,
     ): array {
+        $effort ??= (string) Config::get('anthropic.effort', 'medium');
+        $model = self::model();
+        $caps  = self::modelInfo($model);
+
         $body = [
-            'model'      => self::MODEL,
+            'model'      => $model,
             'max_tokens' => $maxTokens,
             'system'     => $system,
             'messages'   => [['role' => 'user', 'content' => $prompt]],
-            // Adaptive thinking is the current API. budget_tokens is rejected
-            // with a 400 on this model.
-            'thinking'      => ['type' => 'adaptive'],
-            'output_config' => ['effort' => $effort],
         ];
 
+        // Adaptive thinking is the current API where it exists at all;
+        // budget_tokens is rejected with a 400 on the 5-series.
+        if ($caps['thinking']) {
+            $body['thinking'] = ['type' => 'adaptive'];
+        }
+
+        $outputConfig = [];
+        if ($caps['effort']) {
+            $outputConfig['effort'] = $effort;
+        }
         if ($schema !== null) {
-            $body['output_config']['format'] = ['type' => 'json_schema', 'schema' => $schema];
+            $outputConfig['format'] = ['type' => 'json_schema', 'schema' => $schema];
+        }
+        if ($outputConfig !== []) {
+            $body['output_config'] = $outputConfig;
         }
 
         return $body;

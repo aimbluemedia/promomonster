@@ -266,16 +266,16 @@ if ($missingClaude !== []) {
     } else {
         add($checks, 'Competitor comparison', 'pass',
             'Code uploaded and a key is configured (' . strlen($apiKey) . ' characters, '
-            . 'ending ' . substr($apiKey, -4) . '). Add ?claude=1 to this URL to spend about '
-            . '$0.001 checking the key actually works.');
+            . 'ending ' . substr($apiKey, -4) . '). Model: '
+            . (string) ($config['anthropic']['model'] ?? 'claude-sonnet-5 (default)')
+            . '. Add ?claude=1 to this URL to spend about $0.001 checking the key works.');
 
         // Opt-in, because every run of this costs money. Tiny and cheap.
         if (isset($_GET['claude'])) {
             $payload = json_encode([
-                'model'      => 'claude-opus-5',
+                'model'      => (string) ($config['anthropic']['model'] ?? 'claude-sonnet-5'),
                 'max_tokens' => 16,
                 'messages'   => [['role' => 'user', 'content' => 'Reply with the single word: ready']],
-                'output_config' => ['effort' => 'low'],
             ]);
             $ch = curl_init('https://api.anthropic.com/v1/messages');
             curl_setopt_array($ch, [

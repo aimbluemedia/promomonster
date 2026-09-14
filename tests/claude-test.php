@@ -10,6 +10,7 @@ declare(strict_types=1);
 require __DIR__ . '/../app/bootstrap.php';
 
 use App\Support\Claude;
+use App\Support\Config;
 use App\Support\ReviewComparison;
 
 $pass = 0;
@@ -38,10 +39,10 @@ $schema = ['type' => 'object', 'properties' => ['a' => ['type' => 'string']],
            'required' => ['a'], 'additionalProperties' => false];
 $body = Claude::body('sys', 'hello', $schema);
 
-check('model is claude-opus-5', $body['model'] === 'claude-opus-5', $body['model']);
+check('defaults to Sonnet 5', $body['model'] === 'claude-sonnet-5', $body['model']);
 check('thinking is adaptive', ($body['thinking']['type'] ?? '') === 'adaptive');
-check('no budget_tokens (400s on this model)', !isset($body['thinking']['budget_tokens']));
-check('effort inside output_config', ($body['output_config']['effort'] ?? '') === 'high');
+check('no budget_tokens (400s on the 5-series)', !isset($body['thinking']['budget_tokens']));
+check('effort inside output_config', ($body['output_config']['effort'] ?? '') === 'medium');
 check('effort is NOT top-level', !isset($body['effort']));
 check('schema under output_config.format', ($body['output_config']['format']['type'] ?? '') === 'json_schema');
 check('no deprecated output_format key', !isset($body['output_format']));
@@ -52,6 +53,28 @@ check('no assistant prefill (400s on this model)',
 check('max_tokens defaults to 16000', $body['max_tokens'] === 16000);
 $plain = Claude::body('sys', 'hello');
 check('format omitted when no schema', !isset($plain['output_config']['format']));
+
+echo "\nPer-model request shaping\n";
+// Getting these wrong is a 400, not a worse answer.
+$shapes = [
+    'claude-opus-5'    => ['thinking' => true,  'effort' => true],
+    'claude-sonnet-5'  => ['thinking' => true,  'effort' => true],
+    'claude-haiku-4-5' => ['thinking' => false, 'effort' => false],
+];
+foreach ($shapes as $model => $want) {
+    Config::load(['anthropic' => ['api_key' => 'k', 'model' => $model]]);
+    $b = Claude::body('sys', 'prompt', $schema);
+    check("{$model}: selected", $b['model'] === $model, $b['model']);
+    check("{$model}: thinking " . ($want['thinking'] ? 'sent' : 'omitted'),
+        isset($b['thinking']) === $want['thinking']);
+    check("{$model}: effort " . ($want['effort'] ? 'sent' : 'omitted'),
+        isset($b['output_config']['effort']) === $want['effort']);
+    check("{$model}: schema still sent", isset($b['output_config']['format']));
+}
+Config::load(['anthropic' => ['api_key' => 'k', 'model' => 'gpt-does-not-exist']]);
+check('unknown model falls back rather than 400s',
+    Claude::body('s', 'p')['model'] === Claude::DEFAULT_MODEL);
+Config::load(['anthropic' => ['api_key' => 'k']]);
 
 echo "\nResponse handling\n";
 // A thinking block can come first. Indexing content[0] blindly would break.

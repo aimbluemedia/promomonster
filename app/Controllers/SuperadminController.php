@@ -142,6 +142,8 @@ final class SuperadminController
             'audit'      => $audit,
             'results'    => $results,
             'aiReady'    => Claude::isConfigured(),
+            'modelLabel' => Claude::modelInfo()['label'],
+            'costNote'   => Claude::costNote(),
             'statuses'   => self::AUDIT_STATUSES,
         ]);
     }
