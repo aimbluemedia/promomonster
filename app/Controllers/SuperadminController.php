@@ -11,6 +11,7 @@ use App\Support\Claude;
 use App\Support\Database;
 use App\Support\ReviewComparison;
 use App\Support\Plans;
+use App\Support\RateLimiter;
 use App\Support\Request;
 use App\Support\View;
 use Throwable;
@@ -227,6 +228,81 @@ final class SuperadminController
             'review_count' => is_numeric($count) ? (int) $count : null,
             'reviews'      => array_slice($reviews, 0, 25),
         ];
+    }
+
+    /** Free Review Score submissions, newest first. */
+    public function scores(): void
+    {
+        $perPage = 25;
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+
+        $total = (int) (Database::first(
+            "SELECT COUNT(*) AS n FROM audits WHERE source = 'score'"
+        )['n'] ?? 0);
+
+        $pages = max(1, (int) ceil($total / $perPage));
+        $page = min($page, $pages);
+        $offset = ($page - 1) * $perPage;
+
+        // LIMIT/OFFSET cannot be bound as parameters on every driver, so they
+        // are cast to int and interpolated. Both come from max()/min() over
+        // integers above, so neither can carry anything but a number.
+        $rows = Database::all(
+            "SELECT id, business_name, website, email, score, results, created_at
+               FROM audits
+              WHERE source = 'score'
+           ORDER BY created_at DESC, id DESC
+              LIMIT " . (int) $perPage . " OFFSET " . (int) $offset
+        );
+
+        echo View::superadmin('superadmin/scores', [
+            'title'   => 'Review scores · Superadmin',
+            'rows'    => $rows,
+            'page'    => $page,
+            'pages'   => $pages,
+            'total'   => $total,
+            'perPage' => $perPage,
+        ]);
+    }
+
+    /**
+     * Deletes one score so the same site and address can be tested again.
+     *
+     * Deleting the row alone is not enough. The per-email and per-IP limiters
+     * live in their own table and would still refuse the retest, which makes
+     * the button look broken — so the buckets that submission filled are
+     * cleared too. Scoped to source='score': a delete button that could reach
+     * a real audit request or a paying lead is a different thing entirely.
+     */
+    public function deleteScore(): void
+    {
+        if (!Csrf::check($_POST['_csrf'] ?? null)) {
+            $this->flash('/superadmin/scores', 'Your session expired. Please try again.');
+        }
+
+        $id = (int) ($_POST['id'] ?? 0);
+        $row = Database::first(
+            "SELECT id, business_name, email, ip, score FROM audits WHERE id = :id AND source = 'score'",
+            ['id' => $id],
+        );
+
+        if ($row === null) {
+            $this->flash('/superadmin/scores', 'No score with that id — it may already be gone.');
+        }
+
+        Database::run('DELETE FROM audits WHERE id = :id', ['id' => $id]);
+
+        // Same keys ScoreController limits on.
+        RateLimiter::forget('score:email:' . (string) $row['email']);
+        if (!empty($row['ip'])) {
+            RateLimiter::forget('score:ip:' . (string) $row['ip']);
+        }
+
+        Audit::log('score.deleted', 'audit', $id,
+            ['website' => $row['business_name'], 'score' => $row['score']], null);
+
+        $back = '/superadmin/scores' . (isset($_POST['page']) ? '?page=' . (int) $_POST['page'] : '');
+        $this->flash($back, 'Deleted. ' . $row['email'] . ' can be scored again now.');
     }
 
     public function audits(): void

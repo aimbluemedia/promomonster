@@ -45,4 +45,20 @@ final class RateLimiter
         );
         return false;
     }
+
+    /**
+     * Forgets one bucket.
+     *
+     * Needed because deleting the record of something is not the same as
+     * undoing it: remove a score row to retest and the limiter still remembers
+     * the attempt, so the retest is refused and the delete button looks broken.
+     * The caller passes the same key it limited on.
+     */
+    public static function forget(string $key): void
+    {
+        Database::run(
+            'DELETE FROM rate_limits WHERE bucket_key = :key',
+            ['key' => hash('sha256', $key)],
+        );
+    }
 }

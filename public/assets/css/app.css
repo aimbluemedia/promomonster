@@ -672,3 +672,21 @@ table.data td.wrap{ white-space:normal; max-width:22rem; }
 .score-check.is-on .score-check__pts{ color:#15803d; }
 .score-check__detail{ display:block; margin-top:.15rem; font-size:.88rem;
   color:var(--body); line-height:1.5; }
+
+/* Superadmin: review score list */
+.score-pill{ display:inline-block; min-width:2.6rem; text-align:center;
+  padding:.3rem .5rem; border-radius:8px; font-weight:800; font-size:1rem;
+  font-variant-numeric:tabular-nums; color:#fff; }
+/* Same three tones as the public dial, and the band is printed underneath, so
+   the number never depends on the colour being seen. */
+.score-pill--good{ background:#15803d; }
+.score-pill--mid{  background:#b45309; }
+.score-pill--low{  background:#b3261e; }
+
+.pager{ display:flex; align-items:center; justify-content:center; gap:1.25rem;
+  margin-top:1.5rem; font-size:.9rem; }
+.pager a{ color:var(--brand); font-weight:700; padding:.5rem .9rem;
+  border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--surface); }
+.pager a:hover{ border-color:var(--brand); }
+.pager .is-off{ color:var(--muted); padding:.5rem .9rem; border:1px solid transparent; }
+.pager__at{ color:var(--body); font-variant-numeric:tabular-nums; }

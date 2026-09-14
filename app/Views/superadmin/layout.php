@@ -41,6 +41,7 @@ unset($_SESSION['admin_flash']);
       <?php foreach ([
         '/superadmin'            => 'Overview',
         '/superadmin/audits'     => 'Audit requests',
+        '/superadmin/scores'     => 'Review scores',
         '/superadmin/leads'      => 'Agencies',
         '/superadmin/compliance' => 'Compliance',
         '/superadmin/activity'   => 'Activity',
