@@ -202,28 +202,60 @@ if (!is_file($configPath)) {
             }
 
             // --- Columns the app selects --------------------------------
+            // Every column any page SELECTs, with the migration that adds it,
+            // so a missing one names its own fix.
+            //
+            // This list went stale once: it stopped at migration 014 while the
+            // app moved on to 017, so it reported "All present" while the
+            // Review scores page was returning a 500 on a column it was not
+            // watching. Whenever a migration adds a column the app reads, it
+            // belongs here in the same commit.
             $required = [
-                'users'  => ['is_admin', 'must_change_password', 'password_changed_at'],
-                'audits' => ['status', 'notes', 'handled_by_user_id'],
+                'users.is_admin'                   => '013',
+                'users.must_change_password'       => '014',
+                'users.password_changed_at'        => '014',
+                'audits.status'                    => '013',
+                'audits.notes'                     => '013',
+                'audits.handled_by_user_id'        => '013',
+                'login_attempts.email'             => '013',
+                'accounts.plan'                    => '015',
+                'accounts.requested_plan'          => '015',
+                'accounts.requested_plan_at'       => '015',
+                'accounts.plan_changed_at'         => '015',
+                'accounts.signup_ip'               => '015',
+                'audits.source'                    => '016',
+                'audits.results_generated_at'      => '016',
+                'audits.website'                   => '017',
+                'audits.score'                     => '017',
             ];
+
+            $columnCache = [];
             $missing = [];
-            foreach ($required as $table => $columns) {
+            $blame = [];
+            foreach ($required as $path => $migration) {
+                [$table, $column] = explode('.', $path, 2);
+
                 if (!in_array($table, $tables, true)) {
-                    $missing[] = $table . ' (table missing)';
+                    $missing[] = $table . ' (whole table missing)';
+                    $blame[$migration] = true;
                     continue;
                 }
-                $have = $pdo->query('SHOW COLUMNS FROM `' . $table . '`')->fetchAll(PDO::FETCH_COLUMN);
-                foreach ($columns as $column) {
-                    if (!in_array($column, $have, true)) {
-                        $missing[] = $table . '.' . $column;
-                    }
+                if (!isset($columnCache[$table])) {
+                    $columnCache[$table] = $pdo->query('SHOW COLUMNS FROM `' . $table . '`')
+                        ->fetchAll(PDO::FETCH_COLUMN);
+                }
+                if (!in_array($column, $columnCache[$table], true)) {
+                    $missing[] = $path;
+                    $blame[$migration] = true;
                 }
             }
+
             add($checks, 'Required columns', $missing === [] ? 'pass' : 'fail',
                 $missing === []
-                    ? 'All present.'
+                    ? count($required) . ' columns checked, all present.'
                     : 'MISSING: ' . implode(', ', $missing)
-                      . ' — the sign-in pages will return a 500 until the migration that adds them is applied.');
+                      . ' — added by migration ' . implode(' and ', array_keys($blame))
+                      . '. Pages that read them return a 500 until it is applied.');
         } catch (Throwable $e) {
             add($checks, 'Database connection', 'fail', $e->getMessage());
         }
