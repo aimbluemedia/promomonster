@@ -315,7 +315,13 @@ if ($missingClaude !== []) {
 
 // --- Recent errors --------------------------------------------------------
 // The whole point: a 500 should never again be a dead end.
-$logPath = $base . '/storage/logs/error.log';
+//
+// The newest error's first line goes INTO the summary row, not just into the
+// section below. People copy the summary — three times running, the detail was
+// left behind and the cause had to be guessed at. A detail nobody copies is a
+// detail nobody has.
+$logDir = $base . '/storage/logs';
+$logPath = $logDir . '/error.log';
 $recentErrors = [];
 if (is_file($logPath)) {
     $raw = (string) @file_get_contents($logPath);
@@ -323,11 +329,49 @@ if (is_file($logPath)) {
     $blocks = preg_split('/\n(?=\[\d{4}-)/', trim($raw)) ?: [];
     $recentErrors = array_slice(array_reverse($blocks), 0, 5);
 }
-add($checks, 'Error log',
-    $recentErrors === [] ? 'pass' : 'fail',
-    $recentErrors === []
-        ? (is_file($logPath) ? 'Empty — nothing has crashed.' : 'No log yet — nothing has crashed.')
-        : count($recentErrors) . ' recent error(s). Newest is shown below.');
+
+// If the log cannot be written, every reference is a dead end and the visitor
+// is told to look somewhere with nothing in it. Say so loudly.
+$logWritable = is_dir($logDir) ? is_writable($logDir) : is_writable($base . '/storage');
+if (!$logWritable) {
+    add($checks, 'Error log writable', 'fail',
+        $logDir . ' is not writable, so crash details go to the server error log '
+        . 'instead of here. Set that folder to 755 in hPanel → File Manager, or read '
+        . 'hPanel → Advanced → PHP Error Log for entries starting "promomonster".');
+}
+
+if ($recentErrors === []) {
+    add($checks, 'Error log', 'pass',
+        is_file($logPath) ? 'Empty — nothing has crashed.' : 'No log yet — nothing has crashed.');
+} else {
+    // First line is "[date] REF  Class: message"; second is the top frame.
+    $lines = explode("\n", trim($recentErrors[0]));
+    $headline = trim($lines[0] ?? '');
+    $frame = '';
+    foreach ($lines as $line) {
+        if (str_starts_with(trim($line), '#0 ')) { $frame = trim($line); break; }
+    }
+
+    add($checks, 'Error log', 'fail',
+        count($recentErrors) . ' recent error(s). NEWEST: ' . $headline
+        . ($frame !== '' ? '  |  ' . $frame : '')
+        . '  — copy this whole line when asking for help.');
+}
+
+// Look up one reference directly: /diagnose.php?ref=850B649D
+$refLookup = null;
+$wantedRef = strtoupper(trim((string) ($_GET['ref'] ?? '')));
+if ($wantedRef !== '' && preg_match('/^[0-9A-F]{4,16}$/', $wantedRef) && is_file($logPath)) {
+    $raw = (string) @file_get_contents($logPath);
+    foreach (preg_split('/\n(?=\[\d{4}-)/', trim($raw)) ?: [] as $block) {
+        if (str_contains($block, $wantedRef)) { $refLookup = $block; }
+    }
+    add($checks, 'Reference ' . $wantedRef, $refLookup === null ? 'fail' : 'info',
+        $refLookup === null
+            ? 'Not found in this log. Either it predates the log being cleared, or the '
+              . 'log is not writable — see the row above.'
+            : 'Found. The full entry is printed below.');
+}
 
 $failures = array_values(array_filter($checks, static fn($c) => $c['state'] === 'fail'));
 ?>
@@ -384,6 +428,14 @@ $failures = array_values(array_filter($checks, static fn($c) => $c['state'] === 
     </tr>
   <?php endforeach; ?>
 </table>
+
+<?php if ($refLookup !== null): ?>
+  <h2 style="font-size:1.05rem;margin:2.25rem 0 .5rem;">Reference <?= htmlspecialchars($wantedRef, ENT_QUOTES) ?></h2>
+  <pre style="background:#fff;border:2px solid #b3261e;border-radius:10px;padding:1rem;
+    overflow-x:auto;font:12px ui-monospace,Menlo,monospace;white-space:pre-wrap;
+    color:#7a2d12;margin:0 0 1.5rem;"><?= htmlspecialchars(
+      implode("\n", array_slice(explode("\n", $refLookup), 0, 16)), ENT_QUOTES) ?></pre>
+<?php endif; ?>
 
 <?php if ($recentErrors !== []): ?>
   <h2 style="font-size:1.05rem;margin:2.25rem 0 .5rem;">Most recent errors</h2>
