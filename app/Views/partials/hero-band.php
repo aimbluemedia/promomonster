@@ -26,18 +26,28 @@
 
   <div class="container hero-band__inner">
     <div class="hero-band__copy">
-      <p class="hero-band__eyebrow">Free Review Score &middot; no card</p>
+      <p class="hero-band__eyebrow">Reviews decide who gets the call</p>
 
       <h1 class="hero-band__title">
-        Get Chosen <em>Everywhere</em>
+        Reviews Are the <em>Lifeblood</em> of Your Business
       </h1>
       <p class="hero-band__sub">Start Free. No Credit Card. No Subscription.</p>
 
+      <?php /* Every claim here is something the reader can go and check in a
+               minute: the rating sits on the listing above the website link,
+               Google Maps really does filter by rating, and AI assistants
+               really do summarise the same reviews. No invented percentages —
+               the ones every competitor quotes are exactly the kind of number a
+               customer can catch us on. */ ?>
       <p class="hero-band__lede">
-        People choose a local business on its star rating &mdash; on Google, in Maps,
-        and increasingly through AI assistants that read the same reviews.
-        PromoMonster asks every customer at the right moment, drafts your replies,
-        and puts what comes back to work on your website.
+        Your stars are the first thing a customer sees &mdash; before your website,
+        before your price. Google Maps lets people filter you out below 4.0
+        outright, and the AI assistants they now ask for a recommendation are
+        reading those same reviews. It is the one asset you cannot buy, only earn.
+      </p>
+      <p class="hero-band__lede hero-band__lede--tight">
+        PromoMonster earns it on purpose: every customer asked at the right
+        moment, replies drafted for you, and the results working on your own site.
       </p>
 
       <div class="hero-band__cta">
@@ -73,7 +83,7 @@
         <div class="orbit__core">
           <span class="orbit__stars">★★★★★</span>
           <span class="orbit__num">4.8</span>
-          <span class="orbit__label">your rating, working</span>
+          <span class="orbit__label">earned, not bought</span>
         </div>
 
         <?php foreach ([

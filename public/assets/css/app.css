@@ -745,6 +745,9 @@ table.data td.wrap{ white-space:normal; max-width:22rem; }
   font-size:clamp(1.05rem,2.1vw,1.35rem); letter-spacing:-.02em; }
 .hero-band__lede{ margin:1.15rem 0 0; max-width:34rem; font-size:1rem;
   line-height:1.65; color:var(--band-body); }
+/* The second paragraph is the "so we do this" turn, so it sits closer to the
+   first and in a brighter ink than the argument above it. */
+.hero-band__lede--tight{ margin-top:.75rem; color:#c5d8ea; }
 
 .hero-band__cta{ display:flex; flex-wrap:wrap; gap:.75rem; margin-top:1.75rem; }
 /* Trim the shared xl padding here so both buttons sit on one row in this
