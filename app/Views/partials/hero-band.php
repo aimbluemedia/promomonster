@@ -33,21 +33,13 @@
       </h1>
       <p class="hero-band__sub">Start Free. No Credit Card. No Subscription.</p>
 
-      <?php /* Every claim here is something the reader can go and check in a
-               minute: the rating sits on the listing above the website link,
-               Google Maps really does filter by rating, and AI assistants
-               really do summarise the same reviews. No invented percentages —
-               the ones every competitor quotes are exactly the kind of number a
-               customer can catch us on. */ ?>
+      <?php /* One short paragraph. Both claims are checkable in a minute — the
+               rating sits on the listing above the website link, and Google Maps
+               really does filter below 4.0. No borrowed percentages. */ ?>
       <p class="hero-band__lede">
-        Your stars are the first thing a customer sees &mdash; before your website,
-        before your price. Google Maps lets people filter you out below 4.0
-        outright, and the AI assistants they now ask for a recommendation are
-        reading those same reviews. It is the one asset you cannot buy, only earn.
-      </p>
-      <p class="hero-band__lede hero-band__lede--tight">
-        PromoMonster earns it on purpose: every customer asked at the right
-        moment, replies drafted for you, and the results working on your own site.
+        Your stars are the first thing a customer sees, and Google Maps filters
+        you out below 4.0. PromoMonster asks every customer, drafts your replies,
+        and puts the results to work on your site.
       </p>
 
       <div class="hero-band__cta">
@@ -74,17 +66,101 @@
     <?php /* Illustrative, and read as such: a rating at the centre with the
              channels that feed it orbiting around. Not a screenshot, not a
              claim. aria-hidden because it repeats what the copy already says. */ ?>
-    <div class="hero-band__art" aria-hidden="true">
-      <div class="orbit">
-        <span class="orbit__ring orbit__ring--1"></span>
-        <span class="orbit__ring orbit__ring--2"></span>
-        <span class="orbit__ring orbit__ring--3"></span>
+    <?php
+    /**
+     * The globe.
+     *
+     * Built rather than drawn: the graticule and the dot mesh are projected
+     * from real spherical coordinates, so the latitude squash and the way dots
+     * crowd towards the limb come out right instead of being faked with
+     * hand-tuned ellipses. R and the centre are the only inputs.
+     *
+     * Only the front hemisphere is drawn, with dot size and opacity falling off
+     * by depth — that is what reads as a sphere rather than a circle.
+     */
+    $R = 150.0; $cx = 200.0; $cy = 200.0;
 
-        <div class="orbit__core">
-          <span class="orbit__stars">★★★★★</span>
-          <span class="orbit__num">4.8</span>
-          <span class="orbit__label">earned, not bought</span>
-        </div>
+    // Latitude rings: a circle of constant latitude, seen edge-on, is an
+    // ellipse whose centre rises with the latitude and whose height is the
+    // radius squashed by the viewing angle.
+    $latitudes = [];
+    foreach ([-60, -40, -20, 0, 20, 40, 60] as $deg) {
+        $t = deg2rad($deg);
+        $latitudes[] = [
+            'cy' => $cy - $R * sin($t),
+            'rx' => $R * cos($t),
+            'ry' => $R * cos($t) * 0.26,
+        ];
+    }
+
+    // Longitude arcs: same height, width narrowing to nothing at the limb.
+    $longitudes = [];
+    foreach ([0, 30, 60, 90, 120, 150] as $deg) {
+        $longitudes[] = $R * abs(cos(deg2rad($deg)));
+    }
+
+    // Dot mesh over the front hemisphere.
+    $dots = [];
+    for ($lat = -75; $lat <= 75; $lat += 10) {
+        $t = deg2rad($lat);
+        // Fewer dots near the poles, so spacing stays even on the surface.
+        $step = max(9, (int) round(9 / max(0.18, cos($t))));
+        for ($lon = -90; $lon <= 90; $lon += $step) {
+            $g = deg2rad($lon);
+            $depth = cos($t) * cos($g);      // 1 facing us, 0 at the limb
+            if ($depth <= 0.06) {
+                continue;
+            }
+            $dots[] = [
+                'x' => $cx + $R * cos($t) * sin($g),
+                'y' => $cy - $R * sin($t),
+                'r' => 0.9 + 1.5 * $depth,
+                'o' => 0.14 + 0.5 * $depth,
+            ];
+        }
+    }
+    ?>
+    <div class="hero-band__art" aria-hidden="true">
+      <div class="globe-wrap">
+        <svg class="globe" viewBox="0 0 400 400">
+          <defs>
+            <radialGradient id="pm-sphere" cx="38%" cy="30%" r="78%">
+              <stop offset="0%"  stop-color="#1b5c8f"/>
+              <stop offset="55%" stop-color="#0d3b5e"/>
+              <stop offset="100%" stop-color="#071a2c"/>
+            </radialGradient>
+            <radialGradient id="pm-halo" cx="50%" cy="50%" r="50%">
+              <stop offset="60%" stop-color="rgba(56,189,248,0)"/>
+              <stop offset="88%" stop-color="rgba(56,189,248,.28)"/>
+              <stop offset="100%" stop-color="rgba(56,189,248,0)"/>
+            </radialGradient>
+            <clipPath id="pm-clip"><circle cx="200" cy="200" r="150"/></clipPath>
+          </defs>
+
+          <circle cx="200" cy="200" r="196" fill="url(#pm-halo)"/>
+          <circle cx="200" cy="200" r="150" fill="url(#pm-sphere)"/>
+
+          <g clip-path="url(#pm-clip)" fill="none" stroke="#38bdf8" stroke-opacity=".20">
+            <?php foreach ($latitudes as $l): ?>
+              <ellipse cx="200" cy="<?= round($l['cy'], 1) ?>"
+                       rx="<?= round($l['rx'], 1) ?>" ry="<?= round($l['ry'], 1) ?>"/>
+            <?php endforeach; ?>
+            <?php foreach ($longitudes as $rx): ?>
+              <ellipse cx="200" cy="200" rx="<?= round($rx, 1) ?>" ry="150"/>
+            <?php endforeach; ?>
+          </g>
+
+          <g clip-path="url(#pm-clip)" fill="#7dd3fc">
+            <?php foreach ($dots as $d): ?>
+              <circle cx="<?= round($d['x'], 1) ?>" cy="<?= round($d['y'], 1) ?>"
+                      r="<?= round($d['r'], 2) ?>" opacity="<?= round($d['o'], 2) ?>"/>
+            <?php endforeach; ?>
+          </g>
+
+          <?php /* Rim light: brighter where the sphere turns away from us. */ ?>
+          <circle cx="200" cy="200" r="150" fill="none"
+                  stroke="rgba(125,211,252,.45)" stroke-width="1.5"/>
+        </svg>
 
         <?php foreach ([
           ['n1', 'star',    'New 5&#9733; review'],
@@ -93,7 +169,7 @@
           ['n4', 'qr',      'QR scanned'],
           ['n5', 'layout',  'Live on your site'],
         ] as [$pos, $icon, $label]): ?>
-          <span class="orbit__node orbit__node--<?= $pos ?>">
+          <span class="globe__node globe__node--<?= $pos ?>">
             <?= Icon::render($icon) ?><span><?= $label ?></span>
           </span>
         <?php endforeach; ?>

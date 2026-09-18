@@ -767,58 +767,45 @@ table.data td.wrap{ white-space:normal; max-width:22rem; }
   color:#dbe9f5; background:rgba(255,255,255,.07); border:1px solid var(--band-line); }
 .hero-chip .icon{ width:.95rem; height:.95rem; color:var(--band-accent); }
 
-/* --- The orbit graphic --------------------------------------------------- */
+/* --- The globe ----------------------------------------------------------
+   Geometry is projected in PHP, so this only has to place and light it. The
+   sphere is decorative and aria-hidden: it repeats what the copy says, and the
+   floating pills are labels on an illustration, not information of their own.
+   ------------------------------------------------------------------------ */
 .hero-band__art{ display:flex; justify-content:center; }
-.orbit{ position:relative; width:min(100%,30rem); aspect-ratio:1; }
-
-.orbit__ring{ position:absolute; inset:0; margin:auto; border-radius:50%;
-  border:1px solid rgba(255,255,255,.10); }
-.orbit__ring--1{ width:46%; height:46%; }
-.orbit__ring--2{ width:70%; height:70%; border-color:rgba(255,255,255,.075); }
-.orbit__ring--3{ width:94%; height:94%; border-color:rgba(255,255,255,.05); }
+.globe-wrap{ position:relative; width:min(100%,32rem); aspect-ratio:1; }
+.globe{ width:100%; height:100%; display:block; }
 @media (prefers-reduced-motion: no-preference){
-  .orbit__ring--3{ animation:orbit-drift 26s linear infinite; }
-  .orbit__ring--2{ animation:orbit-drift 34s linear infinite reverse; }
+  /* A slow breath on the halo only. Spinning a projected graticule would need
+     real 3D; faking it by rotating the group makes the latitudes tumble. */
+  .globe{ animation:globe-breathe 9s ease-in-out infinite; }
 }
-@keyframes orbit-drift{ from{ transform:rotate(0); } to{ transform:rotate(360deg); } }
+@keyframes globe-breathe{ 0%,100%{ opacity:.94; } 50%{ opacity:1; } }
 
-.orbit__core{ position:absolute; inset:0; margin:auto;
-  width:44%; height:44%; border-radius:50%;
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
-  background:radial-gradient(circle at 50% 35%, #12395c, #0b2138);
-  border:1px solid rgba(56,189,248,.45);
-  box-shadow:0 0 0 10px rgba(56,189,248,.06), 0 18px 50px rgba(0,0,0,.45); }
-.orbit__stars{ color:#fbbf24; font-size:.95rem; letter-spacing:.12em; }
-.orbit__num{ color:#fff; font-size:2.4rem; font-weight:800; line-height:1.05;
-  letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
-.orbit__label{ color:#8aa2ba; font-size:.68rem; text-transform:uppercase;
-  letter-spacing:.08em; }
-
-.orbit__node{ position:absolute; display:inline-flex; align-items:center; gap:.45rem;
+.globe__node{ position:absolute; display:inline-flex; align-items:center; gap:.45rem;
   padding:.5rem .75rem; border-radius:99px; white-space:nowrap;
   font-size:.76rem; font-weight:700; color:#eaf4fd;
   background:rgba(12,32,52,.92); border:1px solid rgba(255,255,255,.16);
   box-shadow:0 10px 26px rgba(0,0,0,.35); }
-.orbit__node .icon{ width:.9rem; height:.9rem; color:var(--band-accent); }
-.orbit__node--n1{ top:4%;  left:50%; transform:translateX(-50%); }
-.orbit__node--n2{ top:30%; right:-2%; }
-.orbit__node--n3{ bottom:26%; right:2%; }
-.orbit__node--n4{ bottom:6%; left:50%; transform:translateX(-50%); }
-.orbit__node--n5{ top:36%; left:-4%; }
+.globe__node .icon{ width:.9rem; height:.9rem; color:var(--band-accent); }
+.globe__node--n1{ top:2%;  left:50%; transform:translateX(-50%); }
+.globe__node--n2{ top:26%; right:-3%; }
+.globe__node--n3{ bottom:24%; right:0%; }
+.globe__node--n4{ bottom:4%; left:52%; transform:translateX(-50%); }
+.globe__node--n5{ top:33%; left:-5%; }
 @media (prefers-reduced-motion: no-preference){
-  .orbit__node{ animation:node-float 7s ease-in-out infinite; }
-  .orbit__node--n2{ animation-delay:-1.4s; }
-  .orbit__node--n3{ animation-delay:-2.8s; }
-  .orbit__node--n4{ animation-delay:-4.2s; }
-  .orbit__node--n5{ animation-delay:-5.6s; }
+  .globe__node{ animation:node-float 7s ease-in-out infinite; }
+  .globe__node--n2{ animation-delay:-1.4s; }
+  .globe__node--n3{ animation-delay:-2.8s; }
+  .globe__node--n4{ animation-delay:-4.2s; }
+  .globe__node--n5{ animation-delay:-5.6s; }
 }
 @keyframes node-float{ 0%,100%{ margin-top:0; } 50%{ margin-top:-7px; } }
 
-/* Below ~520px the pills collide with each other, so drop to the core alone. */
-@media (max-width:520px){
-  .orbit{ width:16rem; }
-  .orbit__node{ display:none; }
-  .orbit__core{ width:100%; height:100%; }
+/* Below ~560px the pills collide with each other and with the sphere. */
+@media (max-width:560px){
+  .globe-wrap{ width:17rem; }
+  .globe__node{ display:none; }
 }
 
 /* --- Checkable facts ----------------------------------------------------- */
