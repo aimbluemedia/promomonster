@@ -690,3 +690,144 @@ table.data td.wrap{ white-space:normal; max-width:22rem; }
 .pager a:hover{ border-color:var(--brand); }
 .pager .is-off{ color:var(--muted); padding:.5rem .9rem; border:1px solid transparent; }
 .pager__at{ color:var(--body); font-variant-numeric:tabular-nums; }
+
+/* ========================================================================
+   Dark hero band
+   Sits between the nav and the photograph hero. Dark in both colour schemes
+   by design, so the colours here are literal, not tokens. Measured against
+   the darkest end of the gradient: white 17.6:1, accent 8.2:1, body 8.4:1.
+   ======================================================================== */
+.hero-band{
+  --band-ink:#ffffff;
+  --band-body:#9fb6cd;
+  --band-accent:#38bdf8;
+  --band-line:rgba(255,255,255,.12);
+  background:
+    radial-gradient(1100px 520px at 72% 30%, rgba(56,189,248,.20), transparent 62%),
+    radial-gradient(760px 420px at 12% 88%, rgba(0,108,184,.28), transparent 68%),
+    linear-gradient(160deg, #0a1a2b 0%, #0e2a45 58%, #0a1a2b 100%);
+  color:var(--band-body);
+  position:relative; overflow:hidden;
+}
+
+/* Announcement strip */
+.hero-band__strip{ border-bottom:1px solid var(--band-line);
+  background:rgba(255,255,255,.04); }
+.hero-band__strip-inner{ display:flex; flex-wrap:wrap; gap:.5rem 1.5rem;
+  align-items:center; justify-content:space-between;
+  padding-block:.6rem; font-size:.78rem; color:#dbe9f5; }
+.hero-band__strip-inner span{ display:inline-flex; align-items:center; gap:.5rem; }
+.hero-band__strip .icon{ width:.95rem; height:.95rem; color:var(--band-accent); }
+.hero-band__strip-right{ color:#8aa2ba; }
+@media (max-width:700px){ .hero-band__strip-right{ display:none; } }
+
+/* Layout */
+.hero-band__inner{ display:grid; gap:2.5rem; padding-block:3.25rem 2.5rem; }
+@media (min-width:980px){
+  /* The copy gets the wider share: the art is a circle that shrinks happily,
+     while the headline, the two buttons and the chip row all break badly a few
+     pixels early. */
+  .hero-band__inner{ grid-template-columns:1.14fr .86fr; gap:2.5rem;
+    align-items:center; padding-block:4rem 3rem; }
+}
+
+.hero-band__eyebrow{ display:inline-block; margin:0 0 1.1rem;
+  padding:.4rem .9rem; border-radius:99px; font-size:.72rem; font-weight:800;
+  letter-spacing:.09em; text-transform:uppercase; color:#cdeafc;
+  background:rgba(56,189,248,.14); border:1px solid rgba(56,189,248,.35); }
+
+.hero-band__title{ margin:0; color:var(--band-ink); font-weight:800;
+  font-size:clamp(2.4rem,6.2vw,4.1rem); line-height:1.03; letter-spacing:-.03em; }
+.hero-band__title em{ font-style:normal; color:var(--band-accent); }
+/* Capped so "Start Free. No Credit Card. No Subscription." holds one line on a
+   desktop column instead of orphaning the last word. */
+.hero-band__sub{ margin:.5rem 0 0; color:var(--band-ink); font-weight:800;
+  font-size:clamp(1.05rem,2.1vw,1.35rem); letter-spacing:-.02em; }
+.hero-band__lede{ margin:1.15rem 0 0; max-width:34rem; font-size:1rem;
+  line-height:1.65; color:var(--band-body); }
+
+.hero-band__cta{ display:flex; flex-wrap:wrap; gap:.75rem; margin-top:1.75rem; }
+/* Trim the shared xl padding here so both buttons sit on one row in this
+   column; they wrapped at 1280px with the global value. */
+.hero-band__cta .btn--xl{ margin-top:0; padding:.95rem 1.25rem; font-size:1rem; }
+.hero-band__ghost{ background:rgba(255,255,255,.06); color:#ffffff;
+  border:1px solid rgba(255,255,255,.28); display:inline-flex; align-items:center; gap:.55rem; }
+.hero-band__ghost:hover{ background:rgba(255,255,255,.12); border-color:rgba(255,255,255,.45); }
+.hero-band__ghost .icon{ width:1.05rem; height:1.05rem; }
+.hero-band__note{ margin:.85rem 0 0; font-size:.8rem; color:#8aa2ba; }
+
+.hero-band__chips{ display:flex; flex-wrap:wrap; align-items:center; gap:.55rem;
+  margin-top:1.9rem; }
+.hero-band__chips-label{ font-size:.8rem; color:#8aa2ba; margin-right:.2rem; }
+.hero-chip{ display:inline-flex; align-items:center; gap:.4rem;
+  padding:.42rem .7rem; border-radius:99px; font-size:.79rem; font-weight:700;
+  color:#dbe9f5; background:rgba(255,255,255,.07); border:1px solid var(--band-line); }
+.hero-chip .icon{ width:.95rem; height:.95rem; color:var(--band-accent); }
+
+/* --- The orbit graphic --------------------------------------------------- */
+.hero-band__art{ display:flex; justify-content:center; }
+.orbit{ position:relative; width:min(100%,30rem); aspect-ratio:1; }
+
+.orbit__ring{ position:absolute; inset:0; margin:auto; border-radius:50%;
+  border:1px solid rgba(255,255,255,.10); }
+.orbit__ring--1{ width:46%; height:46%; }
+.orbit__ring--2{ width:70%; height:70%; border-color:rgba(255,255,255,.075); }
+.orbit__ring--3{ width:94%; height:94%; border-color:rgba(255,255,255,.05); }
+@media (prefers-reduced-motion: no-preference){
+  .orbit__ring--3{ animation:orbit-drift 26s linear infinite; }
+  .orbit__ring--2{ animation:orbit-drift 34s linear infinite reverse; }
+}
+@keyframes orbit-drift{ from{ transform:rotate(0); } to{ transform:rotate(360deg); } }
+
+.orbit__core{ position:absolute; inset:0; margin:auto;
+  width:44%; height:44%; border-radius:50%;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  background:radial-gradient(circle at 50% 35%, #12395c, #0b2138);
+  border:1px solid rgba(56,189,248,.45);
+  box-shadow:0 0 0 10px rgba(56,189,248,.06), 0 18px 50px rgba(0,0,0,.45); }
+.orbit__stars{ color:#fbbf24; font-size:.95rem; letter-spacing:.12em; }
+.orbit__num{ color:#fff; font-size:2.4rem; font-weight:800; line-height:1.05;
+  letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
+.orbit__label{ color:#8aa2ba; font-size:.68rem; text-transform:uppercase;
+  letter-spacing:.08em; }
+
+.orbit__node{ position:absolute; display:inline-flex; align-items:center; gap:.45rem;
+  padding:.5rem .75rem; border-radius:99px; white-space:nowrap;
+  font-size:.76rem; font-weight:700; color:#eaf4fd;
+  background:rgba(12,32,52,.92); border:1px solid rgba(255,255,255,.16);
+  box-shadow:0 10px 26px rgba(0,0,0,.35); }
+.orbit__node .icon{ width:.9rem; height:.9rem; color:var(--band-accent); }
+.orbit__node--n1{ top:4%;  left:50%; transform:translateX(-50%); }
+.orbit__node--n2{ top:30%; right:-2%; }
+.orbit__node--n3{ bottom:26%; right:2%; }
+.orbit__node--n4{ bottom:6%; left:50%; transform:translateX(-50%); }
+.orbit__node--n5{ top:36%; left:-4%; }
+@media (prefers-reduced-motion: no-preference){
+  .orbit__node{ animation:node-float 7s ease-in-out infinite; }
+  .orbit__node--n2{ animation-delay:-1.4s; }
+  .orbit__node--n3{ animation-delay:-2.8s; }
+  .orbit__node--n4{ animation-delay:-4.2s; }
+  .orbit__node--n5{ animation-delay:-5.6s; }
+}
+@keyframes node-float{ 0%,100%{ margin-top:0; } 50%{ margin-top:-7px; } }
+
+/* Below ~520px the pills collide with each other, so drop to the core alone. */
+@media (max-width:520px){
+  .orbit{ width:16rem; }
+  .orbit__node{ display:none; }
+  .orbit__core{ width:100%; height:100%; }
+}
+
+/* --- Checkable facts ----------------------------------------------------- */
+.hero-band__facts{ border-top:1px solid var(--band-line); padding-block:1.6rem 2.25rem; }
+.hero-band__facts-label{ margin:0 0 1rem; font-size:.7rem; font-weight:800;
+  letter-spacing:.12em; text-transform:uppercase; color:#8aa2ba; }
+.hero-band__facts-grid{ display:grid; gap:1.1rem; }
+@media (min-width:760px){ .hero-band__facts-grid{ grid-template-columns:repeat(3,1fr); gap:1.75rem; } }
+.hero-fact{ display:flex; align-items:flex-start; gap:.85rem; }
+.hero-fact .icon{ width:1.35rem; height:1.35rem; color:var(--band-accent); flex-shrink:0;
+  margin-top:.15rem; }
+.hero-fact__v{ display:block; color:#fff; font-size:1.55rem; font-weight:800;
+  line-height:1.1; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
+.hero-fact__l{ display:block; margin-top:.15rem; font-size:.86rem; color:var(--band-body);
+  line-height:1.5; }

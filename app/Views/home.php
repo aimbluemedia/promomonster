@@ -1,5 +1,8 @@
 <?php use App\Support\Icon; use App\Support\Plans; use App\Support\View; ?>
 
+<?php /* Dark band first, then the photograph hero it sits above. */ ?>
+<?php require APP_ROOT . '/Views/partials/hero-band.php'; ?>
+
 <section class="section">
   <div class="container hero">
     <div class="hero__media">
