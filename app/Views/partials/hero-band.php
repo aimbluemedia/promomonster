@@ -120,8 +120,12 @@
         }
     }
     ?>
-    <div class="hero-band__art" aria-hidden="true">
-      <div class="globe-wrap">
+    <?php /* aria-hidden sits on the illustration, not on the whole column, so
+             the "example reviews" caption below it is still announced. Hiding
+             that caption from a screen reader while showing invented reviews to
+             everyone else is exactly the wrong way round. */ ?>
+    <div class="hero-band__art">
+      <div class="globe-wrap" aria-hidden="true">
         <svg class="globe" viewBox="0 0 400 400">
           <defs>
             <radialGradient id="pm-sphere" cx="38%" cy="30%" r="78%">
@@ -162,18 +166,40 @@
                   stroke="rgba(125,211,252,.45)" stroke-width="1.5"/>
         </svg>
 
+        <?php
+        /**
+         * Illustrative review cards.
+         *
+         * These are NOT real reviews and must never be able to pass for them.
+         * This company's entire position is that it does not write, buy or
+         * fabricate reviews, so a homepage decorated with invented testimonials
+         * that read as genuine would be the single most damaging thing on the
+         * site — and the FTC treats fabricated consumer reviews as deceptive
+         * regardless of intent.
+         *
+         * So: no real business names, no photographs, first name and initial
+         * only, a visible "Example" caption under the globe, and the whole
+         * group aria-hidden. They show the SHAPE of what arrives, which is the
+         * point of the illustration, without claiming anyone said it.
+         */
+        ?>
         <?php foreach ([
-          ['n1', 'star',    'New 5&#9733; review'],
-          ['n2', 'send',    'Request sent'],
-          ['n3', 'sparkle', 'Reply drafted'],
-          ['n4', 'qr',      'QR scanned'],
-          ['n5', 'layout',  'Live on your site'],
-        ] as [$pos, $icon, $label]): ?>
-          <span class="globe__node globe__node--<?= $pos ?>">
-            <?= Icon::render($icon) ?><span><?= $label ?></span>
-          </span>
+          ['n1', 5, 'Turned up on time and left it spotless.', 'Dana R.'],
+          ['n2', 5, 'Quoted fairly &mdash; no surprises on the invoice.', 'Marcus T.'],
+          ['n3', 4, 'Quick fix and a friendly team.',            'Priya S.'],
+          ['n4', 5, 'Answered my question within minutes.',      'Sam K.'],
+          ['n5', 5, 'Second time using them. Same standard.',    'Jordan L.'],
+        ] as [$pos, $stars, $quote, $who]): ?>
+          <figure class="globe__review globe__review--<?= $pos ?>">
+            <span class="globe__stars" aria-hidden="true"><?php
+              echo str_repeat('&#9733;', $stars) . str_repeat('&#9734;', 5 - $stars);
+            ?></span>
+            <blockquote><?= $quote ?></blockquote>
+            <figcaption><?= $who ?></figcaption>
+          </figure>
         <?php endforeach; ?>
       </div>
+      <p class="hero-band__art-note">Example reviews, for illustration</p>
     </div>
   </div>
 

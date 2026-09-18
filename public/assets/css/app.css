@@ -768,44 +768,66 @@ table.data td.wrap{ white-space:normal; max-width:22rem; }
 .hero-chip .icon{ width:.95rem; height:.95rem; color:var(--band-accent); }
 
 /* --- The globe ----------------------------------------------------------
-   Geometry is projected in PHP, so this only has to place and light it. The
-   sphere is decorative and aria-hidden: it repeats what the copy says, and the
-   floating pills are labels on an illustration, not information of their own.
+   Geometry is projected in PHP; this only has to place and light it. Sized to
+   bleed past its column the way the reference does — the band clips it, so the
+   sphere reads as bigger than the space it is given.
    ------------------------------------------------------------------------ */
-.hero-band__art{ display:flex; justify-content:center; }
-.globe-wrap{ position:relative; width:min(100%,32rem); aspect-ratio:1; }
+.hero-band__art{ display:flex; flex-direction:column; align-items:center;
+  justify-content:center; }
+.globe-wrap{ position:relative; width:min(132%, 43rem); aspect-ratio:1;
+  margin-inline:-6%; }
 .globe{ width:100%; height:100%; display:block; }
 @media (prefers-reduced-motion: no-preference){
   /* A slow breath on the halo only. Spinning a projected graticule would need
-     real 3D; faking it by rotating the group makes the latitudes tumble. */
+     real 3D; rotating the group makes the latitude rings tumble. */
   .globe{ animation:globe-breathe 9s ease-in-out infinite; }
 }
 @keyframes globe-breathe{ 0%,100%{ opacity:.94; } 50%{ opacity:1; } }
 
-.globe__node{ position:absolute; display:inline-flex; align-items:center; gap:.45rem;
-  padding:.5rem .75rem; border-radius:99px; white-space:nowrap;
-  font-size:.76rem; font-weight:700; color:#eaf4fd;
-  background:rgba(12,32,52,.92); border:1px solid rgba(255,255,255,.16);
-  box-shadow:0 10px 26px rgba(0,0,0,.35); }
-.globe__node .icon{ width:.9rem; height:.9rem; color:var(--band-accent); }
-.globe__node--n1{ top:2%;  left:50%; transform:translateX(-50%); }
-.globe__node--n2{ top:26%; right:-3%; }
-.globe__node--n3{ bottom:24%; right:0%; }
-.globe__node--n4{ bottom:4%; left:52%; transform:translateX(-50%); }
-.globe__node--n5{ top:33%; left:-5%; }
+/* Clear of the lowest card, so the label that keeps these honest is never
+   half-hidden behind one of the things it is labelling. */
+.hero-band__art-note{ margin:.9rem 0 0; font-size:.72rem; letter-spacing:.06em;
+  text-transform:uppercase; color:#7e97b0; text-align:center; }
+
+/* Illustrative review cards. Deliberately small and plain — they show the shape
+   of what arrives, and the caption below the globe says they are examples. */
+.globe__review{ position:absolute; margin:0; width:13.5rem;
+  padding:.7rem .85rem .75rem; border-radius:12px;
+  background:rgba(10,28,46,.94); border:1px solid rgba(255,255,255,.16);
+  box-shadow:0 14px 34px rgba(0,0,0,.45);
+  backdrop-filter:blur(2px); }
+.globe__stars{ display:block; color:#fbbf24; font-size:.8rem; letter-spacing:.1em;
+  line-height:1; }
+.globe__review blockquote{ margin:.4rem 0 0; font-size:.78rem; line-height:1.45;
+  color:#eaf4fd; font-weight:600; }
+.globe__review figcaption{ margin-top:.35rem; font-size:.7rem; color:#8aa2ba; }
+
+/* Kept inside the wrap on the right: the wrap already hangs 6% past its column
+   and the band clips, so a card at a negative right offset gets its edge cut
+   off — which reads as a mistake rather than as a bleed. */
+.globe__review--n1{ top:1%;   left:4%; }
+.globe__review--n2{ top:19%;  right:3%; }
+.globe__review--n3{ top:47%;  left:-3%; }
+.globe__review--n4{ bottom:19%; right:5%; }
+.globe__review--n5{ bottom:4%; left:14%; }
+
 @media (prefers-reduced-motion: no-preference){
-  .globe__node{ animation:node-float 7s ease-in-out infinite; }
-  .globe__node--n2{ animation-delay:-1.4s; }
-  .globe__node--n3{ animation-delay:-2.8s; }
-  .globe__node--n4{ animation-delay:-4.2s; }
-  .globe__node--n5{ animation-delay:-5.6s; }
+  .globe__review{ animation:node-float 7s ease-in-out infinite; }
+  .globe__review--n2{ animation-delay:-1.4s; }
+  .globe__review--n3{ animation-delay:-2.8s; }
+  .globe__review--n4{ animation-delay:-4.2s; }
+  .globe__review--n5{ animation-delay:-5.6s; }
 }
 @keyframes node-float{ 0%,100%{ margin-top:0; } 50%{ margin-top:-7px; } }
 
-/* Below ~560px the pills collide with each other and with the sphere. */
-@media (max-width:560px){
-  .globe-wrap{ width:17rem; }
-  .globe__node{ display:none; }
+/* Narrow: the cards would cover the sphere entirely, so show two and shrink. */
+@media (max-width:1100px){
+  .globe__review{ width:11.5rem; }
+  .globe__review--n3, .globe__review--n5{ display:none; }
+}
+@media (max-width:760px){
+  .globe-wrap{ width:min(100%,22rem); margin-inline:0; }
+  .globe__review{ display:none; }
 }
 
 /* --- Checkable facts ----------------------------------------------------- */
