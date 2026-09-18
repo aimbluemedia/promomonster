@@ -66,105 +66,17 @@
     <?php /* Illustrative, and read as such: a rating at the centre with the
              channels that feed it orbiting around. Not a screenshot, not a
              claim. aria-hidden because it repeats what the copy already says. */ ?>
-    <?php
-    /**
-     * The globe.
-     *
-     * Built rather than drawn: the graticule and the dot mesh are projected
-     * from real spherical coordinates, so the latitude squash and the way dots
-     * crowd towards the limb come out right instead of being faked with
-     * hand-tuned ellipses. R and the centre are the only inputs.
-     *
-     * Only the front hemisphere is drawn, with dot size and opacity falling off
-     * by depth — that is what reads as a sphere rather than a circle.
-     */
-    $R = 150.0; $cx = 200.0; $cy = 200.0;
-
-    // Latitude rings: a circle of constant latitude, seen edge-on, is an
-    // ellipse whose centre rises with the latitude and whose height is the
-    // radius squashed by the viewing angle.
-    $latitudes = [];
-    foreach ([-60, -40, -20, 0, 20, 40, 60] as $deg) {
-        $t = deg2rad($deg);
-        $latitudes[] = [
-            'cy' => $cy - $R * sin($t),
-            'rx' => $R * cos($t),
-            'ry' => $R * cos($t) * 0.26,
-        ];
-    }
-
-    // Longitude arcs: same height, width narrowing to nothing at the limb.
-    $longitudes = [];
-    foreach ([0, 30, 60, 90, 120, 150] as $deg) {
-        $longitudes[] = $R * abs(cos(deg2rad($deg)));
-    }
-
-    // Dot mesh over the front hemisphere.
-    $dots = [];
-    for ($lat = -75; $lat <= 75; $lat += 10) {
-        $t = deg2rad($lat);
-        // Fewer dots near the poles, so spacing stays even on the surface.
-        $step = max(9, (int) round(9 / max(0.18, cos($t))));
-        for ($lon = -90; $lon <= 90; $lon += $step) {
-            $g = deg2rad($lon);
-            $depth = cos($t) * cos($g);      // 1 facing us, 0 at the limb
-            if ($depth <= 0.06) {
-                continue;
-            }
-            $dots[] = [
-                'x' => $cx + $R * cos($t) * sin($g),
-                'y' => $cy - $R * sin($t),
-                'r' => 0.9 + 1.5 * $depth,
-                'o' => 0.14 + 0.5 * $depth,
-            ];
-        }
-    }
-    ?>
     <?php /* aria-hidden sits on the illustration, not on the whole column, so
              the "example reviews" caption below it is still announced. Hiding
              that caption from a screen reader while showing invented reviews to
              everyone else is exactly the wrong way round. */ ?>
     <div class="hero-band__art">
       <div class="globe-wrap" aria-hidden="true">
-        <svg class="globe" viewBox="0 0 400 400">
-          <defs>
-            <radialGradient id="pm-sphere" cx="38%" cy="30%" r="78%">
-              <stop offset="0%"  stop-color="#1b5c8f"/>
-              <stop offset="55%" stop-color="#0d3b5e"/>
-              <stop offset="100%" stop-color="#071a2c"/>
-            </radialGradient>
-            <radialGradient id="pm-halo" cx="50%" cy="50%" r="50%">
-              <stop offset="60%" stop-color="rgba(56,189,248,0)"/>
-              <stop offset="88%" stop-color="rgba(56,189,248,.28)"/>
-              <stop offset="100%" stop-color="rgba(56,189,248,0)"/>
-            </radialGradient>
-            <clipPath id="pm-clip"><circle cx="200" cy="200" r="150"/></clipPath>
-          </defs>
-
-          <circle cx="200" cy="200" r="196" fill="url(#pm-halo)"/>
-          <circle cx="200" cy="200" r="150" fill="url(#pm-sphere)"/>
-
-          <g clip-path="url(#pm-clip)" fill="none" stroke="#38bdf8" stroke-opacity=".20">
-            <?php foreach ($latitudes as $l): ?>
-              <ellipse cx="200" cy="<?= round($l['cy'], 1) ?>"
-                       rx="<?= round($l['rx'], 1) ?>" ry="<?= round($l['ry'], 1) ?>"/>
-            <?php endforeach; ?>
-            <?php foreach ($longitudes as $rx): ?>
-              <ellipse cx="200" cy="200" rx="<?= round($rx, 1) ?>" ry="150"/>
-            <?php endforeach; ?>
-          </g>
-
-          <g clip-path="url(#pm-clip)" fill="#7dd3fc">
-            <?php foreach ($dots as $d): ?>
-              <circle cx="<?= round($d['x'], 1) ?>" cy="<?= round($d['y'], 1) ?>"
-                      r="<?= round($d['r'], 2) ?>" opacity="<?= round($d['o'], 2) ?>"/>
-            <?php endforeach; ?>
-          </g>
-
-          <?php /* Rim light: brighter where the sphere turns away from us. */ ?>
-          <circle cx="200" cy="200" r="150" fill="none"
-                  stroke="rgba(125,211,252,.45)" stroke-width="1.5"/>
-        </svg>
+        <?php /* Built by bin/build-globe.php and committed: the projection never
+                 changes, so this is a cached static file rather than ~900 dots
+                 re-emitted inside every page. */ ?>
+        <img class="globe" src="/assets/img/globe.svg" width="400" height="400"
+             alt="" decoding="async">
 
         <?php
         /**
@@ -203,22 +115,24 @@
     </div>
   </div>
 
-  <?php /* Where the reference puts invented traction. These are checkable. */ ?>
+  <?php /* The reference fills this panel with invented traction — 10K+
+           businesses, 100K+ monthly views. There are no customers yet, so it
+           carries things a visitor can check instead. */ ?>
   <div class="container">
-    <div class="hero-band__facts">
-      <p class="hero-band__facts-label">Honest by design</p>
-      <div class="hero-band__facts-grid">
+    <div class="hero-panel">
+      <p class="hero-panel__label">Reviews, done properly</p>
+      <div class="hero-panel__grid">
         <?php foreach ([
-          ['shield', '0',   'Reviews we write, buy or gate. Ever.'],
-          ['chart',  '100', 'Point score, and every point traceable to your page.'],
-          ['star',   '$0',  'To start, and no card to find out.'],
+          ['shield', '0',   'Reviews written, bought or gated. Ever.'],
+          ['chart',  '100', 'Point review score, in about ten seconds.'],
+          ['star',   '$0',  'To start. No card, no subscription.'],
         ] as [$icon, $value, $label]): ?>
-          <div class="hero-fact">
-            <?= Icon::render($icon) ?>
-            <div>
-              <span class="hero-fact__v"><?= $value ?></span>
-              <span class="hero-fact__l"><?= $label ?></span>
-            </div>
+          <div class="hero-stat">
+            <span class="hero-stat__tile"><?= Icon::render($icon) ?></span>
+            <span>
+              <span class="hero-stat__v"><?= $value ?></span>
+              <span class="hero-stat__l"><?= $label ?></span>
+            </span>
           </div>
         <?php endforeach; ?>
       </div>
