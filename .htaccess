@@ -1,0 +1,57 @@
+# Root fallback for hosts where the document root cannot be pointed at public/.
+#
+# If you CAN set the document root to public/, this file is never used and the
+# stricter rules in public/.htaccess apply instead.
+#
+# Everything is mapped into public/ so that app/, database/ and docs/ are never
+# served, and so a request for / finds a front controller instead of an empty
+# directory (which is what produces "403 Forbidden").
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Already inside public/ — leave it to public/.htaccess.
+    RewriteCond %{REQUEST_URI} ^/public/
+    RewriteRule ^ - [L]
+
+    # The diagnostic lives at the root and must not be rewritten away.
+    RewriteRule ^diagnose\.php$ - [L]
+    RewriteRule ^migrate-web\.php$ - [L]
+    RewriteRule ^reset-admin\.php$ - [L]
+
+    # Serve a real file under /assets/ from the project root if one is there.
+    #
+    # Without this, EVERY request is mapped into public/, so an image uploaded
+    # to public_html/assets/img/ is unreachable — which is where the documented
+    # layout puts it, and where anyone would sensibly put it. Both locations now
+    # work the same way.
+    #
+    # Scoped to /assets/ deliberately: a blanket "serve any file that exists"
+    # would hand out app/config.php, database passwords and all.
+    RewriteCond %{REQUEST_URI} ^/assets/
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
+    # Map every other request into public/.
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+# Without mod_rewrite, at least serve the fallback front controller for /.
+DirectoryIndex index.php
+
+Options -Indexes
+
+# .git in the web root exposes the entire source history, credentials in old
+# commits included. Deny it, and delete the directory from the server.
+RedirectMatch 404 /\.git(/|$)
+
+# Belt and braces: never serve project files even if a rewrite is bypassed.
+<FilesMatch "\.(sql|md|json|lock|example\.php)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
