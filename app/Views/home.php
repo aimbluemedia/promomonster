@@ -127,127 +127,102 @@
 
 <?php require APP_ROOT . '/Views/partials/ticker.php'; ?>
 
-<section class="section">
+<?php /* ---- The free playbook.
+
+         Given away whole, on the page, with nothing to fill in and nothing
+         held back for the paid plans. Two reasons. It is the honest pitch:
+         everything below is something a business can do on its own with a
+         phone and a habit, and saying so is more persuasive than pretending
+         otherwise. And it is the only part of this page worth reading if you
+         never buy anything.
+
+         Nothing here is a claim we cannot point at. The rating filter is
+         checkable in Google Maps; the gating line is Google's published policy
+         and the FTC's rule on consumer reviews. The step copy is written with
+         real punctuation and escaped on the way out, rather than carrying HTML
+         entities through a variable. ------------------------------------- */ ?>
+<section class="section" id="playbook">
   <div class="container">
-    <div class="center" style="max-width:44rem;margin-inline:auto;" data-reveal>
-      <p class="eyebrow">How it works</p>
-      <h2 class="display">Three steps, then it <em>runs itself</em></h2>
-      <p class="lede">Set it up once. After that the only thing you do is reply
-        &mdash; and we draft those too.</p>
+    <div class="center" style="max-width:48rem;margin-inline:auto;" data-reveal>
+      <p class="eyebrow">The free playbook</p>
+      <?php /* The width and the nowrap are there so the phrase does not break
+           across lines: left to itself it wraps as "step" / "by step", which
+           reads as two thoughts. Both are safe down to 320px, where the
+           clamped font size makes the phrase well under a line. */ ?>
+      <h2 class="display" style="max-width:19ch;margin-inline:auto;">How to get
+        more customer reviews, <em style="white-space:nowrap;">step by step</em></h2>
+      <p class="lede">If you run a service business, this is the marketing your
+        time is best spent on. Your rating is printed next to your name in every
+        search result and every map pin, and Google Maps lets people filter by
+        rating &mdash; the lowest rung of that filter is 4.0. No advert buys you
+        past it. Below is the whole process, in the order to do it. No email, no
+        download, no catch.</p>
     </div>
-    <div class="grid grid--3" style="margin-top:2.75rem;">
+
+    <ol class="playbook" role="list" data-reveal data-reveal-delay="1">
       <?php foreach ([
-        ['01','users','Add customers','Import a list, paste them in, or add one after each job.'],
-        ['02','send','We ask, automatically','A text or email at the right moment, then one reminder. Never more.'],
-        ['03','star','Reviews arrive','Watch them land, reply in a click, and show them on your site.'],
-      ] as $i => [$num, $icon, $title, $body]): ?>
-        <div class="step" data-reveal data-reveal-delay="<?= $i + 1 ?>">
-          <?= Icon::chip($icon) ?>
-          <div class="step__num"><?= $num ?></div>
+        ['Claim your Google Business Profile',
+         'Everything else hangs off this, it is free, and an unclaimed profile
+          cannot hand out a review link. While you are in there, finish it:
+          hours, service area, phone, and photographs of real jobs.'],
+        ['Get your short review link',
+         'Your profile gives you one link that opens the review box directly.
+          Save it somewhere you can paste it from in two seconds. That link is
+          the whole campaign — everything after this is getting it in front of
+          people.'],
+        ['Put it on a QR code, on paper',
+         'The invoice, the van, the door hanger, the counter. A customer with a
+          phone already in their hand and a code in front of them is the easiest
+          review you will ever get.'],
+        ['Ask on the day of the job',
+         'While they can still see the work. A week later you are asking someone
+          to remember you; on the day you are asking them to react, and that is
+          a far smaller favour.'],
+        ['Ask by text, with the link in it',
+         'One tap, not an address to type. A business card is a reminder to do
+          it later, and later means never. If you change one thing on this list,
+          change this one.'],
+        ['Ask every single customer',
+         'No screening, and no “how did we do?” survey first to decide who gets
+          asked. Same message, same link, everyone. It is the only compliant way
+          to do it, and it is what makes a 4.8 believable to someone reading the
+          one-star.'],
+        ['Send one reminder, then stop',
+         'Three days later, once. That catches the people who meant to and got
+          busy. A second reminder catches nobody — it just irritates a customer
+          you already did good work for.'],
+        ['Reply to every review within 48 hours',
+         'Good and bad. Replies are public, and the next customer reads them
+          more carefully than they read the review. A calm reply under a bad
+          review has won more work than most adverts.'],
+        ['Show the reviews on your own website',
+         'You earned them. Put them where people land after they search for you,
+          not only on a profile they may never scroll.'],
+      ] as [$title, $body]): ?>
+        <li class="playbook__step">
           <h3><?= View::e($title) ?></h3>
-          <p><?= View::e($body) ?></p>
-        </div>
+          <p><?= View::e(preg_replace('/\s+/', ' ', $body)) ?></p>
+        </li>
       <?php endforeach; ?>
-    </div>
-  </div>
-</section>
+    </ol>
 
-<?php /* ---- Why the rating matters. Checkable facts only, no invented stats. */ ?>
-<section class="section band">
-  <div class="container">
-    <div class="center" style="max-width:46rem;margin-inline:auto;" data-reveal>
-      <p class="eyebrow">Why the number moves the needle</p>
-      <h2 class="display">A rating is a <em>filter</em>, not a vanity metric</h2>
-      <p class="lede">Google Maps lets people filter results by rating, and the
-        lowest rung of that filter is 4.0. Below it you are not competing badly
-        &mdash; you are not in the list at all.</p>
-    </div>
-    <div class="band__grid" style="margin-top:3rem;" data-reveal data-reveal-delay="1">
-      <div>
-        <div class="band__n"><span data-count="4">4</span>.0</div>
-        <p class="band__l">The first rung of Google&rsquo;s rating filter</p>
-      </div>
-      <div>
-        <div class="band__n"><span data-count="4">4</span>.5</div>
-        <p class="band__l">The rung above, where most searches settle</p>
-      </div>
-      <div>
-        <div class="band__n"><span data-count="0">0</span></div>
-        <p class="band__l">Reviews we write, buy or gate. Ever.</p>
-      </div>
-      <div>
-        <div class="band__n">$<span data-count="0">0</span></div>
-        <p class="band__l">To start, and no card to find out</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="section">
-  <div class="container split">
-    <div data-reveal>
-      <p class="eyebrow">Review Growth Score</p>
-      <h2 class="display">Know exactly what to <em>fix next</em></h2>
-      <p class="lede">One number for how well your reputation engine is running,
-        and one clear next step. No dashboards to interpret.</p>
-      <div class="btn-row"><a class="btn btn--primary" href="/score">Score my business free</a></div>
-    </div>
-    <div class="card" data-reveal data-reveal-delay="1">
-      <div class="score"><span class="score__val" data-count="62">62</span><span class="score__max">/ 100</span></div>
-      <div class="meter"><span style="width:62%"></span></div>
-      <ul class="checklist">
-        <li>Google review link configured</li>
-        <li>QR code created</li>
-        <li>Review requests sending</li>
-        <li class="is-off">Follow-up reminder off</li>
-        <li class="is-off">Team not trained yet</li>
-        <li>Replying within 48 hours</li>
-        <li class="is-off">Website widget not installed</li>
-      </ul>
-      <p style="margin:1.4rem 0 0;font-weight:700;color:var(--ink);">
-        Next best action &rarr; turn on the 3-day reminder
+    <div class="playbook__foot" data-reveal>
+      <p class="playbook__rule">
+        <?= Icon::render('shield') ?>
+        <span><strong>One rule holds the whole thing up: ask everyone.</strong>
+          Filtering who gets asked is review gating. Google prohibits it outright,
+          the FTC treats suppressing or buying reviews as deceptive, and it is the
+          quickest way to lose a profile you spent years building. We will never
+          do it for you, and you should not do it yourself.</span>
       </p>
-    </div>
-  </div>
-</section>
-
-<?php require APP_ROOT . '/Views/partials/ticker.php'; ?>
-
-<section class="section">
-  <div class="container">
-    <div class="center" style="max-width:46rem;margin-inline:auto;" data-reveal>
-      <p class="eyebrow">Built the right way</p>
-      <h2 class="display">We ask <em>all</em> your customers</h2>
-      <p class="lede">Filtering who gets asked is called review gating. Google
-        prohibits it and the FTC treats it as deceptive, with penalties over
-        $50,000 per violation. Plenty of tools still quietly do it. We never
-        will, and that protects the profile you have spent years building.</p>
-    </div>
-    <div class="grid grid--3" style="margin-top:2.75rem;">
-      <?php foreach ([
-        ['shield','No gating, ever','Every customer gets the same message and the same link. That is the only compliant way to do this.'],
-        ['star','No incentives','Offering anything for a review breaks Google policy outright. Our templates make the compliant path the easy one.'],
-        ['search','No fake reviews','We never write, buy or sell reviews. Everything you see came from a real customer of yours.'],
-      ] as $i => [$icon, $title, $body]): ?>
-        <div class="card feature" data-reveal data-reveal-delay="<?= $i + 1 ?>">
-          <?= Icon::chip($icon) ?>
-          <h3><?= View::e($title) ?></h3>
-          <p><?= View::e($body) ?></p>
-        </div>
-      <?php endforeach; ?>
-    </div>
-  </div>
-</section>
-
-<section class="section section--wash">
-  <div class="container center" data-reveal>
-    <h2 class="display">See where you stand in <em>about a minute</em></h2>
-    <p class="lede">We will show you your rating, your review velocity, how many
-      go unanswered, and how you compare to the three nearest businesses like
-      yours. Free, and no card.</p>
-    <div class="btn-row" style="justify-content:center;">
-      <a class="btn btn--primary" href="/compare">Compare me with my competitors</a>
-      <a class="btn btn--ghost" href="/members/signup">Create a free account</a>
+      <p class="playbook__then">Work through all nine and you will have more
+        reviews than you do now, whether or not you ever pay us a penny.
+        PromoMonster is for when you would rather it happened without you
+        having to remember.</p>
+      <div class="btn-row" style="justify-content:center;">
+        <a class="btn btn--primary" href="#score">Get your Free Review Score</a>
+        <a class="btn btn--ghost" href="/members/signup">Create a free account</a>
+      </div>
     </div>
   </div>
 </section>

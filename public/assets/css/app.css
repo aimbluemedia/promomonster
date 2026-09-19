@@ -479,6 +479,48 @@ table.data td.wrap{ white-space:normal; max-width:22rem; }
 .benefit strong{ font-size:.84rem; color:var(--ink); line-height:1.3; }
 .benefit span{ font-size:.74rem; color:var(--muted); }
 
+/* --- Free playbook: the numbered process ---------------------------------
+   Numbered with a CSS counter rather than printed digits, so re-ordering the
+   PHP array cannot leave the numbers lying. The digits are decorative here:
+   the element is a real <ol>, so the order is already in the markup for
+   anything that is not looking at the page. */
+.playbook{ list-style:none; counter-reset:pb-step; margin:2.75rem 0 0; padding:0;
+  display:grid; gap:1rem; }
+@media (min-width:820px){ .playbook{ grid-template-columns:repeat(2,minmax(0,1fr)); gap:1.1rem; } }
+
+.playbook__step{ counter-increment:pb-step; position:relative;
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--radius); padding:1.4rem 1.5rem 1.45rem 4.75rem; }
+/* decimal-leading-zero to match the 01/02/03 step cards elsewhere on the page. */
+.playbook__step::before{ content:counter(pb-step, decimal-leading-zero);
+  position:absolute; left:1.4rem; top:1.35rem;
+  width:2.3rem; height:2.3rem; border-radius:9px;
+  display:inline-flex; align-items:center; justify-content:center;
+  background:var(--tint); color:var(--brand);
+  font-family:var(--mono); font-size:.82rem; font-weight:700;
+  font-variant-numeric:tabular-nums; }
+.playbook__step h3{ margin:0 0 .4rem; font-size:1.02rem; line-height:1.35; }
+.playbook__step p{ margin:0; font-size:.93rem; line-height:1.6; color:var(--body); }
+
+/* On a narrow screen the left rail eats the text column, so the badge steps out
+   of it and sits on its own line above the heading. display:flex (not the
+   inline-flex above) so it takes a line of its own and its margin applies. */
+@media (max-width:559px){
+  .playbook__step{ padding:1.3rem 1.35rem 1.4rem; }
+  .playbook__step::before{ position:static; display:flex; margin-bottom:.75rem; }
+}
+
+/* --- The rule that sits under the list, and the way out of the section --- */
+.playbook__foot{ max-width:46rem; margin:2.25rem auto 0; text-align:center; }
+.playbook__rule{ display:flex; gap:.9rem; align-items:flex-start; text-align:left;
+  margin:0; padding:1.15rem 1.35rem; border-radius:var(--radius);
+  background:var(--tint-2); border:1px solid var(--line-2);
+  font-size:.93rem; line-height:1.6; color:var(--body); }
+.playbook__rule .icon{ flex-shrink:0; width:1.4rem; height:1.4rem;
+  color:var(--brand); margin-top:.1rem; }
+.playbook__rule strong{ color:var(--ink); }
+.playbook__then{ margin:1.5rem 0 0; font-size:1rem; line-height:1.65; color:var(--body); }
+
 /* --- Calculator ---------------------------------------------------------- */
 .calc{ display:grid; gap:1.25rem; }
 @media (min-width:900px){ .calc{ grid-template-columns:1.05fr .95fr; gap:1.75rem; align-items:start; } }
