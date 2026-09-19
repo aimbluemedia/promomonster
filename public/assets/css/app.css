@@ -130,6 +130,14 @@ h3{ font-size:1.0625rem; font-weight:700; letter-spacing:-.01em; }
   transition:background-color .15s,color .15s; }
 .btn--primary{ background:var(--brand); color:#fff; }
 .btn--primary:hover{ background:var(--brand-hover); }
+/* In dark mode --brand is a light blue, and white on it is 1.98:1 — the
+   label all but disappears. The fill is the one surface on the page that
+   does not follow the scheme, so the label has to: --paper on --brand is
+   9.57:1, and 11.71:1 on the hover shade. */
+@media (prefers-color-scheme: dark){
+  .btn--primary, .site-nav a.btn--primary,
+  .btn--primary:hover, .site-nav a.btn--primary:hover{ color:var(--paper); }
+}
 .btn--ghost{ background:var(--surface); color:var(--ink); border-color:var(--line); }
 .btn--ghost:hover{ background:var(--wash); }
 .btn--block{ width:100%; }
