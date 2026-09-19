@@ -1,4 +1,4 @@
-<?php use App\Support\Icon; use App\Support\Plans; use App\Support\View; ?>
+<?php use App\Support\Icon; use App\Support\View; ?>
 
 <?php /* Dark band first, then the photograph hero it sits above. */ ?>
 <?php require APP_ROOT . '/Views/partials/hero-band.php'; ?>
@@ -212,41 +212,6 @@
 </section>
 
 <?php require APP_ROOT . '/Views/partials/ticker.php'; ?>
-
-<?php /* ---- Plans, read from the same catalogue as /pricing. ------------- */ ?>
-<section class="section section--wash">
-  <div class="container">
-    <div class="center" style="max-width:44rem;margin-inline:auto;" data-reveal>
-      <p class="eyebrow">Pricing</p>
-      <h2 class="display">Start free. Move up <em>when it is working</em></h2>
-      <p class="lede">No setup fee, no contract, no sales call. Competitors
-        charge $300&ndash;$600 a month for this.</p>
-    </div>
-    <div class="compare" style="margin-top:2.75rem;">
-      <?php foreach (Plans::selectable() as $key => $plan): ?>
-        <div class="card plan<?= $plan['featured'] ? ' plan--featured' : '' ?>"
-             data-reveal data-reveal-delay="<?= $plan['featured'] ? 2 : 1 ?>">
-          <?php if ($plan['featured']): ?><span class="plan__badge">Most popular</span><?php endif; ?>
-          <h3 style="font-size:1.15rem;"><?= View::e($plan['name']) ?></h3>
-          <div style="margin:.6rem 0 .3rem;">
-            <span class="plan__price"><?= $plan['price'] === 0 ? 'Free' : '$' . (int) $plan['price'] ?></span>
-            <?php if ($plan['price'] > 0): ?><span class="plan__per">/month</span><?php endif; ?>
-          </div>
-          <p class="muted" style="font-size:.92rem;margin:0 0 .4rem;"><?= View::e($plan['tagline']) ?></p>
-          <ul class="checklist">
-            <?php foreach ($plan['features'] as [$label, $on]): ?>
-              <li<?= $on ? '' : ' class="is-off"' ?>><?= View::e($label) ?></li>
-            <?php endforeach; ?>
-          </ul>
-          <a class="btn <?= $plan['featured'] ? 'btn--primary' : 'btn--ghost' ?> btn--block"
-             href="/members/signup?plan=<?= View::e($key) ?>">
-            <?= $plan['price'] === 0 ? 'Start free' : 'Choose ' . View::e($plan['name']) ?>
-          </a>
-        </div>
-      <?php endforeach; ?>
-    </div>
-  </div>
-</section>
 
 <section class="section">
   <div class="container">
