@@ -27,6 +27,7 @@ final class Icon
         'shield'    => '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/>',
         'chart'     => '<path d="M3 3v18h18"/><path d="m7 15 3-4 3 3 5-7"/>',
         'search'    => '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+        'check'     => '<path d="m4 12.5 5 5L20 6.5"/>',
     ];
 
     public static function render(string $name, string $class = ''): string

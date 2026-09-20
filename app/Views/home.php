@@ -127,84 +127,88 @@
 
 <?php require APP_ROOT . '/Views/partials/ticker.php'; ?>
 
-<?php /* ---- Why to open the free account.
+<?php /* ---- The close.
 
-         The closing argument of the page. The cards are reasons a small
-         business owner already cares about — leads, trust, what the business
-         is worth when they sell it — not a feature list, because nobody buys
-         a feature list.
+         Dark, because this is where the page asks for the decision and it has
+         to look like a different kind of moment from the white sections above
+         it. It also bookends the dark band under the nav, so the page opens
+         and closes on the same note.
 
-         Every claim here is reasoning the reader can check against their own
+         The cards are reasons a small business owner already cares about —
+         leads, trust, what the business is worth when they sell it — not a
+         feature list, because nobody buys a feature list.
+
+         Every claim is reasoning the reader can check against their own
          experience, or a fact we can point at: the rating filter is in Google
-         Maps, and the free-plan tools in the last card are exactly what
-         Plans::all() gives a free account. No invented statistics, no revenue
-         projection, no "businesses see 3x more" — a number we cannot defend is
-         worse than no number. ------------------------------------------- */ ?>
-<section class="section" id="free">
+         Maps, and the tools in the last card are exactly what Plans::all()
+         gives a free account. No invented statistics and no revenue
+         projection — a number we cannot defend is worse than no number.
+
+         Contrast on this band is computed against the lightest point of the
+         gradient with the card wash on top of it, not against the darkest, so
+         the worst case is the measured one. See the CSS. ----------------- */ ?>
+<section class="section close-band" id="free">
   <div class="container">
-    <div class="center" style="max-width:48rem;margin-inline:auto;" data-reveal>
-      <p class="eyebrow">Free account &middot; no credit card</p>
-      <?php /* The width and the nowrap keep the phrase on one line: left to
-               itself it breaks as "Start" / "free", which reads as two
-               thoughts. Both are safe down to 320px. */ ?>
-      <h2 class="display" style="max-width:15ch;margin-inline:auto;">Get reviews
-        like a pro. <em style="white-space:nowrap;">Start free.</em></h2>
-      <p class="lede">If you run a small service business, reviews are not a
-        marketing extra you get to later. They are the thing that decides who
+
+    <div class="close-head" data-reveal>
+      <p class="close-tag"><?= Icon::render('star') ?>Free account &middot; no credit card</p>
+      <h2 class="close-title">Get reviews <em>like a pro</em>.<br>Start free today.</h2>
+      <p class="close-lede">If you run a small service business, reviews are not
+        a marketing extra you get to later. They are the thing that decides who
         gets the call. Every reason below is one you already feel &mdash; the
-        free account is just how you stop having to remember. No card, nothing
-        to cancel, and your first requests can go out this afternoon.</p>
+        free account is just how you stop having to remember.</p>
     </div>
 
-    <div class="grid grid--3" style="margin-top:2.75rem;">
+    <div class="close-grid">
       <?php foreach ([
         ['chart', 'More leads from the work you already do',
          'When three businesses come up side by side, the rating is the
           tie-breaker. Every van, every sign and every ad you already pay for
-          lands harder behind a 4.8 than behind a 3.9.'],
+          lands harder behind a 4.8 than behind a 3.9.', false],
         ['users', 'Trust before you ever speak to them',
          'A stranger decides whether to call you by reading what your last
           twenty customers said. It is the reference you cannot hand out
-          yourself, and it is working while you are on a job.'],
+          yourself, and it works while you are on a job.', false],
         ['star', 'A business worth more when you sell it',
-         'A buyer is buying your reputation along with the vans. A 4.8 with
-          400 reviews transfers to them on day one. A 3.9 with 40 is something
-          they have to fix first, and they will price it that way.'],
+         'A buyer is buying your reputation along with the vans. A 4.8 with 400
+          reviews transfers on day one. A 3.9 with 40 is something they have to
+          fix first, and they will price it that way.', false],
         ['search', 'Get past Google’s rating filter',
          'Google Maps lets people filter results by rating, and the lowest rung
-          of that filter is 4.0. Below it you are not competing badly —
-          you are not in the list they are looking at.'],
+          of that filter is 4.0. Below it you are not competing badly — you are
+          not in the list they are looking at.', false],
         ['megaphone', 'Stop competing on price alone',
          'A strong rating is the reason someone pays your quote instead of the
-          cheapest one. Without it, price is the only thing left for them to
-          compare you on, and that is a race you do not want to win.'],
+          cheapest one. Without it, price is the only thing left to compare you
+          on, and that is a race you do not want to win.', false],
         ['pin', 'Keep up with the shop down the road',
          'Your competitors are asking their customers. If you are not, the gap
-          widens every month — whether or not you are doing the better
-          work. This is the one area where effort compounds.'],
+          widens every month — whether or not you are doing the better work.
+          This is the one area where effort compounds.', false],
         ['bell', 'Never have to remember to ask',
          'Most owners do not have few reviews because customers said no. They
           have few because nobody asked, on the day, every time. That is the
-          part we take off your hands.'],
+          part we take off your hands.', false],
         ['message', 'Hear about a bad review first',
          'Monitoring and alerts come with the free account, so you find out
-          from us and reply the same day — not from a customer mentioning
-          it three weeks later.'],
+          from us and reply the same day — not from a customer mentioning it
+          three weeks later.', false],
         ['qr', 'Free tools, not a free trial',
          'Your Google review link and a printable QR code, 25 email review
           requests a month, review monitoring, and your Review Growth Score.
-          Free for as long as you want it, with no card on file.'],
-      ] as $i => [$icon, $title, $body]): ?>
-        <div class="card feature" data-reveal data-reveal-delay="<?= ($i % 3) + 1 ?>">
-          <?= Icon::chip($icon) ?>
+          Free for as long as you want it, with no card on file.', true],
+      ] as $i => [$icon, $title, $body, $lead]): ?>
+        <div class="close-card<?= $lead ? ' close-card--lead' : '' ?>"
+             data-reveal data-reveal-delay="<?= ($i % 3) + 1 ?>">
+          <span class="close-card__tile"><?= Icon::render($icon) ?></span>
           <h3><?= View::e($title) ?></h3>
           <p><?= View::e(preg_replace('/\s+/', ' ', $body)) ?></p>
         </div>
       <?php endforeach; ?>
     </div>
 
-    <div class="join-foot" data-reveal>
-      <p class="join-rule">
+    <div class="close-act" data-reveal>
+      <p class="close-rule">
         <?= Icon::render('shield') ?>
         <span><strong>And we get them the honest way: we ask everyone.</strong>
           Filtering who gets asked is review gating. Google prohibits it
@@ -212,13 +216,24 @@
           and it is the quickest way to lose the profile you spent years
           building. We will never do it, on any plan.</span>
       </p>
-      <p class="join-then">Free is a plan, not a countdown. Open the account,
-        get your link and your QR code, and start asking today &mdash; upgrade
-        only if the day comes when 25 requests a month is not enough.</p>
-      <div class="btn-row" style="justify-content:center;">
-        <a class="btn btn--primary btn--lg" href="/members/signup">Create your free account</a>
-        <a class="btn btn--ghost" href="#score">Or score my website first</a>
-      </div>
+
+      <a class="close-btn" href="/members/signup">
+        Create your free account
+        <?= Icon::render('send') ?>
+      </a>
+
+      <ul class="close-facts">
+        <?php foreach ([
+          'No credit card',
+          '25 review requests a month, free',
+          'Free is a plan, not a trial',
+        ] as $fact): ?>
+          <li><?= Icon::render('check') ?><?= View::e($fact) ?></li>
+        <?php endforeach; ?>
+      </ul>
+
+      <p class="close-alt"><a href="#score">Or score my website first</a></p>
     </div>
+
   </div>
 </section>
