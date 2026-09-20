@@ -57,4 +57,30 @@ final class View
     {
         return htmlspecialchars($value ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     }
+
+    /**
+     * A web-root-relative asset URL with the file's modification time on it.
+     *
+     * Without this, a browser that has the old stylesheet keeps it: this site
+     * deploys by file upload, so nothing sets a cache header worth trusting and
+     * nobody gets told to hard-refresh. A visitor then renders new markup
+     * against old CSS, which is how an icon with no size rule ends up filling
+     * the screen.
+     *
+     * The mtime is read once per request and never trusted: three deployment
+     * layouts are supported and the file is not always under PUBLIC_PATH, so a
+     * failed stat simply returns the plain path rather than an error.
+     */
+    public static function asset(string $path): string
+    {
+        static $cache = [];
+
+        if (!isset($cache[$path])) {
+            $file = (defined('PUBLIC_PATH') ? PUBLIC_PATH : '') . $path;
+            $mtime = is_file($file) ? @filemtime($file) : false;
+            $cache[$path] = $mtime === false ? $path : $path . '?v=' . $mtime;
+        }
+
+        return $cache[$path];
+    }
 }

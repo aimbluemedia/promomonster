@@ -167,7 +167,12 @@ h3{ font-size:1.0625rem; font-weight:700; letter-spacing:-.01em; }
    lives on the icon itself rather than on .chip, so an icon used anywhere else
    is right by default. */
 .icon{ stroke:currentColor; fill:none; stroke-width:1.9;
-  stroke-linecap:round; stroke-linejoin:round; }
+  stroke-linecap:round; stroke-linejoin:round;
+  /* A default size as well. An <svg> with no intrinsic dimensions expands to
+     fill its container, so an icon placed somewhere that forgot to size it
+     rendered a screen-high shield. Every deliberate size below is a descendant
+     selector, so it still outranks this. */
+  width:1.25rem; height:1.25rem; }
 .chip svg{ width:1.35rem; height:1.35rem; }
 
 /* Numbered step card */

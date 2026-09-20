@@ -15,7 +15,7 @@ unset($_SESSION['members_flash']);
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title><?= View::e($title ?? 'PromoMonster') ?></title>
-<link rel="stylesheet" href="/assets/css/app.css">
+<link rel="stylesheet" href="<?= View::e(View::asset('/assets/css/app.css')) ?>">
 </head>
 <body>
 <header class="admin-header">
