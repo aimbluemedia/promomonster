@@ -12,6 +12,14 @@ return [
     'debug'    => false,
     'timezone' => 'America/Phoenix',
 
+    // Signs unsubscribe links, which have to keep working from an email
+    // somebody archived a year ago. Generate one once and never change it:
+    // changing it invalidates every unsubscribe link already in the wild, and
+    // a link that 404s is how a complaint becomes a spam report.
+    //
+    //   php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"
+    'app_key' => '',
+
     'db' => [
         'host'     => 'localhost',
         'port'     => 3306,
@@ -23,6 +31,36 @@ return [
 
     // Where waitlist notifications go. Leave null to disable email.
     'notify_email' => null,
+
+    // Sending review requests.
+    //
+    // PHP's mail() is not an option: shared hosting sends it from a shared IP
+    // with no DKIM signature of ours, and a review request in the spam folder
+    // is worse than one never sent.
+    //
+    // driver  'postmark' to send for real, 'log' to write the message to
+    //         storage/logs/mail.log instead, 'null' to accept and discard.
+    //         Leave it empty and it picks 'postmark' when a token is set and
+    //         'log' when it is not — so a half-configured install is visibly
+    //         local rather than quietly broken.
+    // token   Postmark SERVER token, not the account token.
+    // from    The address on the envelope. Use a subdomain you do not send
+    //         password resets from: every free user's spam complaints land on
+    //         this domain's reputation, and if it gets blocklisted you lose
+    //         the ability to log people in.
+    // stream  Postmark message stream. Review requests are not transactional
+    //         in Postmark's sense, so they belong on a broadcast stream.
+    'mail' => [
+        'driver' => '',
+        'token'  => '',
+        'from'   => 'reviews@notify.promomonster.com',
+        'stream' => 'broadcast',
+
+        // Shared secret on the delivery webhook URL, so only the provider can
+        // post bounces and complaints to it:
+        //   https://promomonster.com/webhooks/email/<this value>
+        'webhook_secret' => '',
+    ],
 
     // Powers the review comparison (superadmin audits and the public /compare
     // page). Without a key those are disabled; nothing else depends on it.
