@@ -8,7 +8,7 @@
 $claims = [
     'Never gates reviews',
     'Google &amp; FTC compliant',
-    'SMS and email included',
+    'Email, no app to install',
     'Live in a day',
     'Starts free, no card',
     'Replies drafted for you',

@@ -18,8 +18,8 @@
 <div class="hero-band">
   <div class="hero-band__strip">
     <div class="container hero-band__strip-inner">
-      <span><?= Icon::render('sparkle') ?> Ask every customer &middot; Reply in a click &middot;
-        Show your reviews on your own site</span>
+      <span><?= Icon::render('sparkle') ?> Ask every customer &middot; By email, with your
+        review link &middot; One reminder, then it stops</span>
       <span class="hero-band__strip-right">Start free. No credit card. No subscription.</span>
     </div>
   </div>
@@ -38,8 +38,8 @@
                really does filter below 4.0. No borrowed percentages. */ ?>
       <p class="hero-band__lede">
         Your stars are the first thing a customer sees, and Google Maps filters
-        you out below 4.0. PromoMonster asks every customer, drafts your replies,
-        and puts the results to work on your site.
+        you out below 4.0. PromoMonster emails every customer your Google review
+        link, on the day of the job, and reminds them once.
       </p>
 
       <div class="hero-band__cta">
@@ -54,9 +54,9 @@
         <span class="hero-band__chips-label">Works with:</span>
         <?php foreach ([
           ['star', 'Google'],
-          ['send', 'SMS &amp; email'],
+          ['send', 'Email'],
           ['qr', 'QR codes'],
-          ['layout', 'Your website'],
+          ['message', 'One reminder'],
         ] as [$icon, $label]): ?>
           <span class="hero-chip"><?= Icon::render($icon) ?><?= $label ?></span>
         <?php endforeach; ?>

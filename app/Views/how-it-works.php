@@ -39,21 +39,21 @@
         they should say out loud first, and the exact message that follows.</p>
       <p class="muted" style="margin-top:1rem;font-size:.95rem;">
         The single biggest lift in review rates is not the software. It is the
-        person saying <em>"I'll text you a link — it takes thirty seconds"</em>
-        before the text arrives. We tell your team exactly when to say it.</p>
+        person saying <em>"I'll email you a link — it takes thirty seconds"</em>
+        before the email arrives. We tell your team exactly when to say it.</p>
     </div>
     <div class="card">
       <p class="eyebrow" style="margin-bottom:.6rem;">Landscaping playbook</p>
       <ul class="checklist">
         <li><strong>Ask at</strong> the final walkthrough, on the finished work</li>
         <li><strong>Who asks</strong> the crew lead who did the job</li>
-        <li><strong>Channel</strong> SMS — they are outdoors, not in an inbox</li>
+        <li><strong>Channel</strong> email, sent the same afternoon</li>
         <li><strong>Reminder</strong> once, three days later, in the morning</li>
         <li><strong>Offline</strong> QR card clipped to the invoice</li>
       </ul>
       <p style="margin:1.3rem 0 0;padding-top:1.1rem;border-top:1px solid var(--line);font-size:.92rem;color:var(--body);">
         <strong style="color:var(--ink);">They say:</strong> &ldquo;If you're happy
-        with how it turned out, I'll text you a link — takes about thirty
+        with how it turned out, I'll email you a link — takes about thirty
         seconds and it really helps us.&rdquo;</p>
     </div>
   </div>

@@ -3,19 +3,19 @@ $groups = [
   ['Collect', [
     ['users','Add customers','Import a CSV, paste a list, or add one after each job. Phone, email, or both.','soon'],
     ['send','Automatic review requests','Requests go out on the schedule your playbook recommends, not whenever someone remembers.','soon'],
-    ['message','SMS and email','Text gets the response; email gets the considered ones. Use either, or both.','soon'],
+    ['message','Your own wording','Start from a template written for your trade, then make it sound like you.','soon'],
     ['qr','QR codes','On the invoice, the receipt, the counter, the van. For customers who never open a text.','now'],
   ]],
   ['Follow through', [
     ['list','Request tracking','Who was asked, when, what happened. Sent, delivered, clicked, reviewed.','soon'],
     ['clock','Reminders','One reminder, timed to your vertical, and never a third message.','soon'],
-    ['bell','Review monitoring','New reviews appear as they land, so nothing sits unanswered for a week.','soon'],
-    ['sparkle','AI-assisted replies','A drafted reply in your voice for every review. You read it and send it — we never post for you.','soon'],
+    ['bell','One reminder','Three days later, once, and never a third message.','soon'],
+    ['sparkle','AI-assisted replies','Paste a review you have been left and get a reply in your voice to post. You read it first, and we never post for you.','soon'],
   ]],
   ['Put it to work', [
-    ['layout','Website widget','Real reviews on your own site, pulled live, never edited or cherry-picked.','soon'],
+    ['chart','Click tracking','Who opened the link, and when. Your own data, in your own account.','soon'],
     ['pin','Multi-location','Every location scored separately, and rolled up for whoever owns them all.','soon'],
-    ['share','Social content from reviews','Turn a genuine review into a post, with attribution and nothing invented.','soon'],
+    ['share','Import from a spreadsheet','Bring a customer list in as a CSV instead of typing it out.','soon'],
     ['megaphone','Promotion network','Put your best content in front of more people. A separate second product, once the first one is working.','soon'],
   ]],
 ];
@@ -31,6 +31,15 @@ $tagLabel = Plans::STATE_LABELS;
       <p class="lede">Collect reviews, respond to them, and use them. Nothing
         here requires you to bend a platform rule.</p>
       <div class="notice" style="margin-top:2rem;">
+        <strong>Email, and nothing that needs a platform's permission.</strong>
+        <p>PromoMonster asks by email and links to your own Google review page.
+          There is no SMS, because texting review requests means registering
+          every business with the mobile carriers at a real monthly cost, and
+          no review monitoring or website widget, because those need Google
+          Business Profile API access we do not have. We would rather ship a
+          smaller thing that works.</p>
+      </div>
+      <div class="notice" style="margin-top:1rem;">
         <strong>PromoMonster is in early access.</strong>
         <p>Review audits, your vertical playbook and QR setup are delivered by
           hand today, while the platform is built. Everything marked

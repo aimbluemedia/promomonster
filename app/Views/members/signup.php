@@ -8,8 +8,8 @@ use App\Support\View;
   <div class="container center" style="max-width:44rem;">
     <p class="eyebrow">Get started</p>
     <h1>Create your account</h1>
-    <p class="lede">Start on Free, no card. Move up when the requests are going out
-      and you want SMS and the website widget.</p>
+    <p class="lede">Start on Free, no card. Move up when four asks a month is
+      not enough, or you want them sent under your own name.</p>
   </div>
 </section>
 

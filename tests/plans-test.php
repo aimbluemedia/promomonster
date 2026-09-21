@@ -55,10 +55,17 @@ check('free price',    Plans::price(Plans::FREE), 0);
 check('pro price',     Plans::price(Plans::PRO), 19);
 check('premium price', Plans::price(Plans::PREMIUM), 49);
 
-// --- SMS is a paid capability -------------------------------------------
-check('free has no sms',    Plans::limit(Plans::FREE, 'sms'), false);
-check('pro has sms',        Plans::limit(Plans::PRO, 'sms'), true);
-check('premium has sms',    Plans::limit(Plans::PREMIUM, 'sms'), true);
+// --- The product is email only ------------------------------------------
+// SMS is out: it needs a carrier registration billed per business, which a $19
+// tier cannot carry. Nothing in the catalogue may offer it again by accident.
+foreach (Plans::all() as $key => $plan) {
+    $text = $plan['tagline'] . ' ' . implode(' ', array_column($plan['features'], 0));
+    check("{$key} does not sell SMS", stripos($text, 'sms') === false, true);
+    check("{$key} does not sell a widget", stripos($text, 'widget') === false, true);
+    // Monitoring and the widget both need Google Business Profile API access,
+    // which has not been applied for.
+    check("{$key} does not sell monitoring", stripos($text, 'monitoring') === false, true);
+}
 
 // --- Locations -----------------------------------------------------------
 check('free locations',    Plans::limit(Plans::FREE, 'locations'), 1);
@@ -116,12 +123,9 @@ function stateOf(string $plan, string $label): ?string
     return 'MISSING';
 }
 
-check('monitoring is not claimed as live',
-    stateOf(Plans::FREE, 'Review monitoring and alerts'), Plans::STATE_SOON);
-check('the widget is not claimed as live',
-    stateOf(Plans::PRO, 'Website review widget'), Plans::STATE_SOON);
 check('AI replies are not claimed as live',
-    stateOf(Plans::PRO, 'AI-drafted replies you approve'), Plans::STATE_SOON);
+    stateOf(Plans::PRO, 'AI-drafted replies — paste a review, get a reply to post'),
+    Plans::STATE_SOON);
 check('sending is not claimed as live',
     stateOf(Plans::FREE, Plans::sendingLimit(Plans::FREE)), Plans::STATE_SOON);
 check('the score IS live',

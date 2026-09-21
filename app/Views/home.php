@@ -29,15 +29,16 @@
     <div>
       <p class="eyebrow">Reputation Management</p>
       <h1>Reviews. Reputation. <em>Growth.</em></h1>
-      <p class="lede">Ask every customer for a review, reply to what comes back,
-        and put it to work on your website — automatically. Built for local
-        businesses that get chosen, or skipped, on their star rating.</p>
+      <p class="lede">Every customer gets an email with your Google review link
+        in it, on the day of the job, and one reminder three days later. Built
+        for local businesses that get chosen, or skipped, on their star
+        rating.</p>
 
       <div class="hero__cards">
         <?php foreach ([
-          ['01','users','Collect','Every customer asked, at the right moment.'],
-          ['02','sparkle','Respond','Drafted replies, sent in a click by you.'],
-          ['03','chart','Grow','Reviews on your site, working for you.'],
+          ['01','users','Ask','Every customer emailed, on the day of the job.'],
+          ['02','bell','Remind','One nudge three days later. Never a third.'],
+          ['03','chart','Grow','More reviews on the page people actually check.'],
         ] as [$num,$icon,$title,$body]): ?>
           <div class="step step--sm">
             <?= Icon::chip($icon) ?>
@@ -49,7 +50,7 @@
       </div>
 
       <ul class="pills">
-        <li>Google</li><li>SMS &amp; email</li><li>QR codes</li><li>AI replies</li>
+        <li>Google</li><li>Email</li><li>QR codes</li><li>One reminder</li>
       </ul>
 
       <p class="hero__note">Everything compliant. We never gate, incentivise or
@@ -93,9 +94,9 @@
       <?php foreach ([
         ['clock',   'Live in a day',      'Not a project'],
         ['shield',  'Never gates',        'Google-safe'],
-        ['send',    'SMS and email',      'Both included'],
-        ['sparkle', 'Replies drafted',    'You approve'],
-        ['layout',  'Widget for my site', 'One line of code'],
+        ['send',    'Email requests',     'Sent for you'],
+        ['bell',    'One reminder',       'Then it stops'],
+        ['qr',      'QR code',            'For the invoice'],
         ['star',    'Starts free',        'No card'],
       ] as [$icon, $title, $sub]): ?>
         <div class="benefit">
