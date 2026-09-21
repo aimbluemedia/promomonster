@@ -89,5 +89,47 @@ foreach (Plans::selectable() as $key => $plan) {
         in_array(Plans::sendingLimit($key), $bullets, true), true);
 }
 
+// --- Nothing may be promised as delivered when it is not ----------------
+// The pricing page ticks these before anyone pays, so a feature that is not
+// built has to carry a tag. Review monitoring in particular needs Google
+// Business Profile API access, which has not been applied for.
+$states = [Plans::STATE_NOW, Plans::STATE_SOON];
+foreach (Plans::all() as $key => $plan) {
+    foreach ($plan['features'] as $i => $feature) {
+        check("{$key} feature {$i} is a triple", count($feature) === 3, true);
+        [$label, $on, $state] = $feature;
+        if ($on && $state !== null) {
+            check("{$key}: '{$label}' has a known state",
+                in_array($state, $states, true), true);
+        }
+    }
+}
+
+/** @return string|null */
+function stateOf(string $plan, string $label): ?string
+{
+    foreach (Plans::get($plan)['features'] as [$l, , $s]) {
+        if ($l === $label) {
+            return $s;
+        }
+    }
+    return 'MISSING';
+}
+
+check('monitoring is not claimed as live',
+    stateOf(Plans::FREE, 'Review monitoring and alerts'), Plans::STATE_SOON);
+check('the widget is not claimed as live',
+    stateOf(Plans::PRO, 'Website review widget'), Plans::STATE_SOON);
+check('AI replies are not claimed as live',
+    stateOf(Plans::PRO, 'AI-drafted replies you approve'), Plans::STATE_SOON);
+check('sending is not claimed as live',
+    stateOf(Plans::FREE, Plans::sendingLimit(Plans::FREE)), Plans::STATE_SOON);
+check('the score IS live',
+    stateOf(Plans::FREE, 'Review Growth Score'), Plans::STATE_NOW);
+
+// Both words the pages print must exist, since two views index this map.
+check('now has a label',  isset(Plans::STATE_LABELS[Plans::STATE_NOW]), true);
+check('soon has a label', isset(Plans::STATE_LABELS[Plans::STATE_SOON]), true);
+
 echo "\n{$passed} passed, {$failed} failed\n";
 exit($failed === 0 ? 0 : 1);

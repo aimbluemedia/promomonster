@@ -23,6 +23,11 @@ $faqs = [
         switched on yet, so choosing Pro or Premium records your request and we
         arrange the subscription with you &mdash; your account runs on Free until
         then, and nothing is charged without your say-so.</p>
+      <p>PromoMonster is in early access, so anything marked
+        <span class="tag tag--soon" style="margin-left:0;">In build</span> below
+        is on the roadmap and not available yet. Everything else you get today,
+        including the pieces we still set up with you by hand. We would rather
+        tell you here than let you find out after paying.</p>
     </div>
   </div>
 </section>
@@ -40,8 +45,14 @@ $faqs = [
           </div>
           <p class="muted" style="font-size:.92rem;margin:0 0 .4rem;"><?= View::e($plan['tagline']) ?></p>
           <ul class="checklist">
-            <?php foreach ($plan['features'] as [$label,$on]): ?>
-              <li<?= $on ? '' : ' class="is-off"' ?>><?= View::e($label) ?></li>
+            <?php /* The "In build" tag is only printed on things a customer would
+                     otherwise assume they are buying: an included feature that
+                     is not delivered yet. An excluded line needs no tag, and
+                     tagging every live line would bury the ones that matter. */ ?>
+            <?php foreach ($plan['features'] as [$label, $on, $state]): ?>
+              <li<?= $on ? '' : ' class="is-off"' ?>><span><?= View::e($label) ?><?php
+                if ($on && $state === Plans::STATE_SOON): ?><span class="tag tag--soon"><?=
+                  View::e(Plans::STATE_LABELS[$state]) ?></span><?php endif; ?></span></li>
             <?php endforeach; ?>
           </ul>
           <a class="btn <?= $plan['featured'] ? 'btn--primary' : 'btn--ghost' ?> btn--block"

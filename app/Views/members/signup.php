@@ -1,5 +1,6 @@
 <?php
 use App\Support\Csrf;
+use App\Support\Plans;
 use App\Support\View;
 /** @var array $plans @var string $chosen @var int $min @var ?string $error @var array $old */
 ?>
@@ -38,8 +39,10 @@ use App\Support\View;
               </span>
               <span class="plan-option__blurb"><?= View::e($plan['tagline']) ?></span>
               <ul class="checklist checklist--sm">
-                <?php foreach (array_slice($plan['features'], 0, 4) as [$label, $on]): ?>
-                  <li<?= $on ? '' : ' class="is-off"' ?>><?= View::e($label) ?></li>
+                <?php foreach (array_slice($plan['features'], 0, 4) as [$label, $on, $state]): ?>
+                  <li<?= $on ? '' : ' class="is-off"' ?>><span><?= View::e($label) ?><?php
+                    if ($on && $state === Plans::STATE_SOON): ?><span class="tag tag--soon"><?=
+                      View::e(Plans::STATE_LABELS[$state]) ?></span><?php endif; ?></span></li>
                 <?php endforeach; ?>
               </ul>
             </label>

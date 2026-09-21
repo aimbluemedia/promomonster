@@ -193,11 +193,11 @@
          'Monitoring and alerts come with the free account, so you find out
           from us and reply the same day — not from a customer mentioning it
           three weeks later.', false],
-        ['qr', 'Free tools, not a free trial',
-         'Your Google review link and a printable QR code, ' .
-         lcfirst(Plans::sendingLimit(Plans::FREE)) . ', review monitoring, and
-          your Review Growth Score. Free for as long as you want it, with no
-          card on file.', true],
+        ['qr', 'Free tools, and a person who sets them up',
+         'Today that is your Review Growth Score, and your Google review link
+          and printable QR code set up with you by hand. Automatic sending —
+          ' . lcfirst(Plans::sendingLimit(Plans::FREE)) . ' — lands as it
+          ships. Free for as long as you want it, no card on file.', true],
       ] as $i => [$icon, $title, $body, $lead]): ?>
         <div class="close-card<?= $lead ? ' close-card--lead' : '' ?>"
              data-reveal data-reveal-delay="<?= ($i % 3) + 1 ?>">
@@ -226,10 +226,11 @@
       <ul class="close-facts">
         <?php foreach ([
           'No credit card',
-          // The tick row wants the headline figure only; the pacing is spelled
-          // out in the card above and on the pricing page.
-          Plans::limit(Plans::FREE, 'requests_per_month') . ' review requests a month, free',
           'Free is a plan, not a trial',
+          // Not a disclaimer buried at the bottom: for a small business owner,
+          // "a person sets it up with you" is the reason to pick us over a
+          // self-serve tool, so it belongs next to the button.
+          'Early access — we set it up with you',
         ] as $fact): ?>
           <li><?= Icon::render('check') ?><?= View::e($fact) ?></li>
         <?php endforeach; ?>

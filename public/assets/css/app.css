@@ -232,7 +232,10 @@ h3{ font-size:1.0625rem; font-weight:700; letter-spacing:-.01em; }
 /* Availability tag — never let a roadmap item read as a shipped one */
 .tag{ display:inline-block; font-size:.68rem; font-weight:800; letter-spacing:.07em;
   text-transform:uppercase; border-radius:999px; padding:.2rem .55rem; margin-left:.5rem;
-  vertical-align:middle; }
+  vertical-align:middle;
+  /* Two short words that must never become two lines: inside a narrow plan
+     column the tag was breaking after "IN", which reads as a defect. */
+  white-space:nowrap; }
 .tag--now{ background:var(--tint); color:var(--brand); }
 .tag--soon{ background:var(--wash); color:var(--muted); border:1px solid var(--line); }
 
@@ -272,6 +275,10 @@ h3{ font-size:1.0625rem; font-weight:700; letter-spacing:-.01em; }
   font-size:.94rem; color:var(--body); }
 .checklist li{ display:flex; gap:.65rem; align-items:flex-start; }
 .checklist li::before{ content:"✓"; color:var(--brand); font-weight:800; flex-shrink:0; }
+/* A tag belongs to the sentence, not beside it. Wrapping the label and its tag
+   in one span makes them a single flex item, so the tag trails the last word
+   and wraps with it instead of being squeezed into its own column. */
+.checklist li > span{ min-width:0; }
 .checklist li.is-off::before{ content:"○"; color:var(--muted); font-weight:400; }
 
 /* Pricing ---------------------------------------------------------------- */

@@ -1,4 +1,4 @@
-<?php use App\Support\Icon; use App\Support\View;
+<?php use App\Support\Icon; use App\Support\Plans; use App\Support\View;
 $groups = [
   ['Collect', [
     ['users','Add customers','Import a CSV, paste a list, or add one after each job. Phone, email, or both.','soon'],
@@ -19,7 +19,9 @@ $groups = [
     ['megaphone','Promotion network','Put your best content in front of more people. A separate second product, once the first one is working.','soon'],
   ]],
 ];
-$tagLabel = ['now' => 'Available now', 'soon' => 'In build'];
+// The same two words the pricing page uses, from the same place, so the
+// two pages can never disagree about what "In build" is called.
+$tagLabel = Plans::STATE_LABELS;
 ?>
 <section class="section">
   <div class="container">
