@@ -27,9 +27,36 @@ final class Plans
     public const PAID = [self::PRO, self::PREMIUM];
 
     /**
+     * Sending limits, in one place.
+     *
+     * Two windows, not one. `requests_per_month` is the allowance; `burst` over
+     * `burst_days` stops it being spent in an afternoon. That matters for more
+     * than fairness: a new sending domain that fires a month of mail in one
+     * burst is exactly the pattern spam filters are built to catch, so pacing
+     * protects deliverability for every account on the platform.
+     *
+     * These live in a const rather than inside all(), because all() builds its
+     * feature bullets from sendingLimit(), which reads these — going through
+     * all() would recurse.
+     *
+     * A null means no limit, and only Partner has one.
+     */
+    private const LIMITS = [
+        self::FREE    => ['locations' => 1,    'requests_per_month' => 4,
+                          'burst' => 1,  'burst_days' => 7, 'sms' => false],
+        self::PRO     => ['locations' => 1,    'requests_per_month' => 60,
+                          'burst' => 2,  'burst_days' => 1, 'sms' => true],
+        self::PREMIUM => ['locations' => 5,    'requests_per_month' => 300,
+                          'burst' => 10, 'burst_days' => 1, 'sms' => true],
+        self::PARTNER => ['locations' => null, 'requests_per_month' => null,
+                          'burst' => null, 'burst_days' => null, 'sms' => true],
+    ];
+
+    /**
      * @return array<string,array{
      *     name:string, price:int, tagline:string, featured:bool,
-     *     limits:array{locations:int|null, requests_per_month:int|null, sms:bool},
+     *     limits:array{locations:int|null, requests_per_month:int|null,
+     *                   burst:int|null, burst_days:int|null, sms:bool},
      *     features:array<int,array{0:string,1:bool}>
      * }>
      */
@@ -39,15 +66,15 @@ final class Plans
             self::FREE => [
                 'name'     => 'Free',
                 'price'    => 0,
-                'tagline'  => 'Ask properly, by email, for one location. Enough to start moving a rating.',
+                'tagline'  => 'One ask a week, by email, for one location. Enough to feel it working.',
                 'featured' => false,
-                'limits'   => ['locations' => 1, 'requests_per_month' => 25, 'sms' => false],
+                'limits'   => self::LIMITS[self::FREE],
                 'features' => [
                     ['Google review link and printable QR code', true],
-                    ['25 email review requests a month', true],
+                    [self::sendingLimit(self::FREE), true],
                     ['Review monitoring and alerts', true],
                     ['Review Growth Score', true],
-                    ['Unlimited email requests', false],
+                    ['Sent under your own name, with no PromoMonster footer', false],
                     ['SMS review requests', false],
                     ['Website review widget', false],
                 ],
@@ -55,12 +82,13 @@ final class Plans
             self::PRO => [
                 'name'     => 'Pro',
                 'price'    => 19,
-                'tagline'  => 'Unlimited asking, SMS included, and the widget that puts reviews on your site.',
+                'tagline'  => 'Two asks a day, SMS included, and the widget that puts reviews on your site.',
                 'featured' => true,
-                'limits'   => ['locations' => 1, 'requests_per_month' => null, 'sms' => true],
+                'limits'   => self::LIMITS[self::PRO],
                 'features' => [
                     ['Everything in Free', true],
-                    ['Unlimited email review requests', true],
+                    [self::sendingLimit(self::PRO), true],
+                    ['Sent under your own name, with no PromoMonster footer', true],
                     ['SMS review requests and reminders', true],
                     ['Carrier registration handled for you', true],
                     ['Website review widget', true],
@@ -71,11 +99,12 @@ final class Plans
             self::PREMIUM => [
                 'name'     => 'Premium',
                 'price'    => 49,
-                'tagline'  => 'Up to five locations, each scored separately, with reports you can hand to a client.',
+                'tagline'  => 'Ten asks a day across up to five locations, each scored separately.',
                 'featured' => false,
-                'limits'   => ['locations' => 5, 'requests_per_month' => null, 'sms' => true],
+                'limits'   => self::LIMITS[self::PREMIUM],
                 'features' => [
                     ['Everything in Pro', true],
+                    [self::sendingLimit(self::PREMIUM), true],
                     ['Up to 5 locations, scored separately', true],
                     ['Per-team-member reporting', true],
                     ['Team logins', true],
@@ -88,7 +117,7 @@ final class Plans
                 'price'    => 0,
                 'tagline'  => 'For agencies reselling to their own clients. Arranged directly.',
                 'featured' => false,
-                'limits'   => ['locations' => null, 'requests_per_month' => null, 'sms' => true],
+                'limits'   => self::LIMITS[self::PARTNER],
                 'features' => [['Everything in Premium, across client accounts', true]],
             ],
         ];
@@ -134,6 +163,43 @@ final class Plans
     /** null means no limit. */
     public static function limit(string $key, string $limit): int|bool|null
     {
-        return self::get($key)['limits'][$limit] ?? null;
+        return self::LIMITS[$key][$limit] ?? self::LIMITS[self::FREE][$limit] ?? null;
+    }
+
+    /**
+     * The sending allowance as a sentence, e.g. "4 review requests a month
+     * (one a week)".
+     *
+     * Every page that states the limit calls this. The old numbers were typed
+     * out in the plan bullet, the pricing page and twice on the home page, and
+     * they had already drifted apart once — so now there is one place to change
+     * and nowhere for a stale figure to hide.
+     */
+    public static function sendingLimit(string $key): string
+    {
+        $month = self::LIMITS[$key]['requests_per_month'] ?? null;
+        if ($month === null) {
+            return 'Review requests with no monthly cap';
+        }
+
+        $noun = $month === 1 ? 'review request' : 'review requests';
+        $out  = $month . ' ' . $noun . ' a month';
+
+        $burst = self::LIMITS[$key]['burst'] ?? null;
+        $days  = self::LIMITS[$key]['burst_days'] ?? null;
+        if ($burst === null || $days === null) {
+            return $out;
+        }
+
+        // "one a week" reads better than "1 every 7 days"; everything else is
+        // a plain rate.
+        if ($burst === 1 && $days === 7) {
+            return $out . ' (one a week)';
+        }
+        if ($days === 1) {
+            return $out . ' (' . $burst . ' a day)';
+        }
+
+        return $out . ' (' . $burst . ' every ' . $days . ' days)';
     }
 }

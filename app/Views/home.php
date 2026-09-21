@@ -1,4 +1,4 @@
-<?php use App\Support\Icon; use App\Support\View; ?>
+<?php use App\Support\Icon; use App\Support\Plans; use App\Support\View; ?>
 
 <?php /* Dark band first, then the photograph hero it sits above. */ ?>
 <?php require APP_ROOT . '/Views/partials/hero-band.php'; ?>
@@ -194,9 +194,10 @@
           from us and reply the same day — not from a customer mentioning it
           three weeks later.', false],
         ['qr', 'Free tools, not a free trial',
-         'Your Google review link and a printable QR code, 25 email review
-          requests a month, review monitoring, and your Review Growth Score.
-          Free for as long as you want it, with no card on file.', true],
+         'Your Google review link and a printable QR code, ' .
+         lcfirst(Plans::sendingLimit(Plans::FREE)) . ', review monitoring, and
+          your Review Growth Score. Free for as long as you want it, with no
+          card on file.', true],
       ] as $i => [$icon, $title, $body, $lead]): ?>
         <div class="close-card<?= $lead ? ' close-card--lead' : '' ?>"
              data-reveal data-reveal-delay="<?= ($i % 3) + 1 ?>">
@@ -225,7 +226,9 @@
       <ul class="close-facts">
         <?php foreach ([
           'No credit card',
-          '25 review requests a month, free',
+          // The tick row wants the headline figure only; the pacing is spelled
+          // out in the card above and on the pricing page.
+          Plans::limit(Plans::FREE, 'requests_per_month') . ' review requests a month, free',
           'Free is a plan, not a trial',
         ] as $fact): ?>
           <li><?= Icon::render('check') ?><?= View::e($fact) ?></li>
