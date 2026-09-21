@@ -168,16 +168,43 @@ $token = Tokens::unsubscribe(42);
 check('round-trips', Tokens::readUnsubscribe($token), 42);
 ok('is stable across calls', $token === Tokens::unsubscribe(42));
 ok('differs per contact', $token !== Tokens::unsubscribe(43));
-ok('is URL-safe', preg_match('~^[A-Za-z0-9_-]+$~', $token) === 1);
+ok('is URL-safe', preg_match('~^[0-9]+\.[A-Za-z0-9_-]+$~', $token) === 1);
+
+// Round-trip EVERY id in a wide range, not a couple of convenient ones.
+//
+// This is the test that should have existed first. The separator used to be a
+// hyphen, split on the last one — and base64url's alphabet contains hyphens,
+// so 27% of tokens split in the wrong place and failed to verify. Checking
+// ids 42 and 43 passed happily while a quarter of real unsubscribe links
+// answered "that link has expired". One id proves nothing about an encoding.
+$brokenIds = [];
+for ($id = 1; $id <= 5000; $id++) {
+    if (Tokens::readUnsubscribe(Tokens::unsubscribe($id)) !== $id) {
+        $brokenIds[] = $id;
+    }
+}
+check('every id in 1..5000 round-trips', $brokenIds, []);
+
+// And no token may contain a character that needs escaping in a URL path.
+$dirty = [];
+for ($id = 1; $id <= 5000; $id++) {
+    $t = Tokens::unsubscribe($id);
+    if (rawurlencode($t) !== $t) {
+        $dirty[] = $id;
+    }
+}
+check('and survives a URL path unescaped', $dirty, []);
 
 foreach ([
     ''                       => 'empty',
     '42'                     => 'unsigned',
-    '42-'                    => 'empty signature',
-    '-abc'                   => 'no value',
-    '43-' . explode('-', $token, 2)[1] => 'another id with a stolen signature',
+    '42.'                    => 'empty signature',
+    '.abc'                   => 'no value',
+    '43.' . explode('.', $token, 2)[1] => 'another id with a stolen signature',
     $token . 'x'             => 'a tampered signature',
     'x' . $token             => 'a tampered prefix',
+    'not-a-number.' . explode('.', $token, 2)[1] => 'a non-numeric id',
+    '0.' . explode('.', $token, 2)[1] => 'contact zero',
 ] as $forged => $why) {
     check("refuses {$why}", Tokens::readUnsubscribe((string) $forged), null);
 }

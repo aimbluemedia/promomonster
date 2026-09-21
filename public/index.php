@@ -66,6 +66,7 @@ use App\Controllers\SuperadminController;
 use App\Controllers\AuthController;
 use App\Controllers\CompareController;
 use App\Controllers\LeadController;
+use App\Controllers\MailController;
 use App\Controllers\ScoreController;
 use App\Controllers\MembersController;
 use App\Controllers\PasswordController;
@@ -90,6 +91,14 @@ $router->get('/privacy',      [$pages, 'privacy']);
 $router->get('/terms',        [$pages, 'terms']);
 
 $router->post('/leads', [new LeadController(), 'store']);
+
+// Links inside a sent review request. No session on any of them: the visitor is
+// a customer of a customer, who has never heard of us.
+$mail = new MailController();
+$router->getToken('/r', static fn (string $t) => $mail->click($t));
+$router->getToken('/u', static fn (string $t) => $mail->unsubscribeForm($t));
+$router->postToken('/u', static fn (string $t) => $mail->unsubscribe($t));
+$router->postToken('/webhooks/email', static fn (string $s) => $mail->webhook($s));
 
 // Public one-time AI comparison. Spends money per submission, so the guards
 // live in the controller rather than here.
