@@ -1,4 +1,4 @@
--- PromoMonster — full database schema (MySQL / MariaDB)
+-- PromoMonster: full database schema (MySQL / MariaDB)
 --
 -- One-shot import for phpMyAdmin: select your database, open the SQL tab,
 -- paste this file, and run it. Equivalent to running every file in
@@ -8,7 +8,7 @@
 -- do NOT paste this file. Run 'php database/migrate.php' instead, or apply
 -- 006 onwards by hand -- 006 removes the panel tables first.
 --
--- Generated from database/migrations/ — edit those, not this file.
+-- Generated from database/migrations/ - edit those, not this file.
 
 SET NAMES utf8mb4;
 

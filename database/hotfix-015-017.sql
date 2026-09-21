@@ -4,7 +4,7 @@
 --
 -- It is SAFE TO RUN MORE THAN ONCE and safe to run when some of it has already
 -- been applied. Every step checks first and skips itself if the work is done, so
--- it runs start to finish with no errors — phpMyAdmin stops at the first error,
+-- it runs start to finish with no errors. phpMyAdmin stops at the first error,
 -- which is how a previous version of this file left a database half-migrated.
 --
 -- Your data is kept. Old plan values are converted once and only once:
@@ -29,15 +29,11 @@ SET @sql := IF(@old_plan > 0,
     'DO 0');
 PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
 
-SET @sql := IF(@old_plan > 0,
-    'UPDATE accounts SET plan = CASE plan
-        WHEN ''trial''   THEN ''free''
-        WHEN ''starter'' THEN ''pro''
-        WHEN ''growth''  THEN ''pro''
-        WHEN ''pro''     THEN ''premium''
-        WHEN ''partner'' THEN ''partner''
-        ELSE ''free'' END',
-    'DO 0');
+-- On one line, even though it is long: phpMyAdmin parses the file before it
+-- sends it and cannot follow a string literal that spans lines. It answers
+-- "Ending quote ' was expected" and refuses the statement, which is exactly
+-- how migration 018 failed on a live database.
+SET @sql := IF(@old_plan > 0, 'UPDATE accounts SET plan = CASE plan WHEN ''trial'' THEN ''free'' WHEN ''starter'' THEN ''pro'' WHEN ''growth'' THEN ''pro'' WHEN ''pro'' THEN ''premium'' WHEN ''partner'' THEN ''partner'' ELSE ''free'' END', 'DO 0');
 PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
 
 SET @sql := IF(@old_plan > 0,

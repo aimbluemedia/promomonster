@@ -3,11 +3,11 @@
 -- Symptom: HTTP 500 after signing in, and the error log says
 --   Base table or view not found: 1146 Table '..._promo.login_attempts' doesn't exist
 --
--- Paste this whole file into phpMyAdmin → your database → SQL, and press Go.
+-- Paste this whole file into phpMyAdmin -> your database -> SQL, and press Go.
 --
 -- Run it AS IS. Some statements may report an error like
 --   #1060 Duplicate column name  /  #1061 Duplicate key name
--- if part of 013 was already applied by hand. Those are safe to ignore — the
+-- if part of 013 was already applied by hand. Those are safe to ignore: the
 -- column is there, which is all that matters. Any OTHER error is real.
 --
 -- The last block records migrations 001-014 as applied so this cannot happen
