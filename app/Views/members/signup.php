@@ -67,7 +67,7 @@ use App\Support\View;
       </div>
 
       <div>
-        <label for="email">Work email</label>
+        <label for="email">Email</label>
         <input class="field" id="email" name="email" type="email" required
                value="<?= View::e($old['email'] ?? '') ?>"
                placeholder="you@yourbusiness.com" autocomplete="username">
@@ -86,21 +86,38 @@ use App\Support\View;
         <input id="website_url" name="website_url" type="text" tabindex="-1" autocomplete="off">
       </div>
 
-      <label class="consent">
-        <input type="checkbox" name="terms" value="1" required>
-        <span>I agree to the <a href="/terms">terms</a> and
-          <a href="/privacy">privacy policy</a>.</span>
-      </label>
-
       <button class="btn btn--primary btn--xl btn--block" type="submit">Sign Up FREE</button>
 
+      <?php /* The tick box is gone -- it was one more thing to do before the
+               button, and nobody reads it anyway. The sentence stays. Terms are
+               only worth having if somebody was shown them at the moment they
+               agreed, and a privacy notice at the point of collection is a
+               legal requirement rather than a nicety. This is how Stripe,
+               GitHub and Google all do it: consent implied by the act, with the
+               links right there. */ ?>
       <p class="form__note center" style="margin-top:.9rem;">
         Free is a plan, not a trial. Nothing to cancel, and we never ask for a card.
+      </p>
+      <?php /* Its own line, and quieter: reassurance and fine print do different
+               jobs, and running them together makes the reassurance read like
+               small print too. */ ?>
+      <p class="form__note center" style="margin-top:.5rem;color:var(--muted);font-size:.78rem;">
+        By signing up you agree to our <a href="/terms">terms</a> and
+        <a href="/privacy">privacy policy</a>.
       </p>
     </form>
 
     <p class="form__note center" style="margin-top:1.5rem;">
       Already have an account? <a href="/members/login" style="color:var(--brand);font-weight:600;">Sign in</a>.
+    </p>
+
+    <?php /* Pricing rather than a second signup route: every account starts on
+             Free whichever button is pressed, and that page carries Premium,
+             the Pro tier and the link on to agencies. One destination, and no
+             way to end up on a form that promises something it cannot do. */ ?>
+    <p class="form__note center" style="margin-top:.5rem;">
+      Need Premium or an agency plan?
+      <a href="/pricing" style="color:var(--brand);font-weight:600;">View options</a>.
     </p>
   </div>
 </section>

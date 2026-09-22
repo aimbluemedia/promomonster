@@ -79,10 +79,10 @@ final class SignupController
         if (strlen($password) < self::MIN_PASSWORD) {
             $this->fail('Your password needs at least ' . self::MIN_PASSWORD . ' characters.');
         }
-        if (($_POST['terms'] ?? '') === '') {
-            $this->fail('Please accept the terms and privacy policy to continue.');
-        }
-
+        // No terms checkbox to enforce. The form states plainly, next to the
+        // button, that signing up is the agreement, and the links are right
+        // there -- so leaving this check in would only have rejected every
+        // signup for a field the form no longer sends.
         $email = mb_strtolower((string) $email);
 
         if (RateLimiter::tooManyAttempts('signup:' . Request::ip(), 5, 3600)) {
