@@ -24,6 +24,9 @@ $faqs = [
         switched on yet, so choosing Pro or Premium records your request and we
         arrange the subscription with you &mdash; your account runs on Free until
         then, and nothing is charged without your say-so.</p>
+      <p>Signing up creates a Free account, whichever button you press. Once you
+        are in, Settings has a Change plan panel where you can ask for Pro or
+        Premium, and we arrange it with you from there.</p>
       <p>PromoMonster is in early access, so anything marked
         <span class="tag tag--soon" style="margin-left:0;">In build</span> below
         is on the roadmap and not available yet. Everything else you get today,
@@ -56,9 +59,16 @@ $faqs = [
                   View::e(Plans::STATE_LABELS[$state]) ?></span><?php endif; ?></span></li>
             <?php endforeach; ?>
           </ul>
+          <?php /* Every button goes to the same place, with no plan on the URL.
+                   Signup is Free only now, and the controller ignores a plan in
+                   the request entirely -- so "Choose Pro" carrying ?plan=pro
+                   would have quietly produced a Free account and lost the fact
+                   that somebody wanted Pro. The upgrade is asked for in members
+                   settings once the account exists, which is what the label
+                   says. */ ?>
           <a class="btn <?= $plan['featured'] ? 'btn--primary' : 'btn--ghost' ?> btn--block"
-             href="/members/signup?plan=<?= View::e($key) ?>">
-            <?= $plan['price'] === 0 ? 'Start free' : 'Choose ' . View::e($plan['name']) ?>
+             href="/members/signup">
+            <?= $plan['price'] === 0 ? 'Start free' : 'Start free, then ask for ' . View::e($plan['name']) ?>
           </a>
         </div>
       <?php endforeach; ?>

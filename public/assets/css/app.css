@@ -468,6 +468,20 @@ table.data td.wrap{ white-space:normal; max-width:22rem; }
 .checklist--sm li{ font-size:.82rem; }
 
 /* Terms checkbox: the label wraps the control, so the whole line is clickable. */
+/* The three reassurances above the signup form. The objections a small
+   business owner has before typing anything are "what will this cost me" and
+   "are you about to ask for my card", so they are answered before the first
+   field rather than in small print under the button. */
+.signup-facts{ list-style:none; margin:1.75rem 0 0; padding:0;
+  display:flex; flex-wrap:wrap; justify-content:center; gap:.65rem 1.5rem; }
+.signup-facts li{ display:inline-flex; align-items:flex-start; gap:.45rem;
+  font-size:.92rem; font-weight:600; color:var(--ink); }
+/* flex-start with a nudge, not center: on a narrow screen a fact wraps to two
+   lines and a centred tick floats between them instead of marking where the
+   line starts. */
+.signup-facts .icon{ width:1.05rem; height:1.05rem; color:var(--good);
+  stroke-width:2.6; flex-shrink:0; margin-top:.15rem; }
+
 .consent{ display:flex; gap:.65rem; align-items:flex-start; font-size:.88rem;
   color:var(--body); margin:.35rem 0 .25rem; cursor:pointer; }
 .consent input{ margin:.2rem 0 0; accent-color:var(--brand); flex-shrink:0;

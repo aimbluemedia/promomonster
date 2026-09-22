@@ -8,7 +8,6 @@ use App\Support\Audit;
 use App\Support\Auth;
 use App\Support\Csrf;
 use App\Support\Database;
-use App\Support\Plans;
 use App\Support\RateLimiter;
 use App\Support\Request;
 use App\Support\Validator;
@@ -16,13 +15,17 @@ use App\Support\View;
 use Throwable;
 
 /**
- * Self-serve signup for the members area.
+ * Self-serve signup for the members area. Free, and only Free.
  *
- * A paid plan cannot be charged yet — there is no payment processor wired in.
- * Rather than take a card that goes nowhere or block signup entirely, the
- * account is created on Free and the chosen plan is recorded as a request for
- * superadmin to action. The member gets a working account immediately and is
- * told plainly what will and will not happen next.
+ * There is no plan to choose here and no plan read from the request. That is
+ * the point, and it is deliberately enforced on this side rather than by the
+ * absence of radio buttons on the form: a hidden field is a suggestion, and a
+ * POST is whatever somebody sends. Nothing a visitor submits can put an
+ * upgrade request on an account.
+ *
+ * Upgrades happen in members settings, after signup, which is also the only
+ * place they make sense — you cannot usefully choose how much of a product you
+ * want before using any of it.
  */
 final class SignupController
 {
@@ -42,8 +45,6 @@ final class SignupController
         echo View::page('members/signup', [
             'title'       => 'Create your account · PromoMonster',
             'description' => 'Start free. Ask every customer for a review, the right way.',
-            'plans'       => Plans::selectable(),
-            'chosen'      => $this->chosenPlan($_GET['plan'] ?? ($old['plan'] ?? null)),
             'min'         => self::MIN_PASSWORD,
             'error'       => $error,
             'old'         => $old,
@@ -69,7 +70,6 @@ final class SignupController
         $business  = $validator->required('business', 'Tell us the name of your business.', 160);
         $name      = $validator->required('name', 'Tell us your name.', 120);
         $email     = $validator->email('email', 'Please enter a valid email address.');
-        $plan      = $validator->inList('plan', Plans::SELECTABLE, 'Choose a plan.');
 
         $password = (string) ($_POST['password'] ?? '');
 
@@ -97,7 +97,6 @@ final class SignupController
         }
 
         [$first, $last] = $this->splitName((string) $name);
-        $wantsPaid = Plans::isPaid((string) $plan);
 
         $pdo = Database::connection();
         $pdo->beginTransaction();
@@ -116,17 +115,13 @@ final class SignupController
             );
             $userId = (int) $pdo->lastInsertId();
 
-            // Everyone starts on Free. A paid choice is recorded as a request,
-            // because nothing can be charged yet.
+            // Free, with no requested_plan. Written as literals rather than
+            // from a variable so there is no path from the request to either
+            // column, however the form is submitted.
             Database::run(
                 "INSERT INTO accounts (name, plan, requested_plan, requested_plan_at, signup_ip)
-                 VALUES (:name, 'free', :requested, :requested_at, :ip)",
-                [
-                    'name'         => $business,
-                    'requested'    => $wantsPaid ? $plan : null,
-                    'requested_at' => $wantsPaid ? date('Y-m-d H:i:s') : null,
-                    'ip'           => Request::ip(),
-                ],
+                 VALUES (:name, 'free', NULL, NULL, :ip)",
+                ['name' => $business, 'ip' => Request::ip()],
             );
             $accountId = (int) $pdo->lastInsertId();
 
@@ -148,10 +143,8 @@ final class SignupController
         Audit::log('account.signup', 'account', $accountId);
 
         Auth::signIn($userId);
-        $_SESSION['members_flash'] = $wantsPaid
-            ? 'Welcome. Your account is live on Free — we will be in touch about '
-              . Plans::name((string) $plan) . ' before anything is charged.'
-            : 'Welcome to PromoMonster. Add your Google review link to get started.';
+        $_SESSION['members_flash'] =
+            'Welcome to PromoMonster. Add your Google review link to get started.';
 
         Request::redirect('/members');
     }
@@ -164,13 +157,6 @@ final class SignupController
         return [$parts[0] ?? $name, $parts[1] ?? ''];
     }
 
-    private function chosenPlan(mixed $candidate): string
-    {
-        $candidate = is_string($candidate) ? $candidate : '';
-
-        return in_array($candidate, Plans::SELECTABLE, true) ? $candidate : Plans::FREE;
-    }
-
     private function fail(string $message): never
     {
         $_SESSION['signup_error'] = $message;
@@ -178,7 +164,6 @@ final class SignupController
             'business' => (string) ($_POST['business'] ?? ''),
             'name'     => (string) ($_POST['name'] ?? ''),
             'email'    => (string) ($_POST['email'] ?? ''),
-            'plan'     => (string) ($_POST['plan'] ?? ''),
         ];
         Request::redirect('/members/signup');
     }
