@@ -8,16 +8,25 @@
       </svg>
       <span class="logo__word">Promo<span class="logo__accent">Monster</span></span>
     </a>
+    <?php /* Three things, and one of them is the point.
+             How It Works, Features, Pricing and For Agencies all moved to the
+             footer: a bar full of choices is a bar that asks a first-time
+             visitor to browse, and browsing is not what we want them to do.
+             They are still one click away down there, and still linked from
+             the page copy.
+
+             "Login" carries `--always` because a returning customer opening
+             the site on a phone must be able to get in; the score link gives
+             way first, since it repeats the hero button a few inches below. */ ?>
     <nav class="site-nav">
       <?php foreach ([
-        '/how-it-works' => 'How It Works',
-        '/features'     => 'Features',
-        '/pricing'      => 'Pricing',
-        '/agencies'     => 'For Agencies',
-      ] as $href => $label): ?>
-        <a class="site-nav__link" href="<?= $href ?>"<?= $current === $href ? ' aria-current="page"' : '' ?>><?= View::e($label) ?></a>
+        '/members/login' => ['Login', true],
+        '/score'         => ['FREE Review Score', false],
+      ] as $href => [$label, $always]): ?>
+        <a class="site-nav__link<?= $always ? ' site-nav__link--always' : '' ?>"
+           href="<?= $href ?>"<?= $current === $href ? ' aria-current="page"' : '' ?>><?= View::e($label) ?></a>
       <?php endforeach; ?>
-      <a class="btn btn--primary" href="/score" style="margin-left:.5rem;">Free Review Score</a>
+      <a class="btn btn--primary" href="/members/signup" style="margin-left:.5rem;">Join FREE</a>
     </nav>
   </div>
 </header>

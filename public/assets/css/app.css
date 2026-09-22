@@ -94,9 +94,28 @@ img { max-width: 100%; height: auto; display: block; }
 .logo{ display:inline-flex; align-items:center; gap:.55rem; text-decoration:none;
   color:var(--ink); font-weight:800; font-size:1.15rem; letter-spacing:-.02em; }
 .logo__word{ white-space:nowrap; }
+/* Two nav items and a button need more of the bar than one button did, and at
+   320px the three of them plus a full-size wordmark ran 46px past the edge.
+   The wordmark shrinks first and only disappears on the very narrowest
+   screens, where the mark alone still says whose site this is. */
+@media (max-width:420px){
+  .site-header__inner{ gap:.6rem; }
+  .logo{ font-size:1rem; gap:.4rem; }
+  .logo svg{ width:26px; height:26px; }
+  .site-nav .btn{ padding:.7rem 1rem; }
+  .site-nav a{ padding:.5rem .55rem; }
+}
+/* Same method: the shrunk wordmark plus Login plus the button stops fitting at
+   371px, so it goes at 379 and the mark alone carries the brand below that. */
+@media (max-width:379px){ .logo__word{ display:none; } }
 .logo__accent{ color:var(--brand); }
 
-.site-nav{ display:flex; align-items:center; gap:.15rem; font-size:.95rem; }
+/* nowrap on all three. As a flex item in a tight bar the button was being
+   squeezed until "Join FREE" broke across two lines, which pushed the whole
+   header taller and read as a layout bug. */
+.site-nav{ display:flex; align-items:center; gap:.15rem; font-size:.95rem;
+  flex-shrink:0; white-space:nowrap; }
+.site-nav .btn{ flex-shrink:0; white-space:nowrap; }
 .site-nav a{ padding:.5rem .8rem; border-radius:var(--radius-sm); color:var(--body);
   text-decoration:none; font-weight:500; }
 .site-nav a:hover{ color:var(--ink); }
@@ -105,8 +124,16 @@ img { max-width: 100%; height: auto; display: block; }
    the header CTA into grey-on-blue at 1.7:1. Restate it at matching weight. */
 .site-nav a.btn--primary{ color:#fff; }
 .site-nav a.btn--primary:hover{ color:#fff; }
+/* The bar is three items now, so the breakpoint is about fitting rather than
+   about hiding a menu. Login never hides: a returning customer on a phone has
+   to be able to get in. The score link is the first to go, because it repeats
+   the hero button a few inches below it. */
 .site-nav__link{ display:none; }
-@media (min-width:900px){ .site-nav__link{ display:block; } }
+.site-nav__link--always{ display:block; }
+/* 600, not a round guess: with nothing wrapping, the logo plus all three items
+   stops fitting at 569px. Measured by stepping the viewport down a pixel at a
+   time, with a little headroom for a font that renders wider than this one. */
+@media (min-width:600px){ .site-nav__link{ display:block; } }
 
 /* Type ------------------------------------------------------------------- */
 h1,h2,h3{ margin:0; color:var(--ink); letter-spacing:-.025em; line-height:1.12; font-weight:800; }
