@@ -44,8 +44,14 @@
 
       <div class="hero-band__cta">
         <a class="btn btn--primary btn--xl" href="#score">Get my Free Review Score &rarr;</a>
-        <a class="btn hero-band__ghost btn--xl" href="/how-it-works">
-          <?= Icon::render('search') ?> See how it works
+        <?php /* Was "See how it works", pointing at the explainer page. Both
+                 buttons now ask for something rather than one of them offering
+                 more reading: a visitor who wants to know how it works can read
+                 the page below, and one who is ready should not have to. The
+                 star matches the mark in the logo; the magnifier that was here
+                 belonged to a page about looking things up. */ ?>
+        <a class="btn hero-band__ghost btn--xl" href="/members/signup">
+          <?= Icon::render('star') ?> Join FREE Now!
         </a>
       </div>
       <p class="hero-band__note">Takes about ten seconds. No credit card.</p>

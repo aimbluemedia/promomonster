@@ -58,7 +58,7 @@
 
       <div class="btn-row">
         <a class="btn btn--primary" href="#score">Get your Free Review Score</a>
-        <a class="btn btn--ghost" href="/how-it-works">See how it works</a>
+        <a class="btn btn--ghost" href="/members/signup">Join FREE Now!</a>
       </div>
     </div>
   </div>
