@@ -16,12 +16,13 @@
              the page copy.
 
              "Login" carries `--always` because a returning customer opening
-             the site on a phone must be able to get in; the score link gives
-             way first, since it repeats the hero button a few inches below. */ ?>
+             the site on a phone must be able to get in. The score link gives
+             way first whatever the order, since it repeats the hero button a
+             few inches below. */ ?>
     <nav class="site-nav">
       <?php foreach ([
+        '/score'         => ['Free Review Score', false],
         '/members/login' => ['Login', true],
-        '/score'         => ['FREE Review Score', false],
       ] as $href => [$label, $always]): ?>
         <a class="site-nav__link<?= $always ? ' site-nav__link--always' : '' ?>"
            href="<?= $href ?>"<?= $current === $href ? ' aria-current="page"' : '' ?>><?= View::e($label) ?></a>
