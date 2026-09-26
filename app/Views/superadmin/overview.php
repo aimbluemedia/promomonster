@@ -1,6 +1,6 @@
 <?php use App\Support\Csrf; use App\Support\Plans; use App\Support\View;
 /** @var array $counts @var array $recent @var array $upgrades */ ?>
-<div class="admin-title"><h1>Overview</h1></div>
+<div class="admin-title"><h1>Dashboard</h1></div>
 
 <div class="stat-grid">
   <?php foreach ([

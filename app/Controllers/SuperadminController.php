@@ -42,7 +42,7 @@ final class SuperadminController
         ) ?? [];
 
         echo View::superadmin('superadmin/overview', [
-            'title'  => 'Overview · Superadmin',
+            'title'  => 'Dashboard · Superadmin',
             'counts' => $counts,
             'recent' => Database::all(
                 'SELECT id, business_name, email, vertical, status, created_at
