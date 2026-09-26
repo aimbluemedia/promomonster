@@ -488,6 +488,45 @@ table.data td.wrap{ white-space:normal; max-width:22rem; }
   width:1rem; height:1rem; }
 .consent a{ color:var(--brand); font-weight:600; }
 
+/* --- Get reviews: the two-step screen ------------------------------------ */
+.step-head{ display:flex; gap:.9rem; align-items:flex-start; }
+.step-head__n{ flex-shrink:0; width:2rem; height:2rem; border-radius:50%;
+  display:inline-flex; align-items:center; justify-content:center;
+  background:var(--tint); color:var(--brand); font-weight:800; font-size:.9rem; }
+.step-head__n .icon{ width:1.1rem; height:1.1rem; stroke-width:2.6; color:var(--good); }
+/* A step that cannot be used yet is dimmed rather than hidden: seeing what
+   comes next is what makes the step you are on feel worth finishing. */
+.card.is-waiting{ opacity:.6; }
+
+.review-link{ display:flex; align-items:center; flex-wrap:wrap; gap:.5rem;
+  margin:1.1rem 0 0; padding:.7rem .9rem; border-radius:var(--radius-sm);
+  background:var(--wash); border:1px solid var(--line); font-size:.9rem; }
+.review-link .icon{ width:1.05rem; height:1.05rem; color:var(--star); flex-shrink:0; }
+.review-link a{ color:var(--brand); font-weight:600; word-break:break-all; }
+
+.link-summary{ cursor:pointer; font-weight:600; color:var(--brand); font-size:.92rem; }
+.link-summary::marker{ color:var(--muted); }
+
+.how-to{ margin:1rem 0 0; padding-left:1.25rem; font-size:.92rem;
+  color:var(--body); line-height:1.6; }
+/* The example URLs are longer than a phone is wide, and a <code> run will not
+   break on its own -- it pushed the whole page 17px sideways at 390. */
+code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
+  background:var(--wash); border:1px solid var(--line); border-radius:5px;
+  padding:.05em .3em; }
+.how-to li{ margin-bottom:.35rem; }
+.how-to strong{ color:var(--ink); }
+
+/* Status pills for the request states the sender produces. */
+.st-queued,.st-scheduled{ background:var(--wash); color:var(--muted); border:1px solid var(--line); }
+.st-sent{ background:var(--tint); color:var(--brand); }
+.st-clicked,.st-review_detected{ background:#e3f3ec; color:#0b6b5b; }
+.st-failed,.st-cancelled{ background:#fbe6da; color:#a34a12; }
+@media (prefers-color-scheme: dark){
+  .st-clicked,.st-review_detected{ background:#12352c; color:#7fd8bd; }
+  .st-failed,.st-cancelled{ background:#3a1512; color:#ffb4a8; }
+}
+
 /* Current-plan strip in the members area. */
 .plan-strip{ display:flex; flex-wrap:wrap; gap:1rem; align-items:center;
   justify-content:space-between; background:var(--surface); border:1px solid var(--line);

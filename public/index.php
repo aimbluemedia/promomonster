@@ -149,6 +149,8 @@ $router->get('/members/requests', static fn () => (new MembersController())->req
 $router->get('/members/playbook', static fn () => (new MembersController())->playbook());
 $router->get('/members/settings', static fn () => (new MembersController())->settings());
 $router->post('/members/plan',   static fn () => (new MembersController())->requestPlan());
+$router->post('/members/review-link', static fn () => (new MembersController())->saveReviewLink());
+$router->post('/members/ask',         static fn () => (new MembersController())->ask());
 
 $router->dispatch(
     $_SERVER['REQUEST_METHOD'] ?? 'GET',

@@ -13,9 +13,11 @@ require __DIR__ . '/../app/Support/Config.php';
 require __DIR__ . '/../app/Support/Mailer.php';
 require __DIR__ . '/../app/Support/Tokens.php';
 require __DIR__ . '/../app/Support/Plans.php';
+require __DIR__ . '/../app/Support/ReviewLink.php';
 
 use App\Support\Config;
 use App\Support\Mailer;
+use App\Support\ReviewLink;
 use App\Support\Tokens;
 
 $passed = 0;
@@ -243,6 +245,89 @@ Config::load(['app_key' => 'yet-another-key']);
 check('does not depend on the signing key',
     Tokens::addressHash('mike@acme.com'),
     hash('sha256', 'mike@acme.com'));
+
+// =====================================================================
+// Review links
+//
+// This one is a security boundary as well as a usability one: whatever is
+// stored here becomes a Location header on /r/{token}, pointed at somebody
+// else's customers. Unrestricted it is an open redirect on our domain.
+// =====================================================================
+foreach ([
+    'https://g.page/r/CdAbCdEfGh/review',
+    'https://g.page/r/CdAbCdEfGh/review/',
+    'https://search.google.com/local/writereview?placeid=ChIJabc123',
+    'https://maps.app.goo.gl/abc123',
+    'https://www.google.com/local/writereview?placeid=ChIJabc',
+] as $good) {
+    $r = ReviewLink::check($good);
+    ok('accepts ' . $good, $r['ok'] === true);
+    check('and keeps it as typed', $r['url'], $good);
+}
+
+// --- Not Google at all: the open-redirect case ------------------------
+foreach ([
+    'https://evil.example.com/phish'        => 'another domain',
+    'https://g.page.evil.com/r/x/review'    => 'a lookalike domain',
+    'https://notgoogle.com/maps'            => 'a domain that merely mentions google',
+] as $bad => $why) {
+    $r = ReviewLink::check($bad);
+    check("refuses {$why}", $r['ok'], false);
+    ok('and says it is not a Google link', str_contains((string) $r['error'], 'not a Google link'));
+}
+
+// --- Wrong scheme -----------------------------------------------------
+foreach ([
+    'http://g.page/r/x/review'       => 'plain http',
+    'javascript:alert(1)'            => 'javascript:',
+    'data:text/html,<script>'        => 'data:',
+    '//g.page/r/x/review'            => 'a protocol-relative URL',
+] as $bad => $why) {
+    check("refuses {$why}", ReviewLink::check($bad)['ok'], false);
+}
+
+// --- A listing URL is Google's, and still the wrong link --------------
+foreach ([
+    'https://www.google.com/maps/place/Acme+Pools/@33.4,-111.8,17z',
+    'https://maps.google.com/maps/place/Acme',
+    'https://www.google.com/maps/search/acme+pools',
+] as $listing) {
+    $r = ReviewLink::check($listing);
+    check('refuses a listing URL: ' . $listing, $r['ok'], false);
+    ok('and explains which link to get instead',
+        str_contains((string) $r['error'], 'Ask for reviews'));
+}
+
+// --- Header injection -------------------------------------------------
+// A newline here would end the Location header and let what follows be read
+// as headers of its own.
+foreach ([
+    "https://g.page/r/x/review\nLocation: https://evil.com" => 'a newline',
+    "https://g.page/r/x/review\r\nSet-Cookie: a=b"          => 'a CRLF',
+    "https://g.page/r/x/\x00review"                         => 'a null byte',
+] as $bad => $why) {
+    check("refuses {$why}", ReviewLink::check((string) $bad)['ok'], false);
+}
+
+// No accepted URL may carry a line break, whatever was submitted.
+foreach (['https://g.page/r/x/review', 'https://search.google.com/local/writereview?placeid=a'] as $u) {
+    $r = ReviewLink::check($u);
+    ok('accepted link has no line break', preg_match('/[\r\n]/', (string) $r['url']) === 0);
+}
+
+// --- Empty, whitespace, absurd length ---------------------------------
+check('refuses empty', ReviewLink::check('')['ok'], false);
+check('refuses whitespace', ReviewLink::check("   \t ")['ok'], false);
+check('trims before checking', ReviewLink::check('  https://g.page/r/x/review  ')['url'],
+    'https://g.page/r/x/review');
+check('refuses something absurdly long',
+    ReviewLink::check('https://g.page/r/' . str_repeat('a', 600) . '/review')['ok'], false);
+check('refuses a bare word', ReviewLink::check('review link')['ok'], false);
+
+// --- The short form shown back on screen ------------------------------
+check('drops the scheme', ReviewLink::short('https://g.page/r/abc/review'), 'g.page/r/abc/review');
+ok('truncates a long one', mb_strlen(ReviewLink::short('https://g.page/r/' . str_repeat('x', 200))) <= 44);
+ok('marks that it truncated', str_ends_with(ReviewLink::short('https://g.page/r/' . str_repeat('x', 200)), '…'));
 
 echo "\n{$passed} passed, {$failed} failed\n";
 exit($failed === 0 ? 0 : 1);

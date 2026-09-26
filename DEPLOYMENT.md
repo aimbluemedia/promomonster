@@ -93,6 +93,75 @@ curl -o /dev/null -w "%{http_code}\n" https://promomonster.com/nope      # 404
 Then submit the form on `/earn` and confirm a row appears in the `waitlist`
 table.
 
+## 6. Switch on review request sending
+
+Two settings and one cron job. Without the cron, requests queue up and never
+leave — and from inside the members area that looks exactly like everything
+working, which is why the Get reviews page warns when anything has been waiting
+more than fifteen minutes.
+
+### 6a. The two settings in `app/config.php`
+
+```php
+// Signs unsubscribe links. Generate it ONCE and never change it: changing it
+// breaks every unsubscribe link already sitting in somebody's inbox, and a
+// broken opt-out is how a quiet unsubscribe becomes a spam complaint.
+//   php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"
+'app_key' => 'paste-the-generated-value-here',
+
+'mail' => [
+    'driver' => '',                 // empty picks postmark once a token is set
+    'token'  => 'your-postmark-SERVER-token',
+    'from'   => 'reviews@notify.promomonster.com',
+    'stream' => 'broadcast',
+    'webhook_secret' => 'another-long-random-string',
+],
+```
+
+Leave `token` empty and nothing is sent: the message is written to
+`storage/logs/mail.log` instead, which is the right way to try the whole flow
+before pointing it at a real inbox.
+
+**Use a subdomain you do not send password resets from.** Every free user's spam
+complaints land on the reputation of whatever domain signs these, and if that is
+`promomonster.com` then a blocklisting takes your login emails down with it.
+
+### 6b. The cron job, in hPanel
+
+Hostinger: **Advanced → Cron Jobs → Create a New Cron Job**, set it to run
+**every 5 minutes**, and paste this as the command — substituting your own
+username and the real path, which hPanel shows you in the File Manager:
+
+```
+/usr/bin/php /home/uXXXXXXXXX/domains/promomonster.com/bin/send-due.php >> /home/uXXXXXXXXX/domains/promomonster.com/storage/logs/cron.log 2>&1
+```
+
+Notes:
+
+- `bin/` sits **beside** `public_html`, not inside it. If you uploaded the
+  contents of `public/` into `public_html` as instructed in step 1, the rest of
+  the project — `app/`, `bin/`, `database/`, `storage/` — belongs one level up.
+- The script refuses to run over HTTP, so it is harmless even if `bin/` does end
+  up somewhere web-reachable.
+- Two runs cannot overlap. The second one takes a database lock, finds it held,
+  logs "Another run is still going" and exits — so a slow send never turns into
+  two emails to the same customer.
+- `>> ... cron.log 2>&1` keeps the output. Read it first when something looks
+  wrong; every run writes one line even when there is nothing to do.
+
+### 6c. Check it
+
+Sign in, open **Get reviews**, save your Google review link, and send one to
+yourself. Within five minutes:
+
+```bash
+tail -20 storage/logs/cron.log      # "1 due, driver=postmark" then "#N sent"
+```
+
+If the log says `driver=log`, the Postmark token is not set and the message went
+to `storage/logs/mail.log` instead. If the log is empty, the cron job is not
+running — check the path and the PHP binary in hPanel.
+
 ---
 
 ## Troubleshooting
