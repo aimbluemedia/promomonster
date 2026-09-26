@@ -266,6 +266,157 @@ final class SuperadminController
     }
 
     /**
+     * Everyone who has signed up, by plan.
+     *
+     * Listed by ACCOUNT rather than by user. A plan belongs to an account and
+     * an account can have several logins, so a per-user list would show the
+     * same business three times on three different rows and count it three
+     * times in the totals.
+     */
+    public function users(): void
+    {
+        $perPage = 25;
+        $page    = max(1, (int) ($_GET['page'] ?? 1));
+
+        // The filter is matched against a known list before it reaches SQL, so
+        // it can only ever be one of these strings.
+        $filters = array_merge(['all', 'wants_upgrade'], Plans::SELECTABLE, [Plans::PARTNER]);
+        $filter  = in_array((string) ($_GET['plan'] ?? 'all'), $filters, true)
+            ? (string) ($_GET['plan'] ?? 'all')
+            : 'all';
+
+        [$where, $params] = match ($filter) {
+            'all'           => ['1 = 1', []],
+            'wants_upgrade' => ['a.requested_plan IS NOT NULL', []],
+            default         => ['a.plan = :plan', ['plan' => $filter]],
+        };
+
+        $total = (int) (Database::first(
+            'SELECT COUNT(*) AS n FROM accounts a WHERE ' . $where,
+            $params,
+        )['n'] ?? 0);
+
+        $pages  = max(1, (int) ceil($total / $perPage));
+        $page   = min($page, $pages);
+        $offset = ($page - 1) * $perPage;
+
+        // LIMIT/OFFSET are interpolated because they cannot be bound on every
+        // driver. Both come from max()/min() over integers, so neither can
+        // carry anything but a number.
+        $rows = Database::all(
+            'SELECT a.id, a.name, a.plan, a.requested_plan, a.requested_plan_at,
+                    a.status, a.created_at, a.signup_ip,
+                    u.first_name, u.last_name, u.email, u.last_login_at,
+                    (SELECT COUNT(*) FROM locations l
+                      WHERE l.account_id = a.id
+                        AND l.google_review_url IS NOT NULL
+                        AND l.google_review_url <> \'\')                       AS linked,
+                    (SELECT COUNT(*) FROM locations l WHERE l.account_id = a.id) AS locations,
+                    (SELECT COUNT(*) FROM review_requests r
+                       JOIN locations l ON l.id = r.location_id
+                      WHERE l.account_id = a.id AND r.is_follow_up = 0)       AS asks,
+                    (SELECT MAX(r.created_at) FROM review_requests r
+                       JOIN locations l ON l.id = r.location_id
+                      WHERE l.account_id = a.id)                              AS last_ask
+               FROM accounts a
+          LEFT JOIN account_users au ON au.account_id = a.id AND au.role = \'owner\'
+          LEFT JOIN users u ON u.id = au.user_id
+              WHERE ' . $where . '
+           ORDER BY a.created_at DESC, a.id DESC
+              LIMIT ' . (int) $perPage . ' OFFSET ' . (int) $offset,
+            $params,
+        );
+
+        echo View::superadmin('superadmin/users', [
+            'title'   => 'Users · Superadmin',
+            'rows'    => $rows,
+            'counts'  => $this->planCounts(),
+            'filter'  => $filter,
+            'page'    => $page,
+            'pages'   => $pages,
+            'total'   => $total,
+            'perPage' => $perPage,
+        ]);
+    }
+
+    /**
+     * Sets an account's plan outright.
+     *
+     * Different from updatePlan(), which answers a request the member made.
+     * This is for the case with no request behind it: somebody paid by invoice,
+     * or a plan needs winding back. Both are recorded, because "who moved this
+     * account to Premium and when" is a question that gets asked.
+     */
+    public function setPlan(): void
+    {
+        if (!Csrf::check($_POST['_csrf'] ?? null)) {
+            $this->flash('/superadmin/users', 'Your session expired. Please try again.');
+        }
+
+        $accountId = (int) ($_POST['account_id'] ?? 0);
+        $wanted    = (string) ($_POST['plan'] ?? '');
+
+        if (!Plans::exists($wanted)) {
+            $this->flash('/superadmin/users', 'That is not a plan.');
+        }
+
+        $account = Database::first(
+            'SELECT id, name, plan FROM accounts WHERE id = :id',
+            ['id' => $accountId],
+        );
+        if ($account === null) {
+            $this->flash('/superadmin/users', 'No such account.');
+        }
+        if ((string) $account['plan'] === $wanted) {
+            $this->flash('/superadmin/users', $account['name'] . ' is already on ' . Plans::name($wanted) . '.');
+        }
+
+        Database::run(
+            'UPDATE accounts
+                SET plan = :plan, requested_plan = NULL, requested_plan_at = NULL,
+                    plan_changed_at = NOW()
+              WHERE id = :id',
+            ['plan' => $wanted, 'id' => $accountId],
+        );
+        Audit::log('account.plan_set', 'account', $accountId,
+            ['plan' => $account['plan']], ['plan' => $wanted]);
+
+        $this->flash('/superadmin/users', sprintf(
+            '%s moved from %s to %s.',
+            $account['name'],
+            Plans::name((string) $account['plan']),
+            Plans::name($wanted),
+        ));
+    }
+
+    /**
+     * How many accounts sit on each plan, for the filter row.
+     *
+     * Every plan is present in the result even at zero, so a tab does not
+     * vanish the moment nobody is on that tier.
+     *
+     * @return array<string,int>
+     */
+    private function planCounts(): array
+    {
+        $counts = ['all' => 0, 'wants_upgrade' => 0];
+        foreach (array_merge(Plans::SELECTABLE, [Plans::PARTNER]) as $plan) {
+            $counts[$plan] = 0;
+        }
+
+        foreach (Database::all('SELECT plan, COUNT(*) AS n FROM accounts GROUP BY plan') as $row) {
+            $counts[(string) $row['plan']] = (int) $row['n'];
+            $counts['all'] += (int) $row['n'];
+        }
+
+        $counts['wants_upgrade'] = (int) (Database::first(
+            'SELECT COUNT(*) AS n FROM accounts WHERE requested_plan IS NOT NULL'
+        )['n'] ?? 0);
+
+        return $counts;
+    }
+
+    /**
      * Deletes one score so the same site and address can be tested again.
      *
      * Deleting the row alone is not enough. The per-email and per-IP limiters

@@ -40,6 +40,7 @@ unset($_SESSION['admin_flash']);
     <nav class="admin-nav">
       <?php foreach ([
         '/superadmin'            => 'Overview',
+        '/superadmin/users'      => 'Users',
         '/superadmin/audits'     => 'Audit requests',
         '/superadmin/scores'     => 'Review scores',
         '/superadmin/leads'      => 'Agencies',

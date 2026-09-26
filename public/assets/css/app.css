@@ -387,8 +387,16 @@ a:focus-visible, button:focus-visible, summary:focus-visible{
 .stat-card__v{ font-size:1.9rem; font-weight:800; letter-spacing:-.03em; }
 .stat-card__l{ font-size:.82rem; color:var(--muted); margin-top:.15rem; }
 
+/* position:relative is load-bearing, not decoration.
+   overflow-x:auto makes this a scroll container, but it only clips descendants
+   whose containing block is inside it. A position:absolute child of a static
+   wrapper resolves against the page instead, so it lands at its static offset
+   in PAGE coordinates -- for a 1px .sr-only label in the last column of a
+   704px table on a 390px screen, that is x=603, outside the viewport, and it
+   drags the whole document 214px wide. Giving the wrapper a containing block
+   fixes it for every table at once. */
 .table-wrap{ border:1px solid var(--line); border-radius:var(--radius);
-  background:var(--surface); overflow-x:auto; }
+  background:var(--surface); overflow-x:auto; position:relative; }
 table.data{ width:100%; border-collapse:collapse; font-size:.9rem; min-width:44rem; }
 table.data th{ text-align:left; font-size:.7rem; text-transform:uppercase; letter-spacing:.09em;
   color:var(--muted); padding:.7rem .9rem; border-bottom:1px solid var(--line); font-weight:700; }
@@ -422,6 +430,14 @@ table.data td.wrap{ white-space:normal; max-width:22rem; }
 .filters a{ font-size:.82rem; font-weight:600; padding:.35rem .75rem; border-radius:999px;
   border:1px solid var(--line); color:var(--body); text-decoration:none; background:var(--surface); }
 .filters a[aria-current="page"]{ background:var(--brand); border-color:var(--brand); color:#fff; }
+/* The count beside a filter. It is the useful half of the tab -- "Pro 0" saves
+   a click that "Pro" does not. Inherits colour so it stays legible when the
+   tab is the selected one and has gone brand-blue underneath. */
+.filters__n{ display:inline-block; margin-left:.35rem; padding:0 .4rem;
+  border-radius:999px; background:rgba(0,0,0,.07); color:inherit;
+  font-size:.74rem; font-variant-numeric:tabular-nums; }
+.filters a[aria-current="page"] .filters__n{ background:rgba(255,255,255,.22); }
+@media (prefers-color-scheme: dark){ .filters__n{ background:rgba(255,255,255,.10); } }
 
 .flash{ border:1px solid #a6d3c6; background:#e3f3ec; color:#0b6b5b; border-radius:var(--radius-sm);
   padding:.7rem 1rem; font-size:.88rem; margin-bottom:1.25rem; font-weight:600; }
