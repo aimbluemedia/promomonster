@@ -56,7 +56,7 @@ final class PasswordResetController
             // connected a reset email goes to storage/logs/mail.log, which is
             // no use to the person on this page, and "check your inbox" would
             // be a straight lie.
-            'sending' => Mailer::isLive(),
+            'sending' => Mailer::transactionalIsLive(),
         ]);
     }
 

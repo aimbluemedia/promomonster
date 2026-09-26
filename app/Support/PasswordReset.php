@@ -379,7 +379,9 @@ final class PasswordReset
             // take the one email a locked-out customer actually needs with
             // them. See Mailer::transactionalFrom().
             'from_name' => Mailer::transactionalHeader(),
+            'from'      => Mailer::transactionalFrom(),
             'stream'    => Mailer::transactionalStream(),
+            'driver'    => Mailer::transactionalDriver(),
         ]);
 
         if (!$result['ok']) {

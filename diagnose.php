@@ -429,10 +429,54 @@ if ($mailFiles !== []) {
             . 'or every send is rejected.');
     }
 
+    // 3a. The account-email lane, which can be a different provider entirely.
+    //     Worth its own row because "review requests are sending" and "a
+    //     locked-out customer can get back in" are now two separate switches.
+    $loginDriver = trim((string) ($mailCfg['transactional_driver'] ?? ''));
+    $smtp        = is_array($mailCfg['smtp'] ?? null) ? $mailCfg['smtp'] : [];
+
+    if ($loginDriver === 'smtp') {
+        $missing = [];
+        foreach (['host', 'username', 'password'] as $key) {
+            if (trim((string) ($smtp[$key] ?? '')) === '') {
+                $missing[] = 'mail.smtp.' . $key;
+            }
+        }
+
+        $port = (int) ($smtp['port'] ?? 465);
+        $enc  = trim((string) ($smtp['encryption'] ?? '')) ?: ($port === 587 ? 'tls' : 'ssl');
+
+        if ($missing !== []) {
+            add($checks, 'Account email', 'fail',
+                'Set to send password resets over SMTP, but missing: ' . implode(', ', $missing)
+                . '. Your mailbox password goes here, from hPanel under Emails, '
+                . 'Mailboxes, Connect apps and devices.');
+        } elseif (trim((string) ($smtp['username'] ?? '')) !== ''
+                  && $loginFrom !== ''
+                  && strcasecmp((string) $smtp['username'], $loginFrom) !== 0) {
+            add($checks, 'Account email', 'fail',
+                'mail.smtp.username (' . (string) $smtp['username'] . ') and mail.transactional_from ('
+                . $loginFrom . ') are different addresses. Most hosts refuse a message posted as '
+                . 'anything but the mailbox that authenticated, so resets would fail at send. '
+                . 'Make them the same.');
+        } else {
+            add($checks, 'Account email', 'pass',
+                'SMTP via ' . (string) $smtp['host'] . ':' . $port . ' (' . $enc . ') as '
+                . (string) $smtp['username'] . '. Password resets go out through this mailbox; '
+                . 'review requests still use the provider above. Add ?mail=you@example.com to '
+                . 'this URL to send a real test message.');
+        }
+    }
+
     // 3b. The account-email address. Password resets must not share a
     //     reputation with bulk review requests: a blocklisted review domain
     //     would take the one email a locked-out customer needs with it.
-    if ($loginFrom === '') {
+    // The rows below are about the provider lane's from-address. On SMTP the
+    // address is the mailbox, which the check above already reported against,
+    // so saying it twice would only muddy it.
+    if ($loginDriver === 'smtp') {
+        // Nothing further to say.
+    } elseif ($loginFrom === '') {
         add($checks, 'Account email', 'todo',
             'No mail.transactional_from, so password resets go out from ' . ($mailFrom ?: 'mail.from')
             . ' — the same address as the review requests. They will send, but every spam '

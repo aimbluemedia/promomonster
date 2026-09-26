@@ -74,6 +74,46 @@ return [
         'transactional_from'   => 'logins@promomonster.com',
         'transactional_stream' => 'outbound',
 
+        // Account email can go through a different provider entirely, and on a
+        // small site it probably should to begin with. Leave this empty to use
+        // 'driver' above; set it to 'smtp' to send password resets through an
+        // ordinary mailbox at your host.
+        //
+        // That is a sensible place to start: Hostinger, cPanel, Fastmail,
+        // anything with a mailbox and SMTP. It needs no account to open and no
+        // DNS to wait on, the daily allowance is far more than password resets
+        // will ever use, and the mail is signed by whatever the host signs with.
+        //
+        // It is NOT where review requests belong. Those go out in bulk on
+        // behalf of businesses, to people who never asked us for anything, and
+        // a share of them press "report spam". A shared mailbox has no
+        // complaint feedback loop and no bounce webhook, so the suppression
+        // list would never learn who to stop emailing -- and sending bulk from
+        // a hosting mailbox is how that mailbox gets suspended. Keep 'driver'
+        // on Postmark for those.
+        'transactional_driver' => '',
+
+        // Only read when transactional_driver is 'smtp'.
+        //
+        // port/encryption: 465 is implicit TLS, 587 is STARTTLS. Leave
+        // encryption empty and it is chosen from the port, which is one fewer
+        // thing to get wrong.
+        //
+        // username is the full mailbox address, and it is also what the message
+        // is posted as -- so make it the same address as transactional_from, or
+        // the host will refuse it.
+        //
+        // The certificate is always verified. There is no flag to turn that
+        // off: this password crosses the wire inside the tunnel, so an
+        // unverified tunnel hands it to whoever answered.
+        'smtp' => [
+            'host'       => 'smtp.hostinger.com',
+            'port'       => 465,
+            'encryption' => '',
+            'username'   => 'logins@promomonster.com',
+            'password'   => '',
+        ],
+
         // Shared secret on the delivery webhook URL, so only the provider can
         // post bounces and complaints to it:
         //   https://promomonster.com/webhooks/email/<this value>

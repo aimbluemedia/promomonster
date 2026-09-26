@@ -44,13 +44,17 @@ final class Mailer
      * @param array{
      *     to:string, subject:string, text:string, html?:?string,
      *     from_name?:?string, reply_to?:?string, unsubscribe_url?:?string,
-     *     tag?:?string, stream?:?string, headers?:array<string,string>
+     *     tag?:?string, stream?:?string, driver?:?string, from?:?string,
+     *     headers?:array<string,string>
      * } $message
      * @return array{ok:bool, id:?string, error:?string, driver:string}
      */
     public static function send(array $message): array
     {
-        $driver = self::driver();
+        // Per message, because the two kinds of mail this app sends can come
+        // from different places entirely: review requests through a bulk
+        // provider, account email through an ordinary authenticated mailbox.
+        $driver = (string) ($message['driver'] ?? self::driver());
 
         foreach (['to', 'subject', 'text'] as $required) {
             if (trim((string) ($message[$required] ?? '')) === '') {
@@ -68,6 +72,7 @@ final class Mailer
 
         return match ($driver) {
             'postmark' => self::postmark($message),
+            'smtp'     => self::smtp($message),
             'log'      => self::log($message),
             'null'     => ['ok' => true, 'id' => null, 'error' => null, 'driver' => 'null'],
             default    => self::fail($driver, "Unknown mail driver '{$driver}'."),
@@ -146,6 +151,46 @@ final class Mailer
      * server, so this is safe before anything has been configured. Review
      * requests belong on a broadcast stream; this one must not be on it.
      */
+    /**
+     * Which driver account email goes out through.
+     *
+     * Separate from driver() because the two lanes can reasonably be on
+     * different providers, and for a small site they usually should be. Review
+     * requests need a bulk provider: complaint feedback, bounce webhooks, a
+     * reputation of their own. A password reset needs none of that -- it is one
+     * message an hour to somebody who asked for it thirty seconds ago -- and an
+     * ordinary authenticated mailbox at the host does it, today, with no
+     * account to open and no DNS to wait on.
+     *
+     * Falls back to the bulk driver when unset, so an install that only ever
+     * configures one thing still sends.
+     */
+    public static function transactionalDriver(): string
+    {
+        $driver = trim((string) Config::get('mail.transactional_driver', ''));
+
+        return $driver !== '' ? $driver : self::driver();
+    }
+
+    /**
+     * Whether account email can actually be delivered.
+     *
+     * Asked by the forgot-password page, which must not promise a link it
+     * cannot send. Deliberately not the same question as isLive(): sending
+     * review requests and being able to let somebody back into their account
+     * are now two switches, and either can be on without the other.
+     */
+    public static function transactionalIsLive(): bool
+    {
+        return match (self::transactionalDriver()) {
+            'postmark' => self::token() !== '',
+            'smtp'     => trim((string) Config::get('mail.smtp.host', '')) !== ''
+                && trim((string) Config::get('mail.smtp.username', '')) !== ''
+                && (string) Config::get('mail.smtp.password', '') !== '',
+            default    => false,
+        };
+    }
+
     public static function transactionalStream(): string
     {
         $stream = trim((string) Config::get('mail.transactional_stream', ''));
@@ -278,10 +323,49 @@ final class Mailer
     }
 
     /** @param array<string,mixed> $message @return array{ok:bool,id:?string,error:?string,driver:string} */
+    private static function smtp(array $message): array
+    {
+        $from = trim((string) ($message['from'] ?? self::from()));
+
+        $result = Smtp::send([
+            'to'          => (string) $message['to'],
+            'from'        => $from,
+            'from_header' => (string) ($message['from_name'] ?? self::fromHeader(null)),
+            'subject'     => (string) $message['subject'],
+            'text'        => (string) $message['text'],
+            'reply_to'    => $message['reply_to'] ?? null,
+            'headers'     => self::namedHeaders($message),
+        ]);
+
+        return $result + ['driver' => 'smtp'];
+    }
+
+    /**
+     * The extra headers, as a name => value map.
+     *
+     * listHeaders() builds Postmark's shape, which is a list of {Name, Value}
+     * objects. SMTP wants neither that nor its own translation layer, so the
+     * common part lives here and each driver takes what it needs.
+     *
+     * @param array<string,mixed> $message
+     * @return array<string,string>
+     */
+    private static function namedHeaders(array $message): array
+    {
+        $headers = [];
+
+        foreach (self::listHeaders($message) as $header) {
+            $headers[$header['Name']] = $header['Value'];
+        }
+
+        return $headers;
+    }
+
+    /** @param array<string,mixed> $message @return array{ok:bool,id:?string,error:?string,driver:string} */
     private static function log(array $message): array
     {
         $line = sprintf(
-            "[%s] to=%s from=%s reply-to=%s stream=%s subject=%s\n%s\n%s\n",
+            "[%s] to=%s from=%s reply-to=%s via=%s stream=%s subject=%s\n%s\n%s\n",
             gmdate('c'),
             $message['to'],
             $message['from_name'] ?? self::fromHeader(null),
@@ -289,6 +373,11 @@ final class Mailer
             // Recorded because it is otherwise invisible until something is
             // sent for real, and sending account mail on the bulk stream is
             // exactly the mistake worth catching before that.
+            // Which driver a real send would have used, and on which stream.
+            // Both are otherwise invisible until something goes out for real,
+            // and account mail on the bulk settings is exactly the mistake
+            // worth catching before that.
+            $message['driver'] ?? self::driver(),
             $message['stream'] ?? Config::get('mail.stream', 'outbound'),
             $message['subject'],
             str_repeat('-', 60),
