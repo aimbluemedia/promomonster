@@ -159,6 +159,38 @@ final class Auth
         Audit::log('auth.password_changed', 'user', $userId);
     }
 
+    /**
+     * Hands an account over with a password somebody else chose.
+     *
+     * Separate from setPassword() because it does the opposite thing with the
+     * flag: setPassword() clears must_change_password (the member has just
+     * chosen their own), this one raises it. A password that was spoken aloud
+     * down a phone line is not a password, it is a one-time key, and the forced
+     * change on next sign-in is what turns it back into one.
+     *
+     * It also leaves the session alone. setPassword() rotates the current
+     * session id because the person changing the password is the person holding
+     * the session; here it is a staff member acting on somebody else's account,
+     * and rotating their own id would achieve nothing.
+     *
+     * What this does NOT do is end the member's existing sessions. If they are
+     * signed in on a phone somewhere they stay signed in, which is right for
+     * "they forgot it" and wrong for "the account is compromised". Ending
+     * sessions for another user needs a server-side session store, which this
+     * app does not have.
+     */
+    public static function setTemporaryPassword(int $userId, string $password): void
+    {
+        Database::run(
+            'UPDATE users
+                SET password_hash = :hash, must_change_password = 1, password_changed_at = NOW()
+              WHERE id = :id',
+            ['hash' => password_hash($password, PASSWORD_DEFAULT), 'id' => $userId],
+        );
+
+        Audit::log('auth.temporary_password_set', 'user', $userId);
+    }
+
     public static function lockedOut(string $email): bool
     {
         $since = date('Y-m-d H:i:s', time() - self::LOCKOUT_SECONDS);

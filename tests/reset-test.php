@@ -534,5 +534,72 @@ ok('with no account address set it falls back and still sends', str_contains($li
 ok('but stays off the broadcast stream even then', str_contains($line, 'stream=outbound'));
 check('and the fallback is visible to a caller', Mailer::transactionalFrom(), 'reviews@notify.promomonster.test');
 
+// =====================================================================
+// Handing an account back by hand
+// =====================================================================
+// The route that needs no mail provider: staff generate a password, read it
+// down the phone, and the member is made to change it. It is what makes the
+// "get in touch and we will sort it out" line on the reset page true.
+$samples = [];
+for ($i = 0; $i < 400; $i++) {
+    $samples[] = PasswordReset::temporaryPassword();
+}
+$joined = implode('', $samples);
+
+ok('a temporary password is four groups of four',
+    count(array_filter($samples, static fn ($p) => preg_match('/^[a-z2-9]{4}(-[a-z2-9]{4}){3}$/', $p) === 1)) === 400);
+
+// The failure mode is not guessing, it is the owner saying "e" and the customer
+// hearing "b". Every character that reads or sounds like another one is out.
+foreach (['i', 'l', 'o', '0', '1'] as $confusable) {
+    ok("never contains '{$confusable}'", !str_contains($joined, $confusable));
+}
+
+check('400 of them are 400 different passwords', count(array_unique($samples)), 400);
+
+seed();
+$temp = PasswordReset::temporaryPassword();
+Auth::setTemporaryPassword(1, $temp);
+
+ok('the temporary password works', Auth::attemptPasswordOnly(1, $temp));
+ok('and the old one does not', !Auth::attemptPasswordOnly(1, OLD_PASSWORD));
+$user = Database::first('SELECT must_change_password FROM users WHERE id = 1');
+check('it forces a change at the next sign-in', (int) $user['must_change_password'], 1);
+
+// The opposite of setPassword(), which clears the flag because the member chose
+// that one themselves. Worth asserting both ways round: these two methods
+// differ by one column and it is the column that matters.
+Auth::setPassword(1, NEW_PASSWORD);
+$user = Database::first('SELECT must_change_password FROM users WHERE id = 1');
+check('choosing their own clears it again', (int) $user['must_change_password'], 0);
+
+// Handing an account over must kill any link still sitting in an inbox.
+seed();
+PasswordReset::request('dana@acmepools.test');
+check('a live link exists', rows(), 1);
+PasswordReset::revokeFor(1);
+check('handing the account over revokes it', rows(), 0);
+
+// Spent rows are evidence and stay.
+seed();
+PasswordReset::request('dana@acmepools.test');
+Database::run('UPDATE password_resets SET used_at = NOW()');
+PasswordReset::revokeFor(1);
+check('but a spent one is kept', rows(), 1);
+
+// And it has to be safe before the migration has run, like everything else.
+seed();
+Database::run('RENAME TABLE password_resets TO password_resets_parked');
+forgetReadyCache();
+$threw = false;
+try {
+    PasswordReset::revokeFor(1);
+} catch (Throwable $e) {
+    $threw = true;
+}
+ok('revoking is safe with no table', !$threw);
+Database::run('RENAME TABLE password_resets_parked TO password_resets');
+forgetReadyCache();
+
 echo "\n{$passed} passed, {$failed} failed\n";
 exit($failed === 0 ? 0 : 1);

@@ -454,6 +454,32 @@ table.data td.wrap{ white-space:normal; max-width:22rem; }
 .filters a[aria-current="page"] .filters__n{ background:rgba(255,255,255,.22); }
 @media (prefers-color-scheme: dark){ .filters__n{ background:rgba(255,255,255,.10); } }
 
+/* Handing an account back by hand. Loud on purpose: it is shown once, and
+   somebody has to read it out correctly down a phone line. */
+.handover{ border:1px solid var(--line); border-left:3px solid var(--good);
+  background:var(--surface); border-radius:var(--radius-sm);
+  padding:1rem 1.15rem; margin-bottom:1.5rem; }
+.handover strong{ color:var(--ink); }
+.handover p{ margin:.4rem 0 0; font-size:.9rem; color:var(--body); }
+.handover__code{ margin:.65rem 0 .5rem !important; }
+.handover__code code{ display:inline-block; font-family:var(--mono);
+  font-size:1.35rem; font-weight:700; letter-spacing:.06em; color:var(--ink);
+  background:var(--wash); border:1px solid var(--line); border-radius:var(--radius-sm);
+  padding:.5rem .8rem; user-select:all; }
+.handover__warn{ color:var(--muted) !important; font-size:.82rem !important; }
+
+/* A submit button that reads as a link. For a row action that is a verb rather
+   than a destination -- it has to POST, so it cannot be an <a>.
+
+   Qualified with .row-form because .row-form button above is a full primary
+   button (0,1,1) and would otherwise win on specificity, which is exactly what
+   it did: a loud blue button with an underline through it, shouting over the
+   plan control it sits next to. */
+.row-form button.linkish{ background:none; border:0; padding:0; font:inherit;
+  font-size:.78rem; font-weight:600; color:var(--brand); cursor:pointer;
+  text-decoration:underline; }
+.row-form button.linkish:hover{ background:none; color:var(--brand-hover); }
+
 .flash{ border:1px solid #a6d3c6; background:#e3f3ec; color:#0b6b5b; border-radius:var(--radius-sm);
   padding:.7rem 1rem; font-size:.88rem; margin-bottom:1.25rem; font-weight:600; }
 @media (prefers-color-scheme: dark){ .flash{ background:#12352c; color:#7fd8bd; border-color:#1f5346; } }

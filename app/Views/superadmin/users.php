@@ -3,7 +3,7 @@ use App\Support\Csrf;
 use App\Support\Plans;
 use App\Support\View;
 /**
- * @var array $rows @var array $counts @var string $filter
+ * @var array $rows @var array $counts @var string $filter @var ?array $handover
  * @var int $page @var int $pages @var int $total @var int $perPage
  */
 $first = $total === 0 ? 0 : (($page - 1) * $perPage) + 1;
@@ -22,6 +22,24 @@ $tabs['wants_upgrade'] = 'Wants an upgrade';
 <?php /* Listed by account, not by user. A plan belongs to an account and an
          account can have several logins, so a per-user list would show one
          business three times and count it three times. */ ?>
+<?php if ($handover !== null): ?>
+  <?php /* Shown once. It is not in the database, not in the audit log and not
+           in any email -- the only copy is on this screen, and it is gone on
+           the next page load. Read it out, then it is theirs to change. */ ?>
+  <div class="handover" role="status">
+    <strong>Temporary password for <?= View::e($handover['account']) ?></strong>
+    <p class="handover__code"><code><?= View::e($handover['password']) ?></code></p>
+    <p>
+      Read it to <?= View::e($handover['name'] !== '' ? $handover['name'] : 'them') ?>
+      (<?= View::e($handover['email']) ?>). They sign in at
+      <strong>/members/login</strong> with it, and are made to choose their own
+      before they can go anywhere.
+    </p>
+    <p class="handover__warn">This is the only time it is shown. Leaving this page loses it &mdash;
+      which is fine, you can just do it again.</p>
+  </div>
+<?php endif; ?>
+
 <div class="admin-title">
   <h1>Users</h1>
   <span class="muted" style="font-size:.9rem;">
@@ -99,7 +117,21 @@ $tabs['wants_upgrade'] = 'Wants an upgrade';
                   <?= $r['last_login_at']
                     ? 'last in ' . View::e(date('j M Y', strtotime((string) $r['last_login_at'])))
                     : 'never signed in' ?>
+                  <?php if ((int) $r['must_change_password'] === 1): ?>
+                    &middot; <span class="st-queued pill-status">temp password</span>
+                  <?php endif; ?>
                 </div>
+
+                <?php /* In this cell rather than a seventh column: it acts on
+                         this person's login, and the table already scrolls
+                         sideways on a laptop without help. */ ?>
+                <form class="row-form" method="post" action="/superadmin/users/password"
+                      style="margin-top:.4rem;"
+                      onsubmit="return confirm('Give <?= View::e(addslashes((string) $r['name'])) ?> a new temporary password? Their current one stops working immediately.');">
+                  <?= Csrf::field() ?>
+                  <input type="hidden" name="account_id" value="<?= (int) $r['id'] ?>">
+                  <button class="linkish" type="submit">Reset password</button>
+                </form>
               <?php endif; ?>
             </td>
 

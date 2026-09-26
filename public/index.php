@@ -134,6 +134,8 @@ $router->post('/superadmin/leads/update',    static fn () => (new SuperadminCont
 $router->get('/superadmin/compliance',       static fn () => (new SuperadminController())->compliance());
 $router->get('/superadmin/activity',         static fn () => (new SuperadminController())->activity());
 $router->post('/superadmin/accounts/plan',   static fn () => (new SuperadminController())->updatePlan());
+// The way back into an account when email sending is not connected yet.
+$router->post('/superadmin/users/password',  static fn () => (new SuperadminController())->setTempPassword());
 
 // Members (customers). Same lazy-construction reason as above.
 $router->get('/members/login',   static fn () => $auth->showLogin('members'));

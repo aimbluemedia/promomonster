@@ -54,6 +54,58 @@ final class PasswordReset
     /** Cached answer from ready(), so one request asks at most once. */
     private static ?bool $ready = null;
 
+    /**
+     * A temporary password somebody has to read down a phone line.
+     *
+     * Which is the whole specification. The alphabet drops every character
+     * that sounds or looks like another one -- no i or l or 1, no o or 0, no
+     * s next to 5 -- because the failure mode here is not somebody guessing
+     * it, it is the owner saying "e" and the customer hearing "b" and then
+     * both of them deciding the product is broken. Grouped in fours for the
+     * same reason: you can read a group, pause, and be believed.
+     *
+     * Still 16 characters from a 31-character alphabet, which is about 79 bits.
+     * Being easy to say is not the same as being easy to guess.
+     */
+    public static function temporaryPassword(): string
+    {
+        $alphabet = 'abcdefghjkmnpqrstuvwxyz23456789';
+        $last     = strlen($alphabet) - 1;
+        $groups   = [];
+
+        for ($g = 0; $g < 4; $g++) {
+            $group = '';
+            for ($i = 0; $i < 4; $i++) {
+                // random_int, not rand(): this is a credential, and modulo bias
+                // on a 31-character alphabet is a real skew, not a rounding
+                // error.
+                $group .= $alphabet[random_int(0, $last)];
+            }
+            $groups[] = $group;
+        }
+
+        return implode('-', $groups);
+    }
+
+    /**
+     * Kills any outstanding reset links for a user.
+     *
+     * Called when their password is set by hand: the account has just been
+     * recovered by another route, and a link issued before that should not
+     * still open it. Safe before the migration has run.
+     */
+    public static function revokeFor(int $userId): void
+    {
+        if (!self::ready()) {
+            return;
+        }
+
+        Database::run(
+            'DELETE FROM password_resets WHERE user_id = :uid AND used_at IS NULL',
+            ['uid' => $userId],
+        );
+    }
+
     public static function lifetimeMinutes(): int
     {
         return self::LIFETIME_MINUTES;

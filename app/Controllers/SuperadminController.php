@@ -10,6 +10,7 @@ use App\Support\Csrf;
 use App\Support\Claude;
 use App\Support\Database;
 use App\Support\ReviewComparison;
+use App\Support\PasswordReset;
 use App\Support\Plans;
 use App\Support\RateLimiter;
 use App\Support\Request;
@@ -306,7 +307,8 @@ final class SuperadminController
         $rows = Database::all(
             'SELECT a.id, a.name, a.plan, a.requested_plan, a.requested_plan_at,
                     a.status, a.created_at, a.signup_ip,
-                    u.first_name, u.last_name, u.email, u.last_login_at,
+                    u.id AS user_id, u.first_name, u.last_name, u.email, u.last_login_at,
+                    u.must_change_password,
                     (SELECT COUNT(*) FROM locations l
                       WHERE l.account_id = a.id
                         AND l.google_review_url IS NOT NULL
@@ -327,8 +329,15 @@ final class SuperadminController
             $params,
         );
 
+        // Shown once and then gone. It is not a flash string because a
+        // password wants to be big, monospace and selectable rather than a
+        // line of prose somebody has to squint at and retype.
+        $handover = $_SESSION['admin_handover'] ?? null;
+        unset($_SESSION['admin_handover']);
+
         echo View::superadmin('superadmin/users', [
-            'title'   => 'Users · Superadmin',
+            'title'    => 'Users · Superadmin',
+            'handover' => is_array($handover) ? $handover : null,
             'rows'    => $rows,
             'counts'  => $this->planCounts(),
             'filter'  => $filter,
@@ -337,6 +346,78 @@ final class SuperadminController
             'total'   => $total,
             'perPage' => $perPage,
         ]);
+    }
+
+    /**
+     * Hands an account back to its owner with a password read out loud.
+     *
+     * This exists because the self-serve route has a prerequisite that is not
+     * in our gift: a member can only reset their own password if email sending
+     * is switched on, and until a provider is connected the reset page can only
+     * say "get in touch". That sentence needs something behind it, and this is
+     * it -- a route back into an account that needs no mail provider, no DNS
+     * and no shell access.
+     *
+     * The password is generated, shown to staff exactly once, and forced to be
+     * changed at the next sign-in. Nothing writes it anywhere: the audit log
+     * records that an account was handed over and to whom, never what the
+     * password was.
+     */
+    public function setTempPassword(): void
+    {
+        if (!Csrf::check($_POST['_csrf'] ?? null)) {
+            $this->flash('/superadmin/users', 'Your session expired. Please try again.');
+        }
+
+        $accountId = (int) ($_POST['account_id'] ?? 0);
+
+        // is_admin = 0 for the same reason the members reset form excludes
+        // staff: a staff password must not be settable from a web form, even
+        // one behind this door. Staff have bin/create-admin.php.
+        $owner = Database::first(
+            'SELECT u.id, u.email, u.first_name, a.name AS account_name
+               FROM accounts a
+               JOIN account_users au ON au.account_id = a.id AND au.role = \'owner\'
+               JOIN users u ON u.id = au.user_id
+              WHERE a.id = :id
+                AND u.is_admin = 0
+                AND u.status = \'active\'
+           ORDER BY au.created_at
+              LIMIT 1',
+            ['id' => $accountId],
+        );
+
+        if ($owner === null) {
+            $this->flash('/superadmin/users',
+                'No active owner login on that account, so there is nothing to hand over.');
+        }
+
+        $password = PasswordReset::temporaryPassword();
+        $userId   = (int) $owner['id'];
+
+        Auth::setTemporaryPassword($userId, $password);
+
+        // Two pieces of tidying, both of which make the difference between this
+        // working and this looking broken.
+        //
+        // The failed sign-ins are why they rang: five of them locks the address
+        // out for fifteen minutes, so without this the owner reads out a
+        // password that is then refused, and rings back.
+        Database::run(
+            'DELETE FROM login_attempts WHERE successful = 0 AND email = :email',
+            ['email' => mb_strtolower((string) $owner['email'])],
+        );
+        // And any reset link still in their inbox is now stale.
+        PasswordReset::revokeFor($userId);
+
+        $_SESSION['admin_handover'] = [
+            'account'  => (string) $owner['account_name'],
+            'email'    => (string) $owner['email'],
+            'name'     => trim((string) $owner['first_name']),
+            'password' => $password,
+        ];
+
+        Request::redirect('/superadmin/users');
     }
 
     /**
