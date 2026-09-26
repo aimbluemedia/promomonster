@@ -44,7 +44,7 @@ final class Mailer
      * @param array{
      *     to:string, subject:string, text:string, html?:?string,
      *     from_name?:?string, reply_to?:?string, unsubscribe_url?:?string,
-     *     tag?:?string, headers?:array<string,string>
+     *     tag?:?string, stream?:?string, headers?:array<string,string>
      * } $message
      * @return array{ok:bool, id:?string, error:?string, driver:string}
      */
@@ -101,6 +101,53 @@ final class Mailer
     public static function from(): string
     {
         return (string) Config::get('mail.from', 'reviews@promomonster.com');
+    }
+
+    /**
+     * The address account email comes from, and the stream it rides on.
+     *
+     * These exist because review requests and password resets are not the same
+     * kind of mail and must not share a reputation. Review requests go out in
+     * bulk on behalf of businesses whose customers did not ask us for anything;
+     * some of those customers will press "report spam", and that lands on the
+     * sending domain. A password reset is the one message that absolutely has
+     * to arrive, to somebody who is already locked out and asked for it thirty
+     * seconds ago.
+     *
+     * Send both from one address and the first eventually poisons the second,
+     * which is a support queue you cannot answer by email. config.example.php
+     * has said so since the review sender was written; the reset flow shipped
+     * using the bulk address anyway, and this is the correction.
+     *
+     * transactional_from falls back to mail.from, because a Postmark server can
+     * only send from a domain it has verified and a fallback that fails to send
+     * is worse than one that sends from the wrong place. diagnose.php says out
+     * loud when the two are the same.
+     */
+    public static function transactionalFrom(): string
+    {
+        $address = trim((string) Config::get('mail.transactional_from', ''));
+
+        return $address !== '' ? $address : self::from();
+    }
+
+    /**
+     * Postmark's default transactional stream is 'outbound' and exists on every
+     * server, so this is safe before anything has been configured. Review
+     * requests belong on a broadcast stream; this one must not be on it.
+     */
+    public static function transactionalStream(): string
+    {
+        $stream = trim((string) Config::get('mail.transactional_stream', ''));
+
+        return $stream !== '' ? $stream : 'outbound';
+    }
+
+    /** The full From header for account email. */
+    public static function transactionalHeader(): string
+    {
+        return self::encodeName((string) Config::get('app_name', 'PromoMonster'))
+            . ' <' . self::transactionalFrom() . '>';
     }
 
     /**
@@ -179,7 +226,9 @@ final class Mailer
             'HtmlBody'      => $message['html'] ?? null,
             'ReplyTo'       => $message['reply_to'] ?? null,
             'Tag'           => $message['tag'] ?? null,
-            'MessageStream' => (string) Config::get('mail.stream', 'outbound'),
+            // Per message, so a password reset does not ride the broadcast
+            // stream the review requests use.
+            'MessageStream' => (string) ($message['stream'] ?? Config::get('mail.stream', 'outbound')),
             // Postmark rewrites links for click tracking. We do our own, on our
             // own redirect, so theirs would only add a second hop and a second
             // domain for a spam filter to weigh up.
@@ -222,11 +271,15 @@ final class Mailer
     private static function log(array $message): array
     {
         $line = sprintf(
-            "[%s] to=%s from=%s reply-to=%s subject=%s\n%s\n%s\n",
+            "[%s] to=%s from=%s reply-to=%s stream=%s subject=%s\n%s\n%s\n",
             gmdate('c'),
             $message['to'],
-            $message['from_name'] ?? self::from(),
+            $message['from_name'] ?? self::fromHeader(null),
             $message['reply_to'] ?? '-',
+            // Recorded because it is otherwise invisible until something is
+            // sent for real, and sending account mail on the bulk stream is
+            // exactly the mistake worth catching before that.
+            $message['stream'] ?? Config::get('mail.stream', 'outbound'),
             $message['subject'],
             str_repeat('-', 60),
             $message['text'],

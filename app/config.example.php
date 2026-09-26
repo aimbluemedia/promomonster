@@ -56,6 +56,24 @@ return [
         'from'   => 'reviews@notify.promomonster.com',
         'stream' => 'broadcast',
 
+        // Account email: password resets. Deliberately NOT the two settings
+        // above.
+        //
+        // 'from' carries every free user's spam complaints, and a blocklisted
+        // domain there costs you review requests. On the same domain it would
+        // also cost you the ability to let a locked-out customer back in, which
+        // is the one email that has to arrive. Different subdomain, different
+        // Postmark stream, separate reputations.
+        //
+        // Both addresses need their domain verified in Postmark. Leave
+        // transactional_from empty and resets fall back to 'from' above --
+        // it sends, but on one reputation; diagnose.php will say so.
+        //
+        // The stream is Postmark's default transactional one, which exists on
+        // every server. Do not point it at the broadcast stream.
+        'transactional_from'   => 'logins@promomonster.com',
+        'transactional_stream' => 'outbound',
+
         // Shared secret on the delivery webhook URL, so only the provider can
         // post bounces and complaints to it:
         //   https://promomonster.com/webhooks/email/<this value>

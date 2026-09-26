@@ -322,6 +322,12 @@ final class PasswordReset
             'subject' => 'Reset your ' . Config::get('app_name', 'PromoMonster') . ' password',
             'text'    => $text,
             'tag'     => 'password-reset',
+            // Account mail, not bulk. Its own address and its own stream, so
+            // the spam complaints a business's review requests collect cannot
+            // take the one email a locked-out customer actually needs with
+            // them. See Mailer::transactionalFrom().
+            'from_name' => Mailer::transactionalHeader(),
+            'stream'    => Mailer::transactionalStream(),
         ]);
 
         if (!$result['ok']) {

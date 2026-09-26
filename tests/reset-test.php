@@ -48,6 +48,7 @@ spl_autoload_register(static function (string $class): void {
 use App\Support\Auth;
 use App\Support\Config;
 use App\Support\Database;
+use App\Support\Mailer;
 use App\Support\PasswordReset;
 use App\Support\RateLimiter;
 
@@ -188,6 +189,23 @@ function rows(): int
  * only so a test can call it is a method somebody will eventually call in
  * anger.
  */
+/**
+ * Swaps the mail settings, keeping everything else. Config::load() replaces the
+ * whole array, so the rest has to be carried across by hand.
+ *
+ * @param array<string,mixed> $mail
+ */
+function reloadMail(array $mail): void
+{
+    Config::load([
+        'app_name' => 'PromoMonster',
+        'app_url'  => 'https://promomonster.test',
+        'app_key'  => 'integration-test-key-0123456789abcdef',
+        'db'       => Config::get('db'),
+        'mail'     => $mail,
+    ]);
+}
+
 function forgetReadyCache(): void
 {
     (Closure::bind(
@@ -474,6 +492,47 @@ forgetReadyCache();
 ok('it reports ready once the migration has run', PasswordReset::ready() === true);
 PasswordReset::request('dana@acmepools.test');
 check('and starts working with no restart', rows(), 1);
+
+// =====================================================================
+// Account email must not ride the bulk stream
+// =====================================================================
+// A review request is sent in bulk on behalf of a business, to somebody who
+// never asked us for anything, and a share of those people press "report spam".
+// A password reset is the one message that has to arrive, to somebody already
+// locked out. Sharing an address and a stream means the first slowly poisons
+// the second, and the support queue that breaks is the one you cannot answer by
+// email.
+$bulk = [
+    'driver' => 'log',
+    'from'   => 'reviews@notify.promomonster.test',
+    'stream' => 'broadcast',
+    'transactional_from'   => 'logins@promomonster.test',
+    'transactional_stream' => 'outbound',
+];
+
+seed();
+reloadMail($bulk);
+PasswordReset::request('dana@acmepools.test');
+$line = mailLog();
+
+ok('a reset comes from the account address', str_contains($line, '<logins@promomonster.test>'));
+ok('not from the one the review requests use', !str_contains($line, 'reviews@notify.promomonster.test'));
+ok('and goes on the transactional stream', str_contains($line, 'stream=outbound'));
+ok('never on the broadcast one', !str_contains($line, 'stream=broadcast'));
+
+// A review request, for contrast: it SHOULD be on the bulk settings.
+check('the bulk address is still what Mailer::from() means', Mailer::from(), 'reviews@notify.promomonster.test');
+
+// Half-configured: no separate address yet. It still has to send, because a
+// fallback that silently fails is worse than one that shares a reputation.
+seed();
+reloadMail(['driver' => 'log', 'from' => 'reviews@notify.promomonster.test', 'stream' => 'broadcast']);
+PasswordReset::request('dana@acmepools.test');
+$line = mailLog();
+
+ok('with no account address set it falls back and still sends', str_contains($line, '<reviews@notify.promomonster.test>'));
+ok('but stays off the broadcast stream even then', str_contains($line, 'stream=outbound'));
+check('and the fallback is visible to a caller', Mailer::transactionalFrom(), 'reviews@notify.promomonster.test');
 
 echo "\n{$passed} passed, {$failed} failed\n";
 exit($failed === 0 ? 0 : 1);

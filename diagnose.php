@@ -365,6 +365,7 @@ foreach ([
 $mailCfg   = (isset($config) && is_array($config)) ? ($config['mail'] ?? []) : [];
 $mailToken = trim((string) ($mailCfg['token'] ?? ''));
 $mailFrom  = trim((string) ($mailCfg['from'] ?? ''));
+$loginFrom = trim((string) ($mailCfg['transactional_from'] ?? ''));
 $appKey    = (isset($config) && is_array($config)) ? trim((string) ($config['app_key'] ?? '')) : '';
 $driver    = trim((string) ($mailCfg['driver'] ?? ''));
 if ($driver === '') {
@@ -426,6 +427,32 @@ if ($mailFiles !== []) {
             $mailFrom . ' — this exact domain (' . $domain . ') must be verified in '
             . 'Postmark, with its DKIM and Return-Path records added to your DNS, '
             . 'or every send is rejected.');
+    }
+
+    // 3b. The account-email address. Password resets must not share a
+    //     reputation with bulk review requests: a blocklisted review domain
+    //     would take the one email a locked-out customer needs with it.
+    if ($loginFrom === '') {
+        add($checks, 'Account email', 'todo',
+            'No mail.transactional_from, so password resets go out from ' . ($mailFrom ?: 'mail.from')
+            . ' — the same address as the review requests. They will send, but every spam '
+            . 'complaint a business collects lands on the domain you need to log people in from. '
+            . 'Set mail.transactional_from to something like logins@ on a domain verified in '
+            . 'Postmark, on its own stream.');
+    } elseif (filter_var($loginFrom, FILTER_VALIDATE_EMAIL) === false) {
+        add($checks, 'Account email', 'fail',
+            'mail.transactional_from is not an address.');
+    } elseif (strcasecmp($loginFrom, $mailFrom) === 0) {
+        add($checks, 'Account email', 'todo',
+            'mail.transactional_from is the same address as mail.from, which is the thing '
+            . 'it exists to avoid. Use a different subdomain for password resets.');
+    } else {
+        $loginDomain = substr($loginFrom, strpos($loginFrom, '@') + 1);
+        add($checks, 'Account email', 'pass',
+            $loginFrom . ' on stream "'
+            . (trim((string) ($mailCfg['transactional_stream'] ?? '')) ?: 'outbound')
+            . '". This domain (' . $loginDomain . ') needs verifying in Postmark too — it is '
+            . 'separate from the review-request one on purpose.');
     }
 
     // 4. The webhook secret. Not fatal, but without it bounces and complaints
