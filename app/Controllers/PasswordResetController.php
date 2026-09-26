@@ -48,6 +48,10 @@ final class PasswordResetController
             'error'   => is_string($error) ? $error : null,
             'sent'    => is_string($sent) ? $sent : null,
             'minutes' => PasswordReset::lifetimeMinutes(),
+            // The files can be on the server before the migration has been run
+            // through phpMyAdmin, and in that window this page is the one thing
+            // a locked-out member will try. Say so rather than fail on submit.
+            'ready'   => PasswordReset::ready(),
             // Said out loud rather than left as a mystery. Until Postmark is
             // connected a reset email goes to storage/logs/mail.log, which is
             // no use to the person on this page, and "check your inbox" would
@@ -69,6 +73,12 @@ final class PasswordResetController
             // having been caught.
             $_SESSION['forgot_sent'] = '';
             Request::redirect('/members/forgot');
+        }
+
+        if (!PasswordReset::ready()) {
+            $this->failForgot(
+                'Password reset is not switched on yet. Get in touch and we will sort it out by hand.',
+            );
         }
 
         $email = trim((string) ($_POST['email'] ?? ''));

@@ -179,6 +179,24 @@ function rows(): int
     return (int) ($row['n'] ?? 0);
 }
 
+/**
+ * Clears PasswordReset's memo of whether its table exists.
+ *
+ * It caches per request, which is right in a web process and wrong in a test
+ * that moves the table out from under it. Done by binding into the class scope
+ * rather than by adding a reset() to the class, because a method that exists
+ * only so a test can call it is a method somebody will eventually call in
+ * anger.
+ */
+function forgetReadyCache(): void
+{
+    (Closure::bind(
+        static function (): void { PasswordReset::$ready = null; },
+        null,
+        PasswordReset::class,
+    ))();
+}
+
 try {
     Database::connection();
 } catch (Throwable $e) {
@@ -417,6 +435,45 @@ ok('tells somebody who did not ask that nothing changed', str_contains($body, 'N
 // stop somebody recovering their own account.
 ok('carries no unsubscribe link', !str_contains($body, '/u/'));
 ok('and no password', !str_contains($body, OLD_PASSWORD));
+
+// =====================================================================
+// A deploy where the files went up but the migration did not
+// =====================================================================
+// Not hypothetical -- it is what happened the first time this shipped. Files go
+// up by FTP and migrations are run separately by hand through phpMyAdmin, so in
+// between, every member can see a "Forgot your password?" link pointing at a
+// form with no table behind it. The people following that link are the ones
+// already locked out, which makes it the worst possible place for a raw query
+// error.
+seed();
+Database::run('RENAME TABLE password_resets TO password_resets_parked');
+forgetReadyCache();
+
+ok('with no table, the feature reports itself not ready', PasswordReset::ready() === false);
+
+$threw = false;
+try {
+    PasswordReset::request('dana@acmepools.test');
+} catch (Throwable $e) {
+    $threw = true;
+}
+ok('asking for a link does not throw', !$threw);
+
+$threw = false;
+try {
+    $found = PasswordReset::find(str_repeat('a', 64));
+} catch (Throwable $e) {
+    $threw = true;
+    $found = false;
+}
+ok('nor does redeeming one', !$threw && $found === null);
+
+Database::run('RENAME TABLE password_resets_parked TO password_resets');
+forgetReadyCache();
+
+ok('it reports ready once the migration has run', PasswordReset::ready() === true);
+PasswordReset::request('dana@acmepools.test');
+check('and starts working with no restart', rows(), 1);
 
 echo "\n{$passed} passed, {$failed} failed\n";
 exit($failed === 0 ? 0 : 1);

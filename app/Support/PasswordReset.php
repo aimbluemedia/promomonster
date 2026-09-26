@@ -51,9 +51,49 @@ final class PasswordReset
     /** Spent and expired rows are kept a week for forensics, then dropped. */
     private const KEEP_DAYS = 7;
 
+    /** Cached answer from ready(), so one request asks at most once. */
+    private static ?bool $ready = null;
+
     public static function lifetimeMinutes(): int
     {
         return self::LIFETIME_MINUTES;
+    }
+
+    /**
+     * Whether the table this feature lives in is actually there.
+     *
+     * It is checked rather than assumed because of how this site is deployed:
+     * files go up by FTP and migrations are run separately, by hand, through
+     * phpMyAdmin. Between those two steps every member can see a "Forgot your
+     * password?" link that leads to a form that cannot work -- and the people
+     * following that link are, by definition, the ones already locked out. An
+     * unhandled query error there is a white error page for somebody who
+     * already cannot get in.
+     *
+     * So the page asks first and says plainly that the feature is not switched
+     * on yet, which is the same thing the Get reviews page does about sending.
+     * diagnose.php names the pending migration for whoever has to fix it.
+     */
+    public static function ready(): bool
+    {
+        if (self::$ready !== null) {
+            return self::$ready;
+        }
+
+        try {
+            $row = Database::first(
+                'SELECT 1 AS present FROM information_schema.TABLES
+                  WHERE TABLE_SCHEMA = DATABASE()
+                    AND TABLE_NAME = \'password_resets\'
+                  LIMIT 1',
+            );
+        } catch (\PDOException $e) {
+            // Cannot reach the database at all. Not this feature's problem to
+            // report, and not a reason to throw from a status check.
+            return self::$ready = false;
+        }
+
+        return self::$ready = $row !== null;
     }
 
     /**
@@ -66,6 +106,10 @@ final class PasswordReset
      */
     public static function request(string $email): void
     {
+        if (!self::ready()) {
+            return;
+        }
+
         $email = mb_strtolower(trim($email));
         if ($email === '' || !Mailer::isSendableAddress($email)) {
             return;
@@ -133,6 +177,11 @@ final class PasswordReset
         // Shape first. A token is 64 hex characters; anything else is somebody
         // probing, and it can be refused without touching the database.
         if (strlen($token) !== self::TOKEN_BYTES * 2 || !ctype_xdigit($token)) {
+            return null;
+        }
+
+        // No table, no live links: nothing to find, and nothing to crash on.
+        if (!self::ready()) {
             return null;
         }
 

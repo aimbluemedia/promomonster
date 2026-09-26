@@ -1,5 +1,5 @@
 <?php use App\Support\Csrf; use App\Support\View;
-/** @var ?string $error @var ?string $sent @var int $minutes @var bool $sending @var ?string $title */ ?>
+/** @var ?string $error @var ?string $sent @var int $minutes @var bool $sending @var bool $ready @var ?string $title */ ?>
 <!doctype html>
 <html lang="en">
 <head>
@@ -41,16 +41,31 @@
 
     <?php else: ?>
       <h1>Reset your password</h1>
+      <?php /* The promise only holds when there is a form under it. With the
+               feature switched off, "we will send you a link" is contradicted
+               by the notice two lines below it. */ ?>
       <p class="muted" style="font-size:.9rem;margin:0 0 1.5rem;">
-        Enter the email you signed up with and we will send you a link to set a
-        new one.
+        <?= $ready
+          ? 'Enter the email you signed up with and we will send you a link to set a new one.'
+          : 'This is the page that sends you a link to set a new password.' ?>
       </p>
 
       <?php if ($error !== null): ?>
         <div class="alert" role="alert" style="margin-bottom:1rem;"><?= View::e($error) ?></div>
       <?php endif; ?>
 
-      <?php if (!$sending): ?>
+      <?php if (!$ready): ?>
+        <?php /* The table this feature needs is not there yet, which on this
+                 host means the files went up but the migration has not been run.
+                 Whoever is reading this is locked out already; a form that
+                 cannot work is worse than no form, so it does not get shown. */ ?>
+        <div class="notice" style="margin-bottom:1.25rem;border-left-color:var(--star);">
+          <strong>Password reset is not switched on yet.</strong>
+          <p>Get in touch and we will sort your password out by hand. Sorry about
+            this &mdash; it is on us, not on you.</p>
+        </div>
+
+      <?php elseif (!$sending): ?>
         <?php /* Same honesty as the Get reviews page. Until the mail provider is
                  connected a reset link cannot reach anybody, and "check your
                  inbox" would send somebody to wait for an email that is sitting
@@ -62,6 +77,7 @@
         </div>
       <?php endif; ?>
 
+      <?php if ($ready): ?>
       <form class="form" method="post" action="/members/forgot">
         <?= Csrf::field() ?>
         <div>
@@ -78,6 +94,7 @@
 
         <button class="btn btn--primary btn--block" type="submit">Send me a link</button>
       </form>
+      <?php endif; ?>
 
       <p class="form__note" style="margin-top:1.25rem;">
         Remembered it? <a href="/members/login" style="color:var(--brand);font-weight:600;">Sign in</a>.
