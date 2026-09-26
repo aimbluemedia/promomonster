@@ -40,6 +40,11 @@ final class ScoreController
             'title'       => 'Free Review Score · PromoMonster',
             'description' => 'Enter your website and get a review score in seconds. '
                            . 'No credit card.',
+            // Marks the nav link as the current page. Without it nothing in the
+            // header is ever marked: the pages PageController sets `current`
+            // for all came out of the nav, and this is the only link left that
+            // renders inside the site header.
+            'current'     => '/score',
             'error'       => $error,
             'result'      => $result,
             'old'         => $old,
