@@ -1,0 +1,139 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Plan catalogue and sending limits.
+ *
+ * The numbers here are a pricing promise on a public page, so they are pinned
+ * by test: a typo in the catalogue is a refund conversation, not a bug report.
+ */
+
+require __DIR__ . '/../app/Support/Plans.php';
+
+use App\Support\Plans;
+
+$passed = 0;
+$failed = 0;
+
+function check(string $what, mixed $got, mixed $want): void
+{
+    global $passed, $failed;
+    if ($got === $want) {
+        $passed++;
+        return;
+    }
+    $failed++;
+    echo "FAIL  {$what}\n      got:  " . var_export($got, true)
+        . "\n      want: " . var_export($want, true) . "\n";
+}
+
+// --- The agreed ladder ---------------------------------------------------
+check('free month',     Plans::limit(Plans::FREE, 'requests_per_month'), 4);
+check('free burst',     Plans::limit(Plans::FREE, 'burst'), 1);
+check('free window',    Plans::limit(Plans::FREE, 'burst_days'), 7);
+check('pro month',      Plans::limit(Plans::PRO, 'requests_per_month'), 60);
+check('pro burst',      Plans::limit(Plans::PRO, 'burst'), 2);
+check('pro window',     Plans::limit(Plans::PRO, 'burst_days'), 1);
+check('premium month',  Plans::limit(Plans::PREMIUM, 'requests_per_month'), 300);
+check('premium burst',  Plans::limit(Plans::PREMIUM, 'burst'), 10);
+check('premium window', Plans::limit(Plans::PREMIUM, 'burst_days'), 1);
+
+// A month's allowance must be reachable inside a month, or the headline number
+// is a lie: 4 at 1 per 7 days needs 22 days, 60 at 2 a day needs 30.
+foreach ([Plans::FREE, Plans::PRO, Plans::PREMIUM] as $plan) {
+    $month  = (int) Plans::limit($plan, 'requests_per_month');
+    $burst  = (int) Plans::limit($plan, 'burst');
+    $days   = (int) Plans::limit($plan, 'burst_days');
+    $needed = (int) ceil($month / $burst) * $days - ($days - 1);
+    check("{$plan}: allowance reachable within 31 days (needs {$needed})",
+        $needed <= 31, true);
+}
+
+// --- Prices --------------------------------------------------------------
+check('free price',    Plans::price(Plans::FREE), 0);
+check('pro price',     Plans::price(Plans::PRO), 19);
+check('premium price', Plans::price(Plans::PREMIUM), 49);
+
+// --- The product is email only ------------------------------------------
+// SMS is out: it needs a carrier registration billed per business, which a $19
+// tier cannot carry. Nothing in the catalogue may offer it again by accident.
+foreach (Plans::all() as $key => $plan) {
+    $text = $plan['tagline'] . ' ' . implode(' ', array_column($plan['features'], 0));
+    check("{$key} does not sell SMS", stripos($text, 'sms') === false, true);
+    check("{$key} does not sell a widget", stripos($text, 'widget') === false, true);
+    // Monitoring and the widget both need Google Business Profile API access,
+    // which has not been applied for.
+    check("{$key} does not sell monitoring", stripos($text, 'monitoring') === false, true);
+}
+
+// --- Locations -----------------------------------------------------------
+check('free locations',    Plans::limit(Plans::FREE, 'locations'), 1);
+check('pro locations',     Plans::limit(Plans::PRO, 'locations'), 1);
+check('premium locations', Plans::limit(Plans::PREMIUM, 'locations'), 5);
+
+// --- The sentence every page prints -------------------------------------
+check('free sentence',    Plans::sendingLimit(Plans::FREE), '4 review requests a month (one a week)');
+check('pro sentence',     Plans::sendingLimit(Plans::PRO), '60 review requests a month (2 a day)');
+check('premium sentence', Plans::sendingLimit(Plans::PREMIUM), '300 review requests a month (10 a day)');
+check('partner sentence', Plans::sendingLimit(Plans::PARTNER), 'Review requests with no monthly cap');
+
+// --- The ladder has to go up, or the upgrade makes no sense -------------
+check('pro beats free',     Plans::limit(Plans::PRO, 'requests_per_month') > Plans::limit(Plans::FREE, 'requests_per_month'), true);
+check('premium beats pro',  Plans::limit(Plans::PREMIUM, 'requests_per_month') > Plans::limit(Plans::PRO, 'requests_per_month'), true);
+check('price rises too',    Plans::price(Plans::PREMIUM) > Plans::price(Plans::PRO), true);
+
+// --- No plan may still claim "unlimited" --------------------------------
+foreach (Plans::selectable() as $key => $plan) {
+    $text = $plan['tagline'] . ' ' . implode(' ', array_column($plan['features'], 0));
+    check("{$key} does not say unlimited", stripos($text, 'unlimited') === false, true);
+}
+
+// --- Every selectable plan states its allowance in its bullets ----------
+foreach (Plans::selectable() as $key => $plan) {
+    $bullets = array_column(array_filter($plan['features'], fn ($f) => $f[1] === true), 0);
+    check("{$key} states its allowance",
+        in_array(Plans::sendingLimit($key), $bullets, true), true);
+}
+
+// --- Nothing may be promised as delivered when it is not ----------------
+// The pricing page ticks these before anyone pays, so a feature that is not
+// built has to carry a tag. Review monitoring in particular needs Google
+// Business Profile API access, which has not been applied for.
+$states = [Plans::STATE_NOW, Plans::STATE_SOON];
+foreach (Plans::all() as $key => $plan) {
+    foreach ($plan['features'] as $i => $feature) {
+        check("{$key} feature {$i} is a triple", count($feature) === 3, true);
+        [$label, $on, $state] = $feature;
+        if ($on && $state !== null) {
+            check("{$key}: '{$label}' has a known state",
+                in_array($state, $states, true), true);
+        }
+    }
+}
+
+/** @return string|null */
+function stateOf(string $plan, string $label): ?string
+{
+    foreach (Plans::get($plan)['features'] as [$l, , $s]) {
+        if ($l === $label) {
+            return $s;
+        }
+    }
+    return 'MISSING';
+}
+
+check('AI replies are not claimed as live',
+    stateOf(Plans::PRO, 'AI-drafted replies — paste a review, get a reply to post'),
+    Plans::STATE_SOON);
+check('sending is not claimed as live',
+    stateOf(Plans::FREE, Plans::sendingLimit(Plans::FREE)), Plans::STATE_SOON);
+check('the score IS live',
+    stateOf(Plans::FREE, 'Review Growth Score'), Plans::STATE_NOW);
+
+// Both words the pages print must exist, since two views index this map.
+check('now has a label',  isset(Plans::STATE_LABELS[Plans::STATE_NOW]), true);
+check('soon has a label', isset(Plans::STATE_LABELS[Plans::STATE_SOON]), true);
+
+echo "\n{$passed} passed, {$failed} failed\n";
+exit($failed === 0 ? 0 : 1);

@@ -1,0 +1,653 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * PromoMonster deployment diagnostic.
+ *
+ * Upload this ONE file into public_html and open it in a browser:
+ *     https://your-domain/diagnose.php
+ *
+ * It reports what is actually on the server, so a 403 or 500 can be traced to
+ * a cause instead of guessed at. It prints no passwords.
+ *
+ * DELETE IT once the site is working.
+ */
+
+header('Content-Type: text/html; charset=utf-8');
+
+$checks = [];
+$here = __DIR__;
+$docRoot = rtrim((string) ($_SERVER['DOCUMENT_ROOT'] ?? ''), '/');
+
+function add(array &$checks, string $name, string $state, string $detail): void
+{
+    $checks[] = ['name' => $name, 'state' => $state, 'detail' => $detail];
+}
+
+// --- PHP ------------------------------------------------------------------
+$phpOk = PHP_VERSION_ID >= 80100;
+add($checks, 'PHP version', $phpOk ? 'pass' : 'fail',
+    PHP_VERSION . ($phpOk ? '' : ' — PromoMonster needs 8.1 or newer. Change it in hPanel under Advanced → PHP Configuration.'));
+
+foreach (['pdo_mysql' => 'Database access', 'mbstring' => 'Text handling', 'json' => 'JSON'] as $ext => $why) {
+    add($checks, "Extension: {$ext}", extension_loaded($ext) ? 'pass' : 'fail',
+        extension_loaded($ext) ? $why . ' available' : "Missing — enable {$ext} in hPanel → PHP Configuration.");
+}
+
+// --- Where are we? --------------------------------------------------------
+add($checks, 'This file is at', 'info', $here);
+add($checks, 'DOCUMENT_ROOT is', 'info', $docRoot !== '' ? $docRoot : '(not reported)');
+
+$layout = 'unknown';
+if (is_file($here . '/index.php') && is_dir($here . '/assets') && is_file($here . '/../app/bootstrap.php')) {
+    $layout = 'public-as-docroot';
+} elseif (is_dir($here . '/public') && is_dir($here . '/app')) {
+    $layout = 'project-as-docroot';
+}
+
+add($checks, 'Detected layout',
+    $layout === 'unknown' ? 'fail' : 'pass',
+    match ($layout) {
+        'public-as-docroot'  => 'Document root points at public/. This is the preferred layout.',
+        'project-as-docroot' => 'Whole project is in the web root. Supported via the root .htaccess fallback, but pointing the domain at public/ is better.',
+        default => 'Could not find the application. Neither public/index.php nor a sibling app/ directory is here — the files are probably in a subfolder, or the upload is incomplete.',
+    });
+
+// --- Files that must exist ------------------------------------------------
+$base = $layout === 'project-as-docroot' ? $here : dirname($here);
+$required = [
+    'app/bootstrap.php'                        => 'Application bootstrap',
+    'app/Support/Router.php'                   => 'Router',
+    'app/Views/home.php'                       => 'Home page template',
+    'public/index.php'                         => 'Front controller',
+    'public/assets/css/app.css'                => 'Stylesheet',
+    'database/migrations/001_create_waitlist.sql' => 'Phase 0 schema',
+];
+foreach ($required as $rel => $why) {
+    $path = $base . '/' . $rel;
+    add($checks, "File: {$rel}", is_file($path) ? 'pass' : 'fail',
+        is_file($path) ? $why : "MISSING at {$path}");
+}
+
+// --- .htaccess (the usual culprit) ----------------------------------------
+foreach ([
+    'public/.htaccess' => 'Rewrites pretty URLs to the front controller',
+    '.htaccess'        => 'Root fallback (only needed if the whole project is in the web root)',
+] as $rel => $why) {
+    $path = $base . '/' . $rel;
+    $exists = is_file($path);
+    $needed = $rel === 'public/.htaccess' || $layout === 'project-as-docroot';
+    add($checks, "File: {$rel}", $exists ? 'pass' : ($needed ? 'fail' : 'info'),
+        $exists ? $why
+                : 'MISSING. FTP clients and file managers hide dotfiles by default — turn on "show hidden files" and upload it.');
+}
+
+// --- mod_rewrite ----------------------------------------------------------
+$rewrite = null;
+if (function_exists('apache_get_modules')) {
+    $rewrite = in_array('mod_rewrite', apache_get_modules(), true);
+}
+add($checks, 'mod_rewrite',
+    $rewrite === true ? 'pass' : ($rewrite === false ? 'fail' : 'info'),
+    match ($rewrite) {
+        true  => 'Enabled — pretty URLs will work.',
+        false => 'NOT enabled. Only / will load; every other page will 404.',
+        default => 'Cannot detect from PHP (normal on LiteSpeed). Test by opening /business — if it 404s, rewrites are off.',
+    });
+
+// --- Permissions ----------------------------------------------------------
+$unreadable = [];
+foreach ([$base . '/app', $base . '/public', $base . '/public/assets'] as $dir) {
+    if (is_dir($dir) && !is_readable($dir)) {
+        $unreadable[] = $dir;
+    }
+}
+add($checks, 'Directory permissions', $unreadable === [] ? 'pass' : 'fail',
+    $unreadable === [] ? 'Readable.' : 'Not readable by PHP: ' . implode(', ', $unreadable) . ' — set directories to 755 and files to 644.');
+
+// --- Hero image -----------------------------------------------------------
+$heroRoots = array_unique(array_filter([
+    $here,
+    $here . '/public',
+    rtrim((string) ($_SERVER['DOCUMENT_ROOT'] ?? ''), '/') ?: null,
+]));
+
+// Listing what IS there beats listing what was looked for: it catches 'hero,png',
+// 'Hero.png' and 'hero.png.jpg' at a glance, which guessing at paths never does.
+$heroFound = null;
+$heroDirs = [];
+foreach ($heroRoots as $root) {
+    $dir = $root . '/assets/img';
+    if (!is_dir($dir)) {
+        $heroDirs[] = $dir . '  →  no such folder';
+        continue;
+    }
+
+    $names = array_values(array_diff(scandir($dir) ?: [], ['.', '..']));
+    $heroDirs[] = $dir . '  →  ' . ($names === [] ? 'empty' : implode(', ', $names));
+
+    foreach ($names as $name) {
+        if ($heroFound === null
+            && preg_match('/^hero\.(png|jpe?g|webp)$/', $name)
+            && is_file($dir . '/' . $name)) {
+            $heroFound = $dir . '/' . $name;
+        }
+    }
+}
+
+add($checks, 'Hero image', $heroFound !== null ? 'pass' : 'fail',
+    $heroFound !== null
+        ? 'Found at ' . $heroFound . ' — served as /assets/img/' . basename($heroFound)
+        : 'No hero.png / .jpg / .webp found, so the placeholder shows instead. '
+          . 'Filenames are case-sensitive on Linux, and the extension must be a dot, not a comma. '
+          . 'What is actually in each image folder: ' . implode('   |   ', $heroDirs));
+
+// --- Config and database --------------------------------------------------
+$configPath = $base . '/app/config.php';
+if (!is_file($configPath)) {
+    add($checks, 'app/config.php', 'fail',
+        "MISSING. Copy app/config.example.php to app/config.php and fill in your database details.");
+} else {
+    add($checks, 'app/config.php', 'pass', 'Present.');
+    $config = @require $configPath;
+    if (!is_array($config) || !isset($config['db'])) {
+        add($checks, 'Config contents', 'fail', 'config.php does not return an array with a "db" key.');
+    } else {
+        $db = $config['db'];
+        add($checks, 'Database target', 'info',
+            ($db['username'] ?? '?') . '@' . ($db['host'] ?? '?') . ' / ' . ($db['database'] ?? '?'));
+        try {
+            $dsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4',
+                $db['host'] ?? 'localhost', (int) ($db['port'] ?? 3306), $db['database'] ?? '');
+            $pdo = new PDO($dsn, (string) ($db['username'] ?? ''), (string) ($db['password'] ?? ''),
+                [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_TIMEOUT => 5]);
+            add($checks, 'Database connection', 'pass', 'Connected. Server ' . $pdo->query('SELECT VERSION()')->fetchColumn());
+
+            $tables = $pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
+            add($checks, 'Tables', in_array('waitlist', $tables, true) ? 'pass' : 'fail',
+                $tables === []
+                    ? 'No tables. Import database/full-schema.sql through phpMyAdmin.'
+                    : count($tables) . ' found: ' . implode(', ', array_slice($tables, 0, 25)));
+
+            // --- Pending migrations -------------------------------------
+            // The usual cause of "login works, next page is a 500": a column
+            // the app selects has not been added yet.
+            $files = glob($base . '/database/migrations/*.sql') ?: [];
+            sort($files);
+            $names = array_map('basename', $files);
+
+            $applied = [];
+            if (in_array('migrations', $tables, true)) {
+                $applied = $pdo->query('SELECT filename FROM migrations')->fetchAll(PDO::FETCH_COLUMN);
+            }
+            $pending = array_values(array_diff($names, $applied));
+
+            if ($names === []) {
+                add($checks, 'Migrations', 'info',
+                    'No migration files found at ' . $base . '/database/migrations — upload that folder to check.');
+            } elseif (!in_array('migrations', $tables, true)) {
+                add($checks, 'Migrations', 'fail',
+                    'No migrations table, so nothing has been tracked. Set a token in migrate-web.php, '
+                    . 'upload it and open /migrate-web.php?token=... — it records what is already here '
+                    . 'instead of replaying it. Do NOT paste the migration files in by hand: '
+                    . '006_drop_panel_schema.sql drops the users table.');
+            } elseif ($pending !== []) {
+                add($checks, 'Migrations', 'fail',
+                    count($pending) . ' NOT applied: ' . implode(', ', $pending)
+                    . ' — run /migrate-web.php?token=... to apply them. This is the usual cause of a '
+                    . '500 after signing in.');
+            } else {
+                add($checks, 'Migrations', 'pass', count($applied) . ' applied, none pending.');
+            }
+
+            // --- Columns the app selects --------------------------------
+            // Every column any page SELECTs, with the migration that adds it,
+            // so a missing one names its own fix.
+            //
+            // This list went stale once: it stopped at migration 014 while the
+            // app moved on to 017, so it reported "All present" while the
+            // Review scores page was returning a 500 on a column it was not
+            // watching. Whenever a migration adds a column the app reads, it
+            // belongs here in the same commit.
+            $required = [
+                'users.is_admin'                   => '013',
+                'users.must_change_password'       => '014',
+                'users.password_changed_at'        => '014',
+                'audits.status'                    => '013',
+                'audits.notes'                     => '013',
+                'audits.handled_by_user_id'        => '013',
+                'login_attempts.email'             => '013',
+                'accounts.plan'                    => '015',
+                'accounts.requested_plan'          => '015',
+                'accounts.requested_plan_at'       => '015',
+                'accounts.plan_changed_at'         => '015',
+                'accounts.signup_ip'               => '015',
+                'audits.source'                    => '016',
+                'audits.results_generated_at'      => '016',
+                'audits.website'                   => '017',
+                'audits.score'                     => '017',
+            ];
+
+            $columnCache = [];
+            $missing = [];
+            $blame = [];
+            foreach ($required as $path => $migration) {
+                [$table, $column] = explode('.', $path, 2);
+
+                if (!in_array($table, $tables, true)) {
+                    $missing[] = $table . ' (whole table missing)';
+                    $blame[$migration] = true;
+                    continue;
+                }
+                if (!isset($columnCache[$table])) {
+                    $columnCache[$table] = $pdo->query('SHOW COLUMNS FROM `' . $table . '`')
+                        ->fetchAll(PDO::FETCH_COLUMN);
+                }
+                if (!in_array($column, $columnCache[$table], true)) {
+                    $missing[] = $path;
+                    $blame[$migration] = true;
+                }
+            }
+
+            add($checks, 'Required columns', $missing === [] ? 'pass' : 'fail',
+                $missing === []
+                    ? count($required) . ' columns checked, all present.'
+                    : 'MISSING: ' . implode(', ', $missing)
+                      . ' — added by migration ' . implode(' and ', array_keys($blame))
+                      . '. Pages that read them return a 500 until it is applied.');
+        } catch (Throwable $e) {
+            add($checks, 'Database connection', 'fail', $e->getMessage());
+        }
+    }
+}
+
+// --- Claude / competitor comparison ----------------------------------------
+// Three separate things can be wrong here and they need different fixes: the
+// code is not uploaded, the key is not in config.php, or the key is wrong.
+$claudeFiles = [
+    'app/Support/Claude.php'           => 'API client',
+    'app/Support/ReviewComparison.php' => 'Comparison engine',
+    'app/Views/superadmin/audit.php'   => 'Audit screen',
+];
+$missingClaude = [];
+foreach ($claudeFiles as $rel => $what) {
+    if (!is_file($base . '/' . $rel)) {
+        $missingClaude[] = $rel;
+    }
+}
+
+if ($missingClaude !== []) {
+    add($checks, 'Competitor comparison', 'fail',
+        'NOT UPLOADED. Missing: ' . implode(', ', $missingClaude)
+        . ' — upload the app/ folder again. Saving the API key alone does nothing '
+        . 'until these files are on the server.');
+} else {
+    $apiKey = '';
+    if (isset($config) && is_array($config)) {
+        $apiKey = trim((string) ($config['anthropic']['api_key'] ?? ''));
+    }
+
+    if ($apiKey === '') {
+        add($checks, 'Competitor comparison', 'fail',
+            "Code is uploaded, but app/config.php has no 'anthropic' => ['api_key' => '...'] entry, "
+            . 'so the feature stays disabled.');
+    } elseif (!extension_loaded('curl')) {
+        add($checks, 'Competitor comparison', 'fail',
+            'A key is set, but the curl PHP extension is off. Enable it in hPanel → PHP Configuration.');
+    } else {
+        add($checks, 'Competitor comparison', 'pass',
+            'Code uploaded and a key is configured (' . strlen($apiKey) . ' characters, '
+            . 'ending ' . substr($apiKey, -4) . '). Model: '
+            . (string) ($config['anthropic']['model'] ?? 'claude-sonnet-5 (default)')
+            . '. Add ?claude=1 to this URL to spend about $0.001 checking the key works.');
+
+        // Opt-in, because every run of this costs money. Tiny and cheap.
+        if (isset($_GET['claude'])) {
+            $payload = json_encode([
+                'model'      => (string) ($config['anthropic']['model'] ?? 'claude-sonnet-5'),
+                'max_tokens' => 16,
+                'messages'   => [['role' => 'user', 'content' => 'Reply with the single word: ready']],
+            ]);
+            $ch = curl_init('https://api.anthropic.com/v1/messages');
+            curl_setopt_array($ch, [
+                CURLOPT_POST           => true,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 45,
+                CURLOPT_HTTPHEADER     => [
+                    'content-type: application/json',
+                    'x-api-key: ' . $apiKey,
+                    'anthropic-version: 2023-06-01',
+                ],
+                CURLOPT_POSTFIELDS => $payload,
+            ]);
+            $raw = curl_exec($ch);
+            $code = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+            $curlErr = curl_error($ch);
+            curl_close($ch);
+
+            if ($raw === false) {
+                add($checks, 'Claude live check', 'fail',
+                    'Could not reach api.anthropic.com: ' . $curlErr
+                    . ' — Hostinger may be blocking outbound HTTPS on this plan.');
+            } elseif ($code === 401) {
+                add($checks, 'Claude live check', 'fail',
+                    'The key was rejected (401). Check for a stray space or a truncated paste.');
+            } elseif ($code === 200) {
+                add($checks, 'Claude live check', 'pass',
+                    'Claude answered. The comparison tool is ready to use.');
+            } else {
+                $body = json_decode((string) $raw, true);
+                add($checks, 'Claude live check', 'fail',
+                    'HTTP ' . $code . ': ' . ($body['error']['message'] ?? 'no detail given'));
+            }
+        }
+    }
+}
+
+// --- Email sending --------------------------------------------------------
+// Four separate things have to be true, and "it is not working" gives no clue
+// which one is missing. Each gets its own line, so the answer is read rather
+// than deduced.
+$mailFiles = [];
+foreach ([
+    'app/Support/Mailer.php',
+    'app/Support/Tokens.php',
+    'app/Support/ReviewRequests.php',
+    'app/Support/ReviewLink.php',
+    'bin/send-due.php',
+] as $needed) {
+    if (!is_file($base . '/' . $needed)) {
+        $mailFiles[] = $needed;
+    }
+}
+
+$mailCfg   = (isset($config) && is_array($config)) ? ($config['mail'] ?? []) : [];
+$mailToken = trim((string) ($mailCfg['token'] ?? ''));
+$mailFrom  = trim((string) ($mailCfg['from'] ?? ''));
+$appKey    = (isset($config) && is_array($config)) ? trim((string) ($config['app_key'] ?? '')) : '';
+$driver    = trim((string) ($mailCfg['driver'] ?? ''));
+if ($driver === '') {
+    $driver = $mailToken === '' ? 'log' : 'postmark';
+}
+
+if ($mailFiles !== []) {
+    add($checks, 'Email sending', 'fail',
+        'NOT UPLOADED. Missing: ' . implode(', ', $mailFiles)
+        . ' — upload the app/ and bin/ folders again.');
+} else {
+    // 1. The signing key. Without it every send fails when it tries to build
+    //    the unsubscribe link, which is a confusing place to discover it.
+    if ($appKey === '') {
+        add($checks, 'Signing key (app_key)', 'fail',
+            "app/config.php has no 'app_key'. Unsubscribe links cannot be signed without one, "
+            . 'so every send will fail. Generate one once and never change it: '
+            . 'php -r "echo bin2hex(random_bytes(32));"');
+    } elseif (strlen($appKey) < 32) {
+        add($checks, 'Signing key (app_key)', 'fail',
+            'app_key is only ' . strlen($appKey) . ' characters. Use at least 32 — '
+            . 'this signs links that stop us emailing someone who asked us not to.');
+    } else {
+        add($checks, 'Signing key (app_key)', 'pass',
+            strlen($appKey) . ' characters. Never change it: every unsubscribe link '
+            . 'already sitting in an inbox is signed with this one.');
+    }
+
+    // 2. The provider.
+    if ($driver === 'log') {
+        add($checks, 'Email sending', 'todo',
+            'Queued but NOT sending. No mail.token is set, so messages are written to '
+            . 'storage/logs/mail.log instead of being delivered. Add your Postmark SERVER '
+            . 'token (not the account token) as mail.token in app/config.php.');
+    } elseif ($driver === 'null') {
+        add($checks, 'Email sending', 'todo',
+            "mail.driver is 'null', which accepts and discards every message. "
+            . "Set it to '' or 'postmark' to send for real.");
+    } elseif ($driver === 'postmark') {
+        add($checks, 'Email sending', 'pass',
+            'Postmark, token set (' . strlen($mailToken) . ' characters, ending '
+            . substr($mailToken, -4) . '), stream "'
+            . (string) ($mailCfg['stream'] ?? 'outbound') . '". Add ?mail=you@example.com '
+            . 'to this URL to send a real test message.');
+    } else {
+        add($checks, 'Email sending', 'fail',
+            'Unknown mail.driver "' . $driver . '".');
+    }
+
+    // 3. The from address, which has to be on a domain verified with the
+    //    provider or every send is rejected.
+    if ($mailFrom === '' || filter_var($mailFrom, FILTER_VALIDATE_EMAIL) === false) {
+        add($checks, 'From address', 'fail',
+            'mail.from is missing or not an address. Set it to something on a domain you '
+            . 'have verified with Postmark.');
+    } else {
+        $domain = substr($mailFrom, strpos($mailFrom, '@') + 1);
+        add($checks, 'From address', 'pass',
+            $mailFrom . ' — this exact domain (' . $domain . ') must be verified in '
+            . 'Postmark, with its DKIM and Return-Path records added to your DNS, '
+            . 'or every send is rejected.');
+    }
+
+    // 4. The webhook secret. Not fatal, but without it bounces and complaints
+    //    never come back, and a complaint nobody records is one nobody acts on.
+    if (trim((string) ($mailCfg['webhook_secret'] ?? '')) === '') {
+        add($checks, 'Delivery webhook', 'todo',
+            'No mail.webhook_secret, so the bounce and complaint endpoint refuses everything. '
+            . 'Set one, then point Postmark at '
+            . 'https://' . (string) ($_SERVER['HTTP_HOST'] ?? 'your-domain') . '/webhooks/email/THAT-SECRET');
+    } else {
+        add($checks, 'Delivery webhook', 'pass',
+            'Secret set. Point Postmark at /webhooks/email/YOUR-SECRET for bounces and complaints.');
+    }
+
+    // 5. Is the cron actually running? The log's timestamp answers it, and
+    //    this is the single most likely reason a member presses Send and
+    //    nothing ever happens.
+    $cronLog = $base . '/storage/logs/cron.log';
+    if (!is_file($cronLog)) {
+        add($checks, 'Scheduled sending', 'todo',
+            'storage/logs/cron.log does not exist, so the cron job has probably never run. '
+            . 'Queued requests will sit there until it does. See DEPLOYMENT.md section 6b.');
+    } else {
+        $age = time() - (int) @filemtime($cronLog);
+        add($checks, 'Scheduled sending', $age < 900 ? 'pass' : 'todo',
+            $age < 900
+                ? 'Last ran ' . max(0, (int) round($age / 60)) . ' minutes ago.'
+                : 'Last ran ' . (int) round($age / 60) . ' minutes ago, which is too long for a '
+                  . 'five-minute schedule. Check the cron job in hPanel → Advanced → Cron Jobs.');
+    }
+
+    // --- Opt-in live send -------------------------------------------------
+    // Sends a real message, so it only happens when asked and only to an
+    // address typed into the URL by whoever is holding this page.
+    if (isset($_GET['mail']) && $mailFiles === []) {
+        $to = trim((string) $_GET['mail']);
+
+        if (filter_var($to, FILTER_VALIDATE_EMAIL) === false) {
+            add($checks, 'Test send', 'fail',
+                'Add a real address: ?mail=you@example.com');
+        } else {
+            require_once $base . '/app/Support/Config.php';
+            require_once $base . '/app/Support/Mailer.php';
+            App\Support\Config::load(is_array($config) ? $config : []);
+
+            $result = App\Support\Mailer::send([
+                'to'      => $to,
+                'subject' => 'PromoMonster test send',
+                'text'    => "This is a test from diagnose.php.\n\n"
+                           . "If you are reading it in your inbox rather than your spam folder,\n"
+                           . "review requests will arrive the same way.\n",
+                'from_name' => App\Support\Mailer::fromHeader(null, false),
+                'tag'     => 'diagnostic',
+            ]);
+
+            if ($result['ok']) {
+                add($checks, 'Test send', 'pass',
+                    'Accepted by the "' . $result['driver'] . '" driver'
+                    . ($result['driver'] === 'log'
+                        ? ' — which means it was written to storage/logs/mail.log, NOT delivered.'
+                        : ', id ' . (string) $result['id']
+                          . '. Check the inbox, and check the spam folder before celebrating.'));
+            } else {
+                add($checks, 'Test send', 'fail',
+                    (string) $result['error']
+                    . ' — a 401 means the token is wrong; "sender signature" means the From '
+                    . 'domain is not verified in Postmark yet.');
+            }
+        }
+    }
+}
+
+// --- Recent errors --------------------------------------------------------
+// The whole point: a 500 should never again be a dead end.
+//
+// The newest error's first line goes INTO the summary row, not just into the
+// section below. People copy the summary — three times running, the detail was
+// left behind and the cause had to be guessed at. A detail nobody copies is a
+// detail nobody has.
+$logDir = $base . '/storage/logs';
+$logPath = $logDir . '/error.log';
+$recentErrors = [];
+if (is_file($logPath)) {
+    $raw = (string) @file_get_contents($logPath);
+    // Entries start with "[date] REFERENCE  Class: message".
+    $blocks = preg_split('/\n(?=\[\d{4}-)/', trim($raw)) ?: [];
+    $recentErrors = array_slice(array_reverse($blocks), 0, 5);
+}
+
+// If the log cannot be written, every reference is a dead end and the visitor
+// is told to look somewhere with nothing in it. Say so loudly.
+$logWritable = is_dir($logDir) ? is_writable($logDir) : is_writable($base . '/storage');
+if (!$logWritable) {
+    add($checks, 'Error log writable', 'fail',
+        $logDir . ' is not writable, so crash details go to the server error log '
+        . 'instead of here. Set that folder to 755 in hPanel → File Manager, or read '
+        . 'hPanel → Advanced → PHP Error Log for entries starting "promomonster".');
+}
+
+if ($recentErrors === []) {
+    add($checks, 'Error log', 'pass',
+        is_file($logPath) ? 'Empty — nothing has crashed.' : 'No log yet — nothing has crashed.');
+} else {
+    // First line is "[date] REF  Class: message"; second is the top frame.
+    $lines = explode("\n", trim($recentErrors[0]));
+    $headline = trim($lines[0] ?? '');
+    $frame = '';
+    foreach ($lines as $line) {
+        if (str_starts_with(trim($line), '#0 ')) { $frame = trim($line); break; }
+    }
+
+    add($checks, 'Error log', 'fail',
+        count($recentErrors) . ' recent error(s). NEWEST: ' . $headline
+        . ($frame !== '' ? '  |  ' . $frame : '')
+        . '  — copy this whole line when asking for help.');
+}
+
+// Look up one reference directly: /diagnose.php?ref=850B649D
+$refLookup = null;
+$wantedRef = strtoupper(trim((string) ($_GET['ref'] ?? '')));
+if ($wantedRef !== '' && preg_match('/^[0-9A-F]{4,16}$/', $wantedRef) && is_file($logPath)) {
+    $raw = (string) @file_get_contents($logPath);
+    foreach (preg_split('/\n(?=\[\d{4}-)/', trim($raw)) ?: [] as $block) {
+        if (str_contains($block, $wantedRef)) { $refLookup = $block; }
+    }
+    add($checks, 'Reference ' . $wantedRef, $refLookup === null ? 'fail' : 'info',
+        $refLookup === null
+            ? 'Not found in this log. Either it predates the log being cleared, or the '
+              . 'log is not writable — see the row above.'
+            : 'Found. The full entry is printed below.');
+}
+
+$failures = array_values(array_filter($checks, static fn($c) => $c['state'] === 'fail'));
+$todos = array_values(array_filter($checks, static fn($c) => $c['state'] === 'todo'));
+?>
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PromoMonster diagnostic</title>
+<style>
+ body{font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;margin:0;background:#faf9f6;color:#101418}
+ .wrap{max-width:62rem;margin:0 auto;padding:2.5rem 1.25rem}
+ h1{font-size:1.6rem;letter-spacing:-.02em;margin:0 0 .25rem}
+ .sub{color:#56606d;margin:0 0 2rem}
+ table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e3e1da;border-radius:12px;overflow:hidden}
+ th,td{text-align:left;padding:.7rem .9rem;border-bottom:1px solid #e3e1da;vertical-align:top}
+ th{font-size:.72rem;text-transform:uppercase;letter-spacing:.09em;color:#8a93a0}
+ tr:last-child td{border-bottom:0}
+ .tag{display:inline-block;min-width:3.4rem;text-align:center;border-radius:6px;padding:.12rem .5rem;font-size:.72rem;font-weight:700}
+ .pass{background:#e3f3ec;color:#0b6b5b}.fail{background:#fbe6da;color:#a34a12}.info{background:#eceaf0;color:#56606d}
+ .tag.todo{background:#fff4e0;color:#8a5a12}
+ td.n{font-weight:600;white-space:nowrap}
+ td.d{color:#56606d;word-break:break-word}
+ .verdict{border-radius:12px;padding:1.1rem 1.25rem;margin-bottom:2rem}
+ .bad{background:#fbe6da;border:1px solid #eab999}.good{background:#e3f3ec;border:1px solid #a6d3c6}
+ .verdict h2{margin:0 0 .4rem;font-size:1.05rem}
+ .verdict ol,.verdict p{margin:.4rem 0 0}
+ code{font-family:ui-monospace,Menlo,monospace;background:#f2f1ec;padding:.08rem .3rem;border-radius:4px;font-size:.86em}
+ .warn{margin-top:2rem;color:#a34a12;font-weight:600}
+</style></head><body><div class="wrap">
+<h1>PromoMonster deployment diagnostic</h1>
+<p class="sub"><?= date('Y-m-d H:i:s') ?></p>
+
+<?php if ($failures === []): ?>
+  <div class="verdict good">
+    <h2>Everything checks out.</h2>
+    <p>If the site still shows 403, the document root is pointing somewhere other than these files — check the domain's folder in hPanel.</p>
+  </div>
+<?php else: ?>
+  <div class="verdict bad">
+    <h2><?= count($failures) ?> problem<?= count($failures) === 1 ? '' : 's' ?> found</h2>
+    <ol>
+      <?php foreach ($failures as $f): ?>
+        <li><strong><?= htmlspecialchars($f['name'], ENT_QUOTES) ?></strong> — <?= htmlspecialchars($f['detail'], ENT_QUOTES) ?></li>
+      <?php endforeach; ?>
+    </ol>
+  </div>
+<?php endif; ?>
+
+<?php if ($todos !== []): ?>
+  <div class="verdict" style="background:#fff8ec;border:1px solid #e8cfa0;">
+    <h2><?= count($todos) ?> thing<?= count($todos) === 1 ? '' : 's' ?> still to switch on</h2>
+    <p>The site works without <?= count($todos) === 1 ? 'this' : 'these' ?>. <?= count($todos) === 1 ? 'It is' : 'They are' ?> why a feature is sitting quiet.</p>
+    <ol>
+      <?php foreach ($todos as $t): ?>
+        <li><strong><?= htmlspecialchars($t['name'], ENT_QUOTES) ?>:</strong>
+          <?= htmlspecialchars($t['detail'], ENT_QUOTES) ?></li>
+      <?php endforeach; ?>
+    </ol>
+  </div>
+<?php endif; ?>
+
+<table>
+  <tr><th>Check</th><th>Result</th><th>Detail</th></tr>
+  <?php foreach ($checks as $c): ?>
+    <tr>
+      <td class="n"><?= htmlspecialchars($c['name'], ENT_QUOTES) ?></td>
+      <td><span class="tag <?= $c['state'] ?>"><?= strtoupper($c['state']) ?></span></td>
+      <td class="d"><?= htmlspecialchars($c['detail'], ENT_QUOTES) ?></td>
+    </tr>
+  <?php endforeach; ?>
+</table>
+
+<?php if ($refLookup !== null): ?>
+  <h2 style="font-size:1.05rem;margin:2.25rem 0 .5rem;">Reference <?= htmlspecialchars($wantedRef, ENT_QUOTES) ?></h2>
+  <pre style="background:#fff;border:2px solid #b3261e;border-radius:10px;padding:1rem;
+    overflow-x:auto;font:12px ui-monospace,Menlo,monospace;white-space:pre-wrap;
+    color:#7a2d12;margin:0 0 1.5rem;"><?= htmlspecialchars(
+      implode("\n", array_slice(explode("\n", $refLookup), 0, 16)), ENT_QUOTES) ?></pre>
+<?php endif; ?>
+
+<?php if ($recentErrors !== []): ?>
+  <h2 style="font-size:1.05rem;margin:2.25rem 0 .5rem;">Most recent errors</h2>
+  <p style="color:#56606d;margin:0 0 1rem;font-size:.92rem;">
+    Newest first. The first line of each carries the reference shown on the error page.</p>
+  <?php foreach ($recentErrors as $block): ?>
+    <pre style="background:#fff;border:1px solid #e3e1da;border-radius:10px;padding:1rem;
+      overflow-x:auto;font:12px ui-monospace,Menlo,monospace;white-space:pre-wrap;
+      color:#7a2d12;margin:0 0 .75rem;"><?= htmlspecialchars(
+        implode("\n", array_slice(explode("\n", $block), 0, 12)), ENT_QUOTES) ?></pre>
+  <?php endforeach; ?>
+<?php endif; ?>
+
+<p class="warn">Delete diagnose.php from the server once the site is working.</p>
+</div></body></html>
