@@ -345,6 +345,159 @@ if ($missingClaude !== []) {
     }
 }
 
+// --- Email sending --------------------------------------------------------
+// Four separate things have to be true, and "it is not working" gives no clue
+// which one is missing. Each gets its own line, so the answer is read rather
+// than deduced.
+$mailFiles = [];
+foreach ([
+    'app/Support/Mailer.php',
+    'app/Support/Tokens.php',
+    'app/Support/ReviewRequests.php',
+    'app/Support/ReviewLink.php',
+    'bin/send-due.php',
+] as $needed) {
+    if (!is_file($base . '/' . $needed)) {
+        $mailFiles[] = $needed;
+    }
+}
+
+$mailCfg   = (isset($config) && is_array($config)) ? ($config['mail'] ?? []) : [];
+$mailToken = trim((string) ($mailCfg['token'] ?? ''));
+$mailFrom  = trim((string) ($mailCfg['from'] ?? ''));
+$appKey    = (isset($config) && is_array($config)) ? trim((string) ($config['app_key'] ?? '')) : '';
+$driver    = trim((string) ($mailCfg['driver'] ?? ''));
+if ($driver === '') {
+    $driver = $mailToken === '' ? 'log' : 'postmark';
+}
+
+if ($mailFiles !== []) {
+    add($checks, 'Email sending', 'fail',
+        'NOT UPLOADED. Missing: ' . implode(', ', $mailFiles)
+        . ' — upload the app/ and bin/ folders again.');
+} else {
+    // 1. The signing key. Without it every send fails when it tries to build
+    //    the unsubscribe link, which is a confusing place to discover it.
+    if ($appKey === '') {
+        add($checks, 'Signing key (app_key)', 'fail',
+            "app/config.php has no 'app_key'. Unsubscribe links cannot be signed without one, "
+            . 'so every send will fail. Generate one once and never change it: '
+            . 'php -r "echo bin2hex(random_bytes(32));"');
+    } elseif (strlen($appKey) < 32) {
+        add($checks, 'Signing key (app_key)', 'fail',
+            'app_key is only ' . strlen($appKey) . ' characters. Use at least 32 — '
+            . 'this signs links that stop us emailing someone who asked us not to.');
+    } else {
+        add($checks, 'Signing key (app_key)', 'pass',
+            strlen($appKey) . ' characters. Never change it: every unsubscribe link '
+            . 'already sitting in an inbox is signed with this one.');
+    }
+
+    // 2. The provider.
+    if ($driver === 'log') {
+        add($checks, 'Email sending', 'todo',
+            'Queued but NOT sending. No mail.token is set, so messages are written to '
+            . 'storage/logs/mail.log instead of being delivered. Add your Postmark SERVER '
+            . 'token (not the account token) as mail.token in app/config.php.');
+    } elseif ($driver === 'null') {
+        add($checks, 'Email sending', 'todo',
+            "mail.driver is 'null', which accepts and discards every message. "
+            . "Set it to '' or 'postmark' to send for real.");
+    } elseif ($driver === 'postmark') {
+        add($checks, 'Email sending', 'pass',
+            'Postmark, token set (' . strlen($mailToken) . ' characters, ending '
+            . substr($mailToken, -4) . '), stream "'
+            . (string) ($mailCfg['stream'] ?? 'outbound') . '". Add ?mail=you@example.com '
+            . 'to this URL to send a real test message.');
+    } else {
+        add($checks, 'Email sending', 'fail',
+            'Unknown mail.driver "' . $driver . '".');
+    }
+
+    // 3. The from address, which has to be on a domain verified with the
+    //    provider or every send is rejected.
+    if ($mailFrom === '' || filter_var($mailFrom, FILTER_VALIDATE_EMAIL) === false) {
+        add($checks, 'From address', 'fail',
+            'mail.from is missing or not an address. Set it to something on a domain you '
+            . 'have verified with Postmark.');
+    } else {
+        $domain = substr($mailFrom, strpos($mailFrom, '@') + 1);
+        add($checks, 'From address', 'pass',
+            $mailFrom . ' — this exact domain (' . $domain . ') must be verified in '
+            . 'Postmark, with its DKIM and Return-Path records added to your DNS, '
+            . 'or every send is rejected.');
+    }
+
+    // 4. The webhook secret. Not fatal, but without it bounces and complaints
+    //    never come back, and a complaint nobody records is one nobody acts on.
+    if (trim((string) ($mailCfg['webhook_secret'] ?? '')) === '') {
+        add($checks, 'Delivery webhook', 'todo',
+            'No mail.webhook_secret, so the bounce and complaint endpoint refuses everything. '
+            . 'Set one, then point Postmark at '
+            . 'https://' . (string) ($_SERVER['HTTP_HOST'] ?? 'your-domain') . '/webhooks/email/THAT-SECRET');
+    } else {
+        add($checks, 'Delivery webhook', 'pass',
+            'Secret set. Point Postmark at /webhooks/email/YOUR-SECRET for bounces and complaints.');
+    }
+
+    // 5. Is the cron actually running? The log's timestamp answers it, and
+    //    this is the single most likely reason a member presses Send and
+    //    nothing ever happens.
+    $cronLog = $base . '/storage/logs/cron.log';
+    if (!is_file($cronLog)) {
+        add($checks, 'Scheduled sending', 'todo',
+            'storage/logs/cron.log does not exist, so the cron job has probably never run. '
+            . 'Queued requests will sit there until it does. See DEPLOYMENT.md section 6b.');
+    } else {
+        $age = time() - (int) @filemtime($cronLog);
+        add($checks, 'Scheduled sending', $age < 900 ? 'pass' : 'todo',
+            $age < 900
+                ? 'Last ran ' . max(0, (int) round($age / 60)) . ' minutes ago.'
+                : 'Last ran ' . (int) round($age / 60) . ' minutes ago, which is too long for a '
+                  . 'five-minute schedule. Check the cron job in hPanel → Advanced → Cron Jobs.');
+    }
+
+    // --- Opt-in live send -------------------------------------------------
+    // Sends a real message, so it only happens when asked and only to an
+    // address typed into the URL by whoever is holding this page.
+    if (isset($_GET['mail']) && $mailFiles === []) {
+        $to = trim((string) $_GET['mail']);
+
+        if (filter_var($to, FILTER_VALIDATE_EMAIL) === false) {
+            add($checks, 'Test send', 'fail',
+                'Add a real address: ?mail=you@example.com');
+        } else {
+            require_once $base . '/app/Support/Config.php';
+            require_once $base . '/app/Support/Mailer.php';
+            App\Support\Config::load(is_array($config) ? $config : []);
+
+            $result = App\Support\Mailer::send([
+                'to'      => $to,
+                'subject' => 'PromoMonster test send',
+                'text'    => "This is a test from diagnose.php.\n\n"
+                           . "If you are reading it in your inbox rather than your spam folder,\n"
+                           . "review requests will arrive the same way.\n",
+                'from_name' => App\Support\Mailer::fromHeader(null, false),
+                'tag'     => 'diagnostic',
+            ]);
+
+            if ($result['ok']) {
+                add($checks, 'Test send', 'pass',
+                    'Accepted by the "' . $result['driver'] . '" driver'
+                    . ($result['driver'] === 'log'
+                        ? ' — which means it was written to storage/logs/mail.log, NOT delivered.'
+                        : ', id ' . (string) $result['id']
+                          . '. Check the inbox, and check the spam folder before celebrating.'));
+            } else {
+                add($checks, 'Test send', 'fail',
+                    (string) $result['error']
+                    . ' — a 401 means the token is wrong; "sender signature" means the From '
+                    . 'domain is not verified in Postmark yet.');
+            }
+        }
+    }
+}
+
 // --- Recent errors --------------------------------------------------------
 // The whole point: a 500 should never again be a dead end.
 //
@@ -406,6 +559,7 @@ if ($wantedRef !== '' && preg_match('/^[0-9A-F]{4,16}$/', $wantedRef) && is_file
 }
 
 $failures = array_values(array_filter($checks, static fn($c) => $c['state'] === 'fail'));
+$todos = array_values(array_filter($checks, static fn($c) => $c['state'] === 'todo'));
 ?>
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
@@ -422,6 +576,7 @@ $failures = array_values(array_filter($checks, static fn($c) => $c['state'] === 
  tr:last-child td{border-bottom:0}
  .tag{display:inline-block;min-width:3.4rem;text-align:center;border-radius:6px;padding:.12rem .5rem;font-size:.72rem;font-weight:700}
  .pass{background:#e3f3ec;color:#0b6b5b}.fail{background:#fbe6da;color:#a34a12}.info{background:#eceaf0;color:#56606d}
+ .tag.todo{background:#fff4e0;color:#8a5a12}
  td.n{font-weight:600;white-space:nowrap}
  td.d{color:#56606d;word-break:break-word}
  .verdict{border-radius:12px;padding:1.1rem 1.25rem;margin-bottom:2rem}
@@ -445,6 +600,19 @@ $failures = array_values(array_filter($checks, static fn($c) => $c['state'] === 
     <ol>
       <?php foreach ($failures as $f): ?>
         <li><strong><?= htmlspecialchars($f['name'], ENT_QUOTES) ?></strong> — <?= htmlspecialchars($f['detail'], ENT_QUOTES) ?></li>
+      <?php endforeach; ?>
+    </ol>
+  </div>
+<?php endif; ?>
+
+<?php if ($todos !== []): ?>
+  <div class="verdict" style="background:#fff8ec;border:1px solid #e8cfa0;">
+    <h2><?= count($todos) ?> thing<?= count($todos) === 1 ? '' : 's' ?> still to switch on</h2>
+    <p>The site works without <?= count($todos) === 1 ? 'this' : 'these' ?>. <?= count($todos) === 1 ? 'It is' : 'They are' ?> why a feature is sitting quiet.</p>
+    <ol>
+      <?php foreach ($todos as $t): ?>
+        <li><strong><?= htmlspecialchars($t['name'], ENT_QUOTES) ?>:</strong>
+          <?= htmlspecialchars($t['detail'], ENT_QUOTES) ?></li>
       <?php endforeach; ?>
     </ol>
   </div>
