@@ -91,10 +91,20 @@ final class Mailer
         return self::token() === '' ? 'log' : 'postmark';
     }
 
-    /** True when mail actually leaves the building. */
+    /**
+     * True when mail actually leaves the building.
+     *
+     * The token is part of the question, not just the driver name. Setting
+     * mail.driver to 'postmark' with no token satisfies driver() and then fails
+     * every single send with "No Postmark server token configured" -- and the
+     * two screens that ask this (the Get reviews page and the forgot-password
+     * form) would both have stopped warning about it, so a customer gets told
+     * their link is on its way while nothing is being sent at all. Whether we
+     * are live means whether a send can succeed.
+     */
     public static function isLive(): bool
     {
-        return self::driver() === 'postmark';
+        return self::driver() === 'postmark' && self::token() !== '';
     }
 
     /** The address every review request is sent from. */

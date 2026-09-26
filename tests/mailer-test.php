@@ -124,6 +124,40 @@ ok('and that is live', Mailer::isLive());
 Config::load(['mail' => ['driver' => 'null', 'token' => 'a-server-token']]);
 check('an explicit driver wins', Mailer::driver(), 'null');
 
+// Naming the driver is not the same as being able to send. Without this, two
+// screens stop warning that sending is off while every send still fails with
+// "No Postmark server token configured" -- so a customer is told their reset
+// link is on its way when nothing has left at all.
+Config::load(['mail' => ['driver' => 'postmark', 'token' => '']]);
+check('postmark named but no token is still postmark', Mailer::driver(), 'postmark');
+check('and is NOT live', Mailer::isLive(), false);
+
+Config::load(['mail' => ['driver' => 'postmark', 'token' => '   ']]);
+check('whitespace is not a token either', Mailer::isLive(), false);
+
+// =====================================================================
+// Account email is kept apart from bulk
+// =====================================================================
+Config::load(['app_name' => 'PromoMonster', 'mail' => [
+    'from'   => 'reviews@notify.promomonster.com',
+    'stream' => 'broadcast',
+]]);
+check('with nothing set, account mail falls back to the bulk address',
+    Mailer::transactionalFrom(), 'reviews@notify.promomonster.com');
+check('but never to the bulk stream', Mailer::transactionalStream(), 'outbound');
+
+Config::load(['app_name' => 'PromoMonster', 'mail' => [
+    'from'                 => 'reviews@notify.promomonster.com',
+    'stream'               => 'broadcast',
+    'transactional_from'   => 'logins@promomonster.com',
+    'transactional_stream' => 'transactional',
+]]);
+check('once set it is used', Mailer::transactionalFrom(), 'logins@promomonster.com');
+check('with its own stream', Mailer::transactionalStream(), 'transactional');
+check('and its own From header',
+    Mailer::transactionalHeader(), '"PromoMonster" <logins@promomonster.com>');
+check('while the bulk address is unchanged', Mailer::from(), 'reviews@notify.promomonster.com');
+
 // =====================================================================
 // send() — the null driver, so nothing leaves and nothing is written
 // =====================================================================
