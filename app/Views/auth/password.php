@@ -34,13 +34,13 @@
         <label class="sr-only" for="password">New password</label>
         <input class="field" id="password" name="password" type="password" required
                minlength="<?= (int) $min ?>" placeholder="New password"
-               autocomplete="new-password" autofocus>
+               autocomplete="new-password" autofocus data-eye>
       </div>
       <div>
         <label class="sr-only" for="password_confirm">Repeat new password</label>
         <input class="field" id="password_confirm" name="password_confirm" type="password" required
                minlength="<?= (int) $min ?>" placeholder="Repeat new password"
-               autocomplete="new-password">
+               autocomplete="new-password" data-eye>
       </div>
       <button class="btn btn--primary btn--block" type="submit">Save and continue</button>
       <p class="form__note">At least <?= (int) $min ?> characters. A passphrase from
@@ -54,5 +54,6 @@
     </form>
   </div>
 </div>
+<script src="<?= View::e(View::asset('/assets/js/app.js')) ?>" defer></script>
 </body>
 </html>

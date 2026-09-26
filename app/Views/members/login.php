@@ -30,13 +30,20 @@
                placeholder="you@yourbusiness.com" autocomplete="username" autofocus></div>
       <div><label class="sr-only" for="password">Password</label>
         <input class="field" id="password" name="password" type="password" required
-               placeholder="Password" autocomplete="current-password"></div>
+               placeholder="Password" autocomplete="current-password" data-eye></div>
       <button class="btn btn--primary btn--block" type="submit">Sign in</button>
     </form>
+    <?php /* Under the button, not beside the field. A visitor who is signing in
+             normally never needs to read it, and a visitor who is stuck will
+             look here before they look anywhere else. */ ?>
     <p class="form__note" style="margin-top:1.25rem;">
+      <a href="/members/forgot" style="color:var(--brand);font-weight:600;">Forgot your password?</a>
+    </p>
+    <p class="form__note" style="margin-top:.5rem;">
       No account yet? <a href="/members/signup" style="color:var(--brand);font-weight:600;">Create one free</a>.
     </p>
   </div>
 </div>
+<script src="<?= View::e(View::asset('/assets/js/app.js')) ?>" defer></script>
 </body>
 </html>

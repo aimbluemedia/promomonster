@@ -227,9 +227,82 @@
     }
   }
 
+  /* ---- Show password ------------------------------------------------------ */
+  /* The button is built here rather than written into the markup, and that is
+   * the whole reason it is allowed to exist. A reveal control is useless without
+   * JavaScript, so shipping it in the HTML would leave a dead button beside a
+   * password field on any page where this file failed to load -- which reads as
+   * a broken site rather than as a missing nicety. Built in JavaScript it is
+   * simply absent, and the field works exactly as it always did.
+   *
+   * Opt-in via data-eye. Not every password box wants one: this is for the
+   * fields somebody is typing a password INTO, where a typo means a rejection
+   * with no explanation of what went wrong.
+   */
+  var EYE = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+    + '<path d="M2 12s3.7-7 10-7 10 7 10 7-3.7 7-10 7-10-7-10-7Z"/>'
+    + '<circle cx="12" cy="12" r="3"/></svg>';
+
+  var EYE_OFF = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+    + '<path d="M2 12s3.7-7 10-7c1.5 0 2.8.3 4 .9"/>'
+    + '<path d="M22 12s-3.7 7-10 7c-1.5 0-2.8-.3-4-.9"/>'
+    + '<path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/><path d="m3 3 18 18"/></svg>';
+
+  function eyeLabel(button, showing) {
+    var text = showing ? 'Hide password' : 'Show password';
+    button.setAttribute('aria-pressed', showing ? 'true' : 'false');
+    button.setAttribute('aria-label', text);
+    button.setAttribute('title', text);
+  }
+
+  function eye(input) {
+    /* Wrapping moves the input in the DOM, and a moved element loses focus.
+     * That matters here: auth/password.php and members/reset.php both autofocus
+     * a password field, so without this the cursor silently leaves the box the
+     * visitor was about to type in. */
+    var hadFocus = document.activeElement === input;
+
+    var wrap = document.createElement('span');
+    wrap.className = 'pw';
+    input.parentNode.insertBefore(wrap, input);
+    wrap.appendChild(input);
+    if (hadFocus) input.focus();
+
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'pw__eye';
+    /* Out of the tab order on purpose. Somebody tabbing off the password field
+     * wants the submit button, and a decoration between the two is a small tax
+     * charged on every single sign-in. It stays reachable by click and is still
+     * announced, which is who it is actually for. */
+    button.tabIndex = -1;
+    button.innerHTML = EYE;
+    eyeLabel(button, false);
+    wrap.appendChild(button);
+
+    button.addEventListener('click', function () {
+      var showing = input.type === 'text';
+      input.type = showing ? 'password' : 'text';
+      button.innerHTML = showing ? EYE : EYE_OFF;
+      eyeLabel(button, !showing);
+
+      /* Changing an input's type moves the caret to the start in some browsers.
+       * Put it back at the end, or the rest of a half-typed password gets
+       * inserted in front of what is already there. */
+      input.focus();
+      try { input.setSelectionRange(input.value.length, input.value.length); } catch (e) {}
+    });
+  }
+
+  function passwordEyes() {
+    var fields = document.querySelectorAll('input[type="password"][data-eye]');
+    Array.prototype.forEach.call(fields, eye);
+  }
+
   function init() {
     reveals();
     counters();
+    passwordEyes();
     document.querySelectorAll('[data-calc]').forEach(function (root) { calculator(root); });
   }
 

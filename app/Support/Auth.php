@@ -220,11 +220,20 @@ final class Auth
     }
 
     /**
-     * Establishes a session for a user who has just been created, without going
-     * back through the password. Signup has already proved who they are — the
-     * alternative is re-running attempt() with the plaintext still in memory.
+     * Establishes a session for a user without going back through the password.
+     *
+     * Two callers, both of which have already proved who the person is by other
+     * means: signup, which just created the account, and a completed password
+     * reset, where the proof is a single-use link sent to the address on the
+     * account. The alternative in either case is re-running attempt() with the
+     * plaintext still in memory.
+     *
+     * $auditAction is passed because these are not the same event. Recording a
+     * recovery as 'auth.signup' would put a second signup in the audit log for
+     * an account that already existed, which is exactly the sort of entry that
+     * makes a log useless to read.
      */
-    public static function signIn(int $userId): void
+    public static function signIn(int $userId, string $auditAction = 'auth.signup'): void
     {
         session_regenerate_id(true);
         $_SESSION[self::SESSION_KEY] = $userId;
@@ -232,7 +241,7 @@ final class Auth
         self::$account = null;
 
         Database::run('UPDATE users SET last_login_at = NOW() WHERE id = :id', ['id' => $userId]);
-        Audit::log('auth.signup', 'user', $userId);
+        Audit::log($auditAction, 'user', $userId);
     }
 
     public static function logout(): void

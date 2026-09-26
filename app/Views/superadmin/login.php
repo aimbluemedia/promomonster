@@ -39,11 +39,12 @@ use App\Support\View;
       <div>
         <label class="sr-only" for="password">Password</label>
         <input class="field" id="password" name="password" type="password" required
-               placeholder="Password" autocomplete="current-password">
+               placeholder="Password" autocomplete="current-password" data-eye>
       </div>
       <button class="btn btn--primary btn--block" type="submit">Sign in</button>
     </form>
   </div>
 </div>
+<script src="<?= View::e(View::asset('/assets/js/app.js')) ?>" defer></script>
 </body>
 </html>

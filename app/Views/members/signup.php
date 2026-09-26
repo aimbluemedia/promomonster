@@ -77,7 +77,7 @@ use App\Support\View;
         <label for="password">Password</label>
         <input class="field" id="password" name="password" type="password" required
                minlength="<?= (int) $min ?>" placeholder="At least <?= (int) $min ?> characters"
-               autocomplete="new-password">
+               autocomplete="new-password" data-eye>
       </div>
 
       <?php /* Honeypot. Hidden from people, irresistible to bots. */ ?>

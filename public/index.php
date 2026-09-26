@@ -70,6 +70,7 @@ use App\Controllers\MailController;
 use App\Controllers\ScoreController;
 use App\Controllers\MembersController;
 use App\Controllers\PasswordController;
+use App\Controllers\PasswordResetController;
 use App\Controllers\SignupController;
 use App\Controllers\PageController;
 use App\Support\Router;
@@ -140,6 +141,19 @@ $router->post('/members/login',  static fn () => $auth->login('members'));
 $router->post('/members/logout', static fn () => $auth->logout('members'));
 $router->get('/members/password',  static fn () => (new PasswordController())->show('members'));
 $router->post('/members/password', static fn () => (new PasswordController())->update('members'));
+
+// Forgotten password, also public. /members/reset/{token} is a prefix route
+// because the token is the last segment; the POST that follows puts the token in
+// the body instead, so it stays out of the access log.
+$router->get('/members/forgot',  static fn () => (new PasswordResetController())->showForgot());
+$router->post('/members/forgot', static fn () => (new PasswordResetController())->sendLink());
+$router->getToken('/members/reset', static fn (string $t) => (new PasswordResetController())->showReset($t));
+// The same page for a link with no token on the end. Mail clients wrap long
+// URLs and people paste half of one, and the alternative is a bare 405 with no
+// way back; this way they get "that link no longer works" and a button that
+// sends them a fresh one.
+$router->get('/members/reset', static fn () => (new PasswordResetController())->showReset(''));
+$router->post('/members/reset',  static fn () => (new PasswordResetController())->reset());
 
 // Signup is public: SignupController has no guard in its constructor.
 $router->get('/members/signup',  static fn () => (new SignupController())->show());
