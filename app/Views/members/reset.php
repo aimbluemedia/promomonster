@@ -29,9 +29,17 @@
                which would tell somebody holding a guessed token that they had
                guessed a real one. */ ?>
       <h1>That link no longer works</h1>
+      <?php /* Naming the commonest cause first, because it is the one nobody
+               guesses. "Expired" sends people to look at the clock; the real
+               reason is almost always that they asked again and are now
+               clicking the older of two emails, which reads as broken rather
+               than as intended. */ ?>
+      <p class="muted" style="font-size:.9rem;margin:0 0 1rem;">
+        <strong>If you asked for more than one link, only the newest email
+        works.</strong> Check for a more recent one before asking again.
+      </p>
       <p class="muted" style="font-size:.9rem;margin:0 0 1.5rem;">
-        Reset links work once and expire after a short while. Ask for a new one
-        and it will be with you in a moment.
+        Otherwise: links work once, and expire an hour after they are sent.
       </p>
       <a class="btn btn--primary btn--block" href="/members/forgot">Send me a new link</a>
       <p class="form__note" style="margin-top:1.25rem;">
