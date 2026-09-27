@@ -452,6 +452,57 @@ if ($mailFiles !== []) {
             . 'or every send is rejected.');
     }
 
+    // 2b. Are the password-reset files on the server, and current?
+    //
+    //     This is the check whose absence cost the most. Every other row here
+    //     reads app/config.php and Mailer, so a server holding an OLD copy of
+    //     PasswordReset.php reports a perfect setup: the notice goes away, the
+    //     lane resolves to SMTP, the test send passes -- and the actual reset
+    //     still goes out through whatever the old file asked for, which is the
+    //     bulk driver, which with no Postmark token is the log driver. Written
+    //     to a file, reported as success, no error anywhere, no email.
+    //
+    //     Uploading one file at a time is the normal way to deploy here, so
+    //     "some of these are from last week" is the normal failure, not an
+    //     exotic one. The marker is a string that only exists in the current
+    //     version of each file: cruder than a checksum and it needs no
+    //     manifest to go stale in its own right.
+    $resetFiles = [
+        'app/Support/PasswordReset.php'            => 'transactionalDriver',
+        'app/Support/Mailer.php'                   => 'transactionalIsLive',
+        'app/Support/Smtp.php'                     => 'STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT',
+        'app/Support/ErrorHandler.php'             => 'function note',
+        'app/Support/Auth.php'                     => 'setTemporaryPassword',
+        'app/Controllers/PasswordResetController.php' => 'transactionalIsLive',
+        'app/Views/members/forgot.php'             => 'ready',
+        'app/Views/members/reset.php'              => 'data-eye',
+    ];
+
+    $missingReset = [];
+    $staleReset   = [];
+    foreach ($resetFiles as $rel => $marker) {
+        $full = $base . '/' . $rel;
+        if (!is_file($full)) {
+            $missingReset[] = $rel;
+        } elseif (!str_contains((string) @file_get_contents($full), $marker)) {
+            $staleReset[] = $rel;
+        }
+    }
+
+    if ($missingReset !== [] || $staleReset !== []) {
+        add($checks, 'Password reset files', 'fail',
+            ($missingReset !== [] ? 'NOT UPLOADED: ' . implode(', ', $missingReset) . '. ' : '')
+            . ($staleReset !== [] ? 'OUT OF DATE (an older copy is on the server): '
+                . implode(', ', $staleReset) . '. ' : '')
+            . 'Everything else on this page can pass while these are wrong, because the rest '
+            . 'reads your config rather than these files -- an old PasswordReset.php sends '
+            . 'through the bulk driver instead of your mailbox, which writes the email to '
+            . 'storage/logs/mail.log and reports success. Upload the whole app/ folder again.');
+    } else {
+        add($checks, 'Password reset files', 'pass',
+            count($resetFiles) . ' files present and current.');
+    }
+
     // 3. Does the forgot-password page think it can send?
     //
     //    Its own words, from the same function the page calls, because "that
