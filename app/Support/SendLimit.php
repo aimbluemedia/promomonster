@@ -106,14 +106,29 @@ final class SendLimit
      * understand. A rolling 30-day window is fairer on paper and impossible to
      * explain on the phone.
      */
+    /**
+     * Both windows are measured on the DATABASE's clock, because the column
+     * they are compared against (review_requests.created_at) is written by the
+     * database. PHP runs on the site's timezone and MySQL need not: seven hours
+     * apart on this host, which is enough to count a different month at the
+     * boundary and to move a burst window by most of a day.
+     */
     public static function monthStart(): string
     {
-        return date('Y-m-01 00:00:00');
+        return self::sqlTime("DATE_FORMAT(NOW(), '%Y-%m-01 00:00:00')");
     }
 
     public static function daysAgo(int $days): string
     {
-        return date('Y-m-d H:i:s', time() - ($days * 86400));
+        return self::sqlTime('NOW() - INTERVAL ' . (int) $days . ' DAY');
+    }
+
+    /** Asks the database what a moment in its own clock looks like. */
+    private static function sqlTime(string $expression): string
+    {
+        $row = Database::first('SELECT ' . $expression . ' AS t');
+
+        return (string) ($row['t'] ?? date('Y-m-d H:i:s'));
     }
 
     private static function burstReason(int $limit, int $days): string

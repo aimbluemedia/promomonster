@@ -52,7 +52,21 @@ use App\Support\Mailer;
 use App\Support\PasswordReset;
 use App\Support\RateLimiter;
 
-date_default_timezone_set('UTC');
+/**
+ * Deliberately NOT UTC.
+ *
+ * The suite used to run with PHP on the same clock as the test database, which
+ * is the one configuration in which a whole class of bug is invisible: any
+ * value PHP computes and the database compares. That bug shipped. Every reset
+ * link was created already expired, because PHP said "an hour from now" in the
+ * site's timezone and MySQL read it against its own -- seven hours apart, so
+ * the expiry landed six hours BEFORE the row's own created_at.
+ *
+ * Running skewed means every assertion below is also a test that the two clocks
+ * are not being mixed. If this line is changed to UTC, the suite still passes
+ * and stops being able to see it.
+ */
+date_default_timezone_set('America/Phoenix');
 
 // Auth::setPassword() and Auth::signIn() regenerate the session id, so there
 // has to be one.
@@ -653,6 +667,30 @@ ok('a spent link is still recognised as one of ours', PasswordReset::everExisted
 // Shape is checked before the database, so rubbish never reaches a query.
 ok('a malformed token is not "one of ours"', !PasswordReset::everExisted('not-a-token'));
 ok('nor is an empty one', !PasswordReset::everExisted(''));
+
+// =====================================================================
+// PHP's clock and the database's clock are not the same clock
+// =====================================================================
+seed();
+$skew = Database::first('SELECT NOW() AS db_now')['db_now'] ?? '';
+ok('the test is actually running skewed, or it proves nothing',
+    abs(strtotime((string) $skew) - time()) > 3600);
+
+PasswordReset::request('dana@acmepools.test');
+$row = Database::first(
+    'SELECT created_at, expires_at,
+            expires_at > created_at AS sane,
+            expires_at > NOW()      AS live
+       FROM password_resets ORDER BY id DESC LIMIT 1'
+) ?? [];
+
+ok('a new link expires AFTER it was created', (int) ($row['sane'] ?? 0) === 1);
+ok('and is live the moment it is issued', (int) ($row['live'] ?? 0) === 1);
+ok('it resolves, which is the whole point', PasswordReset::find((string) emailedToken()) !== null);
+
+// Roughly the configured lifetime, not seven hours off it.
+$gap = strtotime((string) $row['expires_at']) - strtotime((string) $row['created_at']);
+check('the gap is the configured lifetime', (int) round($gap / 60), PasswordReset::lifetimeMinutes());
 
 echo "\n{$passed} passed, {$failed} failed\n";
 exit($failed === 0 ? 0 : 1);

@@ -245,14 +245,23 @@ final class PasswordReset
 
         $token = bin2hex(random_bytes(self::TOKEN_BYTES));
 
+        // The expiry is computed by the DATABASE, not by PHP.
+        //
+        // This is the bug that made every reset link dead on arrival. PHP runs
+        // on the site's timezone (America/Phoenix) and MySQL on UTC, seven
+        // hours apart -- so a PHP-computed "an hour from now" landed six hours
+        // BEFORE the created_at the database stamped on the same row, and
+        // find() compares against the database's NOW(). Every link was expired
+        // before the email carrying it was sent.
+        //
+        // Anything compared against NOW() must be produced by NOW().
         Database::run(
             'INSERT INTO password_resets (user_id, token_hash, requested_ip, expires_at)
-             VALUES (:uid, :hash, :ip, :expires)',
+             VALUES (:uid, :hash, :ip, NOW() + INTERVAL ' . (int) self::LIFETIME_MINUTES . ' MINUTE)',
             [
-                'uid'     => $userId,
-                'hash'    => self::hash($token),
-                'ip'      => Request::ip(),
-                'expires' => date('Y-m-d H:i:s', time() + (self::LIFETIME_MINUTES * 60)),
+                'uid'  => $userId,
+                'hash' => self::hash($token),
+                'ip'   => Request::ip(),
             ],
         );
 
@@ -501,9 +510,10 @@ final class PasswordReset
     /** Drops rows whose link expired more than KEEP_DAYS ago. */
     private static function purge(): void
     {
+        // Same clock as expires_at was written with. See request().
         Database::run(
-            'DELETE FROM password_resets WHERE expires_at < :cutoff',
-            ['cutoff' => date('Y-m-d H:i:s', time() - (self::KEEP_DAYS * 86400))],
+            'DELETE FROM password_resets
+              WHERE expires_at < NOW() - INTERVAL ' . (int) self::KEEP_DAYS . ' DAY',
         );
     }
 }

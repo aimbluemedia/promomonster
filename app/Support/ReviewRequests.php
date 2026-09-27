@@ -125,14 +125,13 @@ final class ReviewRequests
                  asked_by_user_id, is_follow_up, parent_request_id, scheduled_for, click_token)
              VALUES
                 (:location, :contact, :template, \'email\', \'scheduled\',
-                 :asked_by, 1, :parent, :when, :token)',
+                 :asked_by, 1, :parent, NOW() + INTERVAL ' . (int) self::FOLLOW_UP_DAYS . ' DAY, :token)',
             [
                 'location' => (int) $parent['location_id'],
                 'contact'  => (int) $parent['contact_id'],
                 'template' => (int) $template['id'],
                 'asked_by' => $parent['asked_by_user_id'],
                 'parent'   => $parentId,
-                'when'     => date('Y-m-d H:i:s', time() + (self::FOLLOW_UP_DAYS * 86400)),
                 'token'    => self::newToken(),
             ],
         );

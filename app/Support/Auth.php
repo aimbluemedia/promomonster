@@ -193,12 +193,17 @@ final class Auth
 
     public static function lockedOut(string $email): bool
     {
-        $since = date('Y-m-d H:i:s', time() - self::LOCKOUT_SECONDS);
+        // The window is measured by the database, because created_at is written
+        // by the database. A PHP-computed cutoff is on the site's timezone and
+        // MySQL's is not, so on this host the fifteen-minute window was really
+        // seven and a quarter hours -- locking people out for far longer than
+        // intended, over attempts far older than intended.
         $row = Database::first(
             'SELECT COUNT(*) AS failures FROM login_attempts
-              WHERE successful = 0 AND created_at > :since
+              WHERE successful = 0
+                AND created_at > NOW() - INTERVAL ' . (int) self::LOCKOUT_SECONDS . ' SECOND
                 AND (email = :email OR ip = :ip)',
-            ['since' => $since, 'email' => mb_strtolower($email), 'ip' => Request::ip()],
+            ['email' => mb_strtolower($email), 'ip' => Request::ip()],
         );
         return (int) ($row['failures'] ?? 0) >= self::MAX_ATTEMPTS;
     }

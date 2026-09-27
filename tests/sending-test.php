@@ -50,7 +50,16 @@ use App\Support\SendLimit;
 use App\Support\Template;
 use App\Support\Tokens;
 
-date_default_timezone_set('UTC');
+/**
+ * Deliberately NOT UTC, so this suite can see a clock mismatch.
+ *
+ * With PHP on the same timezone as the test database, any value PHP computes
+ * and the database compares looks correct no matter which clock produced it.
+ * A follow-up scheduled by PHP and made due by MySQL's NOW() is exactly that
+ * shape, and on the live host the two are seven hours apart -- which made
+ * reminders due seven hours early. Running skewed is what notices.
+ */
+date_default_timezone_set('America/Phoenix');
 
 Config::load([
     'app_name' => 'PromoMonster',
@@ -258,8 +267,18 @@ check('schedules exactly one reminder', count($followUps), 1);
 check('marked as a follow-up', (int) $followUps[0]['is_follow_up'], 1);
 check('and is scheduled, not queued', $followUps[0]['status'], 'scheduled');
 
-$gapDays = (strtotime((string) $followUps[0]['scheduled_for']) - time()) / 86400;
-ok('three days out', $gapDays > 2.9 && $gapDays < 3.1);
+// Measured BY the database, not by PHP reading a database string.
+//
+// strtotime() parses that value in PHP's timezone, but the database wrote it in
+// its own -- so this assertion used to measure the skew between the two rather
+// than the gap it was meant to check, and failed by exactly seven hours the
+// moment the suite stopped running on UTC. The same mistake as the bug it is
+// standing guard over.
+$gapHours = (int) (Database::first(
+    'SELECT TIMESTAMPDIFF(HOUR, NOW(), scheduled_for) AS h FROM review_requests WHERE id = :id',
+    ['id' => (int) $followUps[0]['id']],
+)['h'] ?? 0);
+ok('three days out', $gapHours >= 71 && $gapHours <= 72);
 ok('not due yet', ReviewRequests::due(10) === []);
 
 // Sending the same row twice must not produce a second reminder. This is the
@@ -445,6 +464,30 @@ $stuck = request($stuckId);
 check('a permanently failing send is marked failed', $stuck['status'], 'failed');
 ok('with the reason on the row', (string) $stuck['failure_reason'] !== '');
 ok('and stops being picked up', ReviewRequests::due(10) === []);
+
+// =====================================================================
+// A follow-up is scheduled on the database's clock
+// =====================================================================
+seed();
+$first = (int) ReviewRequests::queue(location(), contact(), null)['id'];
+Database::run("UPDATE review_requests SET status = 'sent', sent_at = NOW() WHERE id = {$first}");
+$followId = ReviewRequests::queueFollowUp($first);
+
+ok('the reminder was queued', $followId !== null);
+
+$row = Database::first(
+    'SELECT created_at, scheduled_for,
+            scheduled_for > NOW() AS in_the_future,
+            TIMESTAMPDIFF(HOUR, created_at, scheduled_for) AS hours
+       FROM review_requests WHERE id = :id',
+    ['id' => $followId],
+) ?? [];
+
+// Seven hours of skew would make this due immediately -- a reminder sent the
+// same day as the request, to somebody who has not had time to respond.
+ok('it is scheduled in the future, not the past', (int) ($row['in_the_future'] ?? 0) === 1);
+check('exactly three days after it was created', (int) ($row['hours'] ?? 0), 72);
+ok('so it is not due yet', ReviewRequests::due(10) === []);
 
 echo "\n{$passed} passed, {$failed} failed\n";
 exit($failed === 0 ? 0 : 1);
