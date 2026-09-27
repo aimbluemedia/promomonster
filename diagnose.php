@@ -451,8 +451,21 @@ if ($mailFiles !== []) {
     // 3a. The account-email lane, which can be a different provider entirely.
     //     Worth its own row because "review requests are sending" and "a
     //     locked-out customer can get back in" are now two separate switches.
-    $loginDriver = trim((string) ($mailCfg['transactional_driver'] ?? ''));
+    // Asked of Mailer, not re-derived from the config key. A complete smtp
+    // block now means SMTP without transactional_driver being set, so reading
+    // that key directly skipped every SMTP check on exactly the setup this was
+    // written for -- the same "a diagnostic that reimplements the rule
+    // eventually disagrees with the page" mistake, made two commits after
+    // warning about it.
+    $loginDriver = App\Support\Mailer::transactionalDriver();
     $smtp        = is_array($mailCfg['smtp'] ?? null) ? $mailCfg['smtp'] : [];
+
+    // The address a reset would ACTUALLY be sent from, which is not the same
+    // question as what is written in the config: transactional_from falls back
+    // to mail.from, and mail.from to a built-in default. Kept separate from
+    // $loginFrom, which is the raw key and is what the rows after this one are
+    // asking about.
+    $loginFromUsed = App\Support\Mailer::transactionalFrom();
 
     if ($loginDriver === 'smtp') {
         $missing = [];
@@ -470,14 +483,16 @@ if ($mailFiles !== []) {
                 'Set to send password resets over SMTP, but missing: ' . implode(', ', $missing)
                 . '. Your mailbox password goes here, from hPanel under Emails, '
                 . 'Mailboxes, Connect apps and devices.');
-        } elseif (trim((string) ($smtp['username'] ?? '')) !== ''
-                  && $loginFrom !== ''
-                  && strcasecmp((string) $smtp['username'], $loginFrom) !== 0) {
+        } elseif (strcasecmp((string) $smtp['username'], $loginFromUsed) !== 0) {
+            // Compared against the address that will actually be used, which
+            // falls back to mail.from and then to a built-in default when
+            // transactional_from is unset -- so leaving it blank does not mean
+            // "the same as the mailbox", it means some other address entirely.
             add($checks, 'Account email', 'fail',
-                'mail.smtp.username (' . (string) $smtp['username'] . ') and mail.transactional_from ('
-                . $loginFrom . ') are different addresses. Most hosts refuse a message posted as '
-                . 'anything but the mailbox that authenticated, so resets would fail at send. '
-                . 'Make them the same.');
+                'The mailbox is ' . (string) $smtp['username'] . ' but resets would be sent from '
+                . $loginFromUsed . ', and most hosts refuse a message posted as anything but the '
+                . 'mailbox that authenticated. Set mail.transactional_from to '
+                . (string) $smtp['username'] . '.');
         } else {
             add($checks, 'Account email', 'pass',
                 'SMTP via ' . (string) $smtp['host'] . ':' . $port . ' (' . $enc . ') as '
