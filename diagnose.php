@@ -471,6 +471,49 @@ if ($mailFiles !== []) {
             ? 'shows the form and will send a link.'
             : 'shows "Email sending is not switched on yet" and will not send a link.'));
 
+    // Has anybody actually asked for one?
+    //
+    // Every other row here is about configuration. None of them can tell the
+    // difference between "the form was never submitted" and "it was submitted
+    // and the mail went out fine" -- and with a quiet error log those two look
+    // identical from the outside, which is precisely where "still no email"
+    // gets stuck. A reset row is written before the send is attempted, so its
+    // presence proves the request reached the code, and its absence proves it
+    // did not.
+    if (isset($pdo) && $pdo instanceof PDO && in_array('password_resets', $tables ?? [], true)) {
+        try {
+            $r = $pdo->query(
+                'SELECT COUNT(*) AS n, MAX(created_at) AS newest,
+                        SUM(used_at IS NOT NULL) AS used
+                   FROM password_resets'
+            )->fetch(PDO::FETCH_ASSOC) ?: [];
+
+            $n = (int) ($r['n'] ?? 0);
+
+            if ($n === 0) {
+                add($checks, 'Reset links issued', 'todo',
+                    'None, ever. Nobody has successfully submitted /members/forgot on this site — '
+                    . 'so if you are waiting on an email, the request never got as far as sending '
+                    . 'one. The usual reasons are the address not belonging to an active, '
+                    . 'non-staff member account, or too many attempts in the last hour '
+                    . '(three per address, twelve per IP). Both are written to the error log.');
+            } else {
+                $ago = strtotime((string) $r['newest']);
+                $mins = $ago === false ? null : max(0, (int) round((time() - $ago) / 60));
+                add($checks, 'Reset links issued', 'pass',
+                    $n . ' link' . ($n === 1 ? '' : 's') . ' issued, '
+                    . (int) ($r['used'] ?? 0) . ' used, most recent '
+                    . ($mins === null ? 'at ' . (string) $r['newest']
+                        : ($mins < 60 ? $mins . ' minutes ago' : (int) round($mins / 60) . ' hours ago'))
+                    . '. The request reached the code and a link was created, so if no email '
+                    . 'arrived the failure is in delivery, not in the form — check the error log '
+                    . 'for a "Password reset not sent" line, and check the spam folder.');
+            }
+        } catch (PDOException $e) {
+            // Not worth a row of its own; the table check above covers it.
+        }
+    }
+
     // 3a. The account-email lane, which can be a different provider entirely.
     //     Worth its own row because "review requests are sending" and "a
     //     locked-out customer can get back in" are now two separate switches.
@@ -785,9 +828,39 @@ $todos = array_values(array_filter($checks, static fn($c) => $c['state'] === 'to
  .verdict ol,.verdict p{margin:.4rem 0 0}
  code{font-family:ui-monospace,Menlo,monospace;background:#f2f1ec;padding:.08rem .3rem;border-radius:4px;font-size:.86em}
  .warn{margin-top:2rem;color:#a34a12;font-weight:600}
+ .sendbox{background:#fff;border:1px solid #e3e1da;border-radius:12px;padding:1.1rem 1.25rem;margin-bottom:2rem}
+ .sendbox strong{display:block;font-size:1.05rem}
+ .sendbox p{margin:.35rem 0 0;color:#56606d;font-size:.92rem}
+ .sendbox__row{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.85rem}
+ .sendbox input{flex:1 1 16rem;padding:.6rem .75rem;border:1px solid #cfccc3;border-radius:8px;font:inherit}
+ .sendbox button{padding:.6rem 1.1rem;border:0;border-radius:8px;background:#0475a3;color:#fff;
+   font:inherit;font-weight:700;cursor:pointer}
+ .sendbox button:hover{background:#005694}
+ .sendbox__note{font-size:.84rem}
 </style></head><body><div class="wrap">
 <h1>PromoMonster deployment diagnostic</h1>
 <p class="sub"><?= date('Y-m-d H:i:s') ?></p>
+
+<?php /* A box, not a URL to hand-edit.
+
+         Every check on this page can pass while no email actually leaves the
+         building -- they test settings, and this tests delivery. It was
+         reachable only by typing ?mail=you@example.com into the address bar,
+         which meant the one thing worth doing was the one thing nobody did.
+         GET, because it changes nothing here and a refresh should just send
+         another. */ ?>
+<form method="get" class="sendbox">
+  <strong>Send a real test email</strong>
+  <p>Nothing else on this page proves mail can leave the server. This does.</p>
+  <div class="sendbox__row">
+    <input type="email" name="mail" required placeholder="you@example.com"
+           value="<?= htmlspecialchars((string) ($_GET['mail'] ?? ''), ENT_QUOTES) ?>">
+    <button type="submit">Send test</button>
+  </div>
+  <p class="sendbox__note">Sends through both lanes &mdash; the review-request
+    provider and the password-reset mailbox &mdash; and reports each separately.
+    Look for the two &ldquo;Test send&rdquo; rows below.</p>
+</form>
 
 <?php if ($failures === []): ?>
   <div class="verdict good">
