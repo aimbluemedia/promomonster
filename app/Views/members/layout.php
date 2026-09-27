@@ -40,7 +40,8 @@ unset($_SESSION['members_flash']);
     <nav class="admin-nav">
       <?php foreach ([
         '/members'          => 'Dashboard',
-        '/members/reviews'  => 'Get reviews',
+        '/members/reviews'  => 'Google reviews',
+        '/members/promomonster-reviews' => 'PromoMonster reviews',
         '/members/requests' => 'Requests',
         '/members/playbook' => 'Your playbook',
         '/members/settings' => 'Settings',

@@ -6,8 +6,10 @@ namespace App\Controllers;
 
 use App\Support\Audit;
 use App\Support\Auth;
+use App\Support\Config;
 use App\Support\Csrf;
 use App\Support\Database;
+use App\Support\HostedReviews;
 use App\Support\Mailer;
 use App\Support\Plans;
 use App\Support\ReviewLink;
@@ -71,7 +73,7 @@ final class MembersController
         $location = $this->primaryLocation((int) $account['id']);
 
         echo View::members('members/reviews', [
-            'title'    => 'Get reviews · PromoMonster',
+            'title'    => 'Google reviews · PromoMonster',
             'account'  => $account,
             'location' => $location,
             'limit'    => SendLimit::check((int) $account['id'], (string) ($account['plan'] ?? Plans::FREE)),
@@ -253,6 +255,102 @@ final class MembersController
         );
 
         return (int) ($row['n'] ?? 0);
+    }
+
+    /**
+     * The business's own reviews, hosted here.
+     *
+     * Separate from the Google page because they are separate jobs: that one
+     * pushes customers to somebody else's platform, this one builds something
+     * the business owns and can put on its own website.
+     */
+    public function promoReviews(): void
+    {
+        $account = Auth::account() ?? [];
+        $id      = (int) $account['id'];
+
+        $slug = HostedReviews::slug($id, (string) ($account['name'] ?? ''));
+        $base = rtrim((string) Config::get('app_url', 'https://promomonster.com'), '/');
+
+        echo View::members('members/promo-reviews', [
+            'title'    => 'PromoMonster reviews · PromoMonster',
+            'account'  => $account,
+            'ready'    => HostedReviews::ready(),
+            'slug'     => $slug,
+            'pageUrl'  => $slug === null ? null : $base . '/reviews/' . $slug,
+            'widgetJs' => $slug === null ? null : $base . '/widget/' . $slug . '.js',
+            'summary'  => HostedReviews::summary($id),
+            'reviews'  => HostedReviews::forAccount($id),
+            'error'    => $this->takeFlash('promo_review_error'),
+        ]);
+    }
+
+    /** Adds a review the business is entering on somebody's behalf. */
+    public function addPromoReview(): void
+    {
+        $this->guardTo('/members/promomonster-reviews');
+        $account = Auth::account() ?? [];
+
+        $source = (string) ($_POST['source'] ?? 'entered_by_business');
+        if (!in_array($source, ['entered_by_business', 'google'], true)) {
+            // Only the two a business may claim. 'invited' means we sent the
+            // link ourselves and is not something a form can assert.
+            $source = 'entered_by_business';
+        }
+
+        $result = HostedReviews::add([
+            'account'    => (int) $account['id'],
+            'location'   => $this->primaryLocation((int) $account['id'])['id'] ?? null,
+            'source'     => $source,
+            'name'       => (string) ($_POST['author_name'] ?? ''),
+            'rating'     => (int) ($_POST['rating'] ?? 0),
+            'body'       => (string) ($_POST['body'] ?? ''),
+            'source_url' => (string) ($_POST['source_url'] ?? ''),
+        ]);
+
+        if (!$result['ok']) {
+            $_SESSION['promo_review_error'] = (string) $result['error'];
+            Request::redirect('/members/promomonster-reviews');
+        }
+
+        $_SESSION['members_flash'] = $source === 'google'
+            ? 'Google review added. It shows with a G so readers know where it came from.'
+            : 'Review added. It shows as added by you, which is the honest label.';
+        Request::redirect('/members/promomonster-reviews');
+    }
+
+    /** The public answer to a review. The only thing that can be done to one. */
+    public function replyPromoReview(): void
+    {
+        $this->guardTo('/members/promomonster-reviews');
+        $account = Auth::account() ?? [];
+
+        HostedReviews::reply(
+            (int) $account['id'],
+            (int) ($_POST['review_id'] ?? 0),
+            (string) ($_POST['reply'] ?? ''),
+        );
+
+        $_SESSION['members_flash'] = 'Your reply is on the review.';
+        Request::redirect('/members/promomonster-reviews');
+    }
+
+    /** @return ?string A one-shot session message. */
+    private function takeFlash(string $key): ?string
+    {
+        $value = $_SESSION[$key] ?? null;
+        unset($_SESSION[$key]);
+
+        return is_string($value) ? $value : null;
+    }
+
+    /** guard(), but returning somewhere other than the Google page. */
+    private function guardTo(string $back): void
+    {
+        if (!Csrf::check($_POST['_csrf'] ?? null)) {
+            $_SESSION['members_flash'] = 'Your session expired. Please try again.';
+            Request::redirect($back);
+        }
     }
 
     private function guard(): void

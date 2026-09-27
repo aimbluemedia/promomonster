@@ -71,6 +71,7 @@ use App\Controllers\ScoreController;
 use App\Controllers\MembersController;
 use App\Controllers\PasswordController;
 use App\Controllers\PasswordResetController;
+use App\Controllers\ReviewPageController;
 use App\Controllers\SignupController;
 use App\Controllers\PageController;
 use App\Support\Router;
@@ -169,6 +170,20 @@ $router->get('/members/settings', static fn () => (new MembersController())->set
 $router->post('/members/plan',   static fn () => (new MembersController())->requestPlan());
 $router->post('/members/review-link', static fn () => (new MembersController())->saveReviewLink());
 $router->post('/members/ask',         static fn () => (new MembersController())->ask());
+
+// Reviews hosted here, rather than on Google.
+$router->get('/members/promomonster-reviews',
+    static fn () => (new MembersController())->promoReviews());
+$router->post('/members/promomonster-reviews/add',
+    static fn () => (new MembersController())->addPromoReview());
+$router->post('/members/promomonster-reviews/reply',
+    static fn () => (new MembersController())->replyPromoReview());
+
+// The public side. /reviews/{slug} is a business's page, /widget/{slug}.js is
+// the embed for its own website. Both are open to the world by design.
+$router->getToken('/reviews', static fn (string $s) => (new ReviewPageController())->show($s));
+$router->postToken('/reviews', static fn (string $s) => (new ReviewPageController())->submit($s));
+$router->getToken('/widget',  static fn (string $s) => (new ReviewPageController())->widget($s));
 
 $router->dispatch(
     $_SERVER['REQUEST_METHOD'] ?? 'GET',

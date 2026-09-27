@@ -480,6 +480,44 @@ table.data td.wrap{ white-space:normal; max-width:22rem; }
   text-decoration:underline; }
 .row-form button.linkish:hover{ background:none; color:var(--brand-hover); }
 
+/* Hosted reviews ---------------------------------------------------------- */
+.stars{ letter-spacing:.06em; white-space:nowrap; }
+.stars__s{ color:var(--line); }
+.stars__s.is-on{ color:var(--star); }
+.rev-summary{ display:flex; align-items:center; gap:.55rem; flex-wrap:wrap;
+  margin:0 0 2rem; color:var(--body); }
+.rev-summary strong{ font-size:1.25rem; color:var(--ink); }
+
+.rev{ border-top:1px solid var(--line); padding:1.1rem 0; }
+.rev:first-of-type{ border-top:0; }
+.card .rev{ border-top:0; padding:0; }
+.rev__head{ display:flex; align-items:center; gap:.55rem; flex-wrap:wrap; margin-bottom:.45rem; }
+.rev__who{ color:var(--ink); }
+.rev__when{ margin-left:auto; color:var(--muted); font-size:.82rem; }
+.rev__body{ margin:0; color:var(--body); }
+.rev__source{ margin:.5rem 0 0; font-size:.8rem; color:var(--muted); }
+.rev__source a{ color:var(--brand); }
+.rev__reply{ margin-top:.75rem; padding-left:.85rem; border-left:3px solid var(--line); }
+.rev__reply strong{ font-size:.86rem; color:var(--ink); }
+.rev__reply p{ margin:.2rem 0 0; font-size:.92rem; color:var(--body); }
+
+/* A letter, not Google's logo: their mark on a third-party page implies an
+   endorsement nobody gave, and their brand rules do not allow it. */
+.rev__badge{ display:inline-block; min-width:1.15rem; padding:0 .45rem; border-radius:99px;
+  font-size:.68rem; font-weight:800; letter-spacing:.04em; line-height:1.5rem; height:1.5rem;
+  text-align:center; background:#e3f3ec; color:#0b6b5b; }
+.rev__badge--g{ background:var(--wash); color:var(--body); border:1px solid var(--line);
+  font-family:var(--mono); font-size:.8rem; }
+@media (prefers-color-scheme: dark){
+  .rev__badge{ background:#12352c; color:#7fd8bd; }
+}
+
+.rating-pick{ border:0; padding:0; margin:0 0 .3rem; }
+.rating-pick legend{ font-size:.9rem; font-weight:600; color:var(--ink); padding:0; margin:0 0 .5rem; }
+.rating-pick label{ display:flex; align-items:center; gap:.6rem; padding:.3rem 0;
+  font-weight:400; font-size:.95rem; cursor:pointer; }
+.rating-pick__word{ color:var(--muted); font-size:.88rem; }
+
 .flash{ border:1px solid #a6d3c6; background:#e3f3ec; color:#0b6b5b; border-radius:var(--radius-sm);
   padding:.7rem 1rem; font-size:.88rem; margin-bottom:1.25rem; font-weight:600; }
 @media (prefers-color-scheme: dark){ .flash{ background:#12352c; color:#7fd8bd; border-color:#1f5346; } }
