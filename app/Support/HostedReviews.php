@@ -202,8 +202,8 @@ final class HostedReviews
      * Records a review.
      *
      * @param array{account:int, location?:?int, contact?:?int, source:string,
-     *              name:string, email?:?string, rating:int, body:string,
-     *              source_url?:?string} $review
+     *              name:string, email?:?string, city?:?string, rating:int,
+     *              body:string, source_url?:?string} $review
      * @return array{ok:bool, error:?string}
      */
     public static function add(array $review): array
@@ -239,6 +239,7 @@ final class HostedReviews
         ) ? $review['source'] : 'public_link';
 
         $email = trim((string) ($review['email'] ?? ''));
+        $city  = trim((string) ($review['city'] ?? ''));
 
         // Only a Google link, and only on a Google row. It is shown to the
         // public as "read it on Google", so it must not be able to point
@@ -255,9 +256,10 @@ final class HostedReviews
         Database::run(
             'INSERT INTO hosted_reviews
                 (account_id, location_id, contact_id, source, source_url, author_name,
-                 author_email, rating, body, submitted_ip)
+                 author_city, author_email, rating, body, submitted_ip)
              VALUES
-                (:account, :location, :contact, :source, :url, :name, :email, :rating, :body, :ip)',
+                (:account, :location, :contact, :source, :url, :name, :city, :email,
+                 :rating, :body, :ip)',
             [
                 'account'  => (int) $review['account'],
                 'location' => $review['location'] ?? null,
@@ -265,6 +267,7 @@ final class HostedReviews
                 'source'   => $source,
                 'url'      => $sourceUrl,
                 'name'     => $name,
+                'city'     => $city === '' ? null : mb_substr($city, 0, 120),
                 'email'    => $email === '' ? null : $email,
                 'rating'   => $rating,
                 'body'     => $body,

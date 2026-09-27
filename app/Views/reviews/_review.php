@@ -7,6 +7,9 @@ $badge  = HostedReviews::sourceBadge($source);
   <div class="rev__head">
     <?= View::render('reviews/_stars', ['rating' => (int) $r['rating']]) ?>
     <strong class="rev__who"><?= View::e((string) $r['author_name']) ?></strong>
+    <?php if (!empty($r['author_city'])): ?>
+      <span class="rev__city"><?= View::e((string) $r['author_city']) ?></span>
+    <?php endif; ?>
     <?php if ($badge !== ''): ?>
       <?php /* The Google mark is a plain letter, not Google's logo: using
                theirs would imply they endorse this page, and they do not. */ ?>

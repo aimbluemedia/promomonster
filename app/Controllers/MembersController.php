@@ -303,6 +303,7 @@ final class MembersController
             'location'   => $this->primaryLocation((int) $account['id'])['id'] ?? null,
             'source'     => $source,
             'name'       => (string) ($_POST['author_name'] ?? ''),
+            'city'       => (string) ($_POST['author_city'] ?? ''),
             'rating'     => (int) ($_POST['rating'] ?? 0),
             'body'       => (string) ($_POST['body'] ?? ''),
             'source_url' => (string) ($_POST['source_url'] ?? ''),

@@ -46,6 +46,9 @@ $stars = static function (int $n): string {
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
           <?= $stars((int) $r['rating']) ?>
           <strong><?= View::e((string) $r['author_name']) ?></strong>
+          <?php if (!empty($r['author_city'])): ?>
+            <span style="<?= $muted ?>"><?= View::e((string) $r['author_city']) ?></span>
+          <?php endif; ?>
           <?php if ($badge !== ''): ?>
             <?php /* A plain letter, not Google's logo. Reproducing their mark
                      on a third-party page implies an endorsement nobody gave. */ ?>

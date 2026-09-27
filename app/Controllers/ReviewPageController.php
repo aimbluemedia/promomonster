@@ -85,6 +85,7 @@ final class ReviewPageController
             'source'   => $contact === null ? 'public_link' : 'invited',
             'name'     => (string) ($_POST['author_name'] ?? ''),
             'email'    => (string) ($_POST['author_email'] ?? ''),
+            'city'     => (string) ($_POST['author_city'] ?? ''),
             'rating'   => (int) ($_POST['rating'] ?? 0),
             'body'     => (string) ($_POST['body'] ?? ''),
         ]);

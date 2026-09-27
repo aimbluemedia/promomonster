@@ -57,6 +57,10 @@ CREATE TABLE IF NOT EXISTS hosted_reviews (
     -- such. Only 'invited' is called verified, because only 'invited' is.
     source       ENUM('invited','public_link','entered_by_business','google') NOT NULL DEFAULT 'public_link',
     author_name  VARCHAR(120) NOT NULL,
+    -- Where they are, as they typed it: "Mesa, AZ". One free-text field rather
+    -- than a city column and a state column, because a reviewer writes it in
+    -- one breath and half of them are not in the United States.
+    author_city  VARCHAR(120) NULL,
     author_email VARCHAR(254) NULL,
     rating       TINYINT UNSIGNED NOT NULL,
     body         TEXT NOT NULL,
@@ -85,6 +89,12 @@ DEALLOCATE PREPARE stmt;
 -- Where the copied review can be read, so a claim about Google can be checked
 -- rather than taken on trust.
 SET @sql := (SELECT IF(EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'hosted_reviews' AND COLUMN_NAME = 'source_url'), 'DO 0', 'ALTER TABLE hosted_reviews ADD COLUMN source_url VARCHAR(500) NULL AFTER source'));
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- For a database that applied this file before author_city existed.
+SET @sql := (SELECT IF(EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'hosted_reviews' AND COLUMN_NAME = 'author_city'), 'DO 0', 'ALTER TABLE hosted_reviews ADD COLUMN author_city VARCHAR(120) NULL AFTER author_name'));
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;

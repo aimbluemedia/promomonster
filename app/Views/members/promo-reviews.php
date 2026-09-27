@@ -81,6 +81,12 @@
       </div>
 
       <div>
+        <label for="author_city">City, State <span class="muted">(optional)</span></label>
+        <input class="field" id="author_city" name="author_city" type="text" maxlength="120"
+               placeholder="Mesa, AZ" autocomplete="off">
+      </div>
+
+      <div>
         <label for="body">What they said</label>
         <textarea class="field" id="body" name="body" rows="4" required maxlength="4000"
                   placeholder="Their words, as close as you can remember."></textarea>

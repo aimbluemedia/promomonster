@@ -88,7 +88,13 @@ $name = trim((string) $account['name']);
         </div>
 
         <div>
-          <label for="body">What happened?</label>
+          <label for="author_city">City, State <span class="muted">(optional)</span></label>
+          <input class="field" id="author_city" name="author_city" type="text" maxlength="120"
+                 placeholder="Mesa, AZ" autocomplete="address-level2">
+        </div>
+
+        <div>
+          <label for="body">Your review</label>
           <textarea class="field" id="body" name="body" rows="5" required maxlength="4000"
                     placeholder="What did they do, and how did it go?"></textarea>
         </div>

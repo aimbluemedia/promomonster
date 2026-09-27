@@ -493,6 +493,7 @@ table.data td.wrap{ white-space:normal; max-width:22rem; }
 .card .rev{ border-top:0; padding:0; }
 .rev__head{ display:flex; align-items:center; gap:.55rem; flex-wrap:wrap; margin-bottom:.45rem; }
 .rev__who{ color:var(--ink); }
+.rev__city{ color:var(--muted); font-size:.86rem; }
 .rev__when{ margin-left:auto; color:var(--muted); font-size:.82rem; }
 .rev__body{ margin:0; color:var(--body); }
 .rev__source{ margin:.5rem 0 0; font-size:.8rem; color:var(--muted); }
