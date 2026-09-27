@@ -408,15 +408,15 @@ ok('and leaves another address still locked', Auth::lockedOut('someone.else@exam
 // Rate limits
 // =====================================================================
 seed();
-for ($i = 0; $i < 3; $i++) {
+for ($i = 0; $i < 5; $i++) {
     clearMail();
-    PasswordReset::request('dana@acmepools.test');
+    ok("request " . ($i + 1) . " of five is allowed", PasswordReset::request('dana@acmepools.test'));
 }
-ok('the third request in the window still sends', emailedToken() !== null);
+ok('the fifth request in the window still sends', emailedToken() !== null);
 
 clearMail();
-PasswordReset::request('dana@acmepools.test');
-ok('the fourth sends nothing', emailedToken() === null);
+ok('the sixth reports that it was throttled', PasswordReset::request('dana@acmepools.test') === false);
+ok('and sends nothing', emailedToken() === null);
 check('and issues no new live row', liveRows(), 1);
 
 // The IP bucket is wider, and is what an address-guessing run runs into.

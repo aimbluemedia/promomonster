@@ -43,8 +43,16 @@ final class PasswordReset
      */
     private const LIFETIME_MINUTES = 60;
 
-    /** Requests allowed per address, and per asking IP, in an hour. */
-    private const PER_ADDRESS = 3;
+    /**
+     * Requests allowed per address, and per asking IP, in an hour.
+     *
+     * Three was too few. A person who mistypes their address, waits, checks
+     * the spam folder, asks again and then asks once more has spent it without
+     * doing anything unreasonable -- and what they got for the fourth attempt
+     * was a page saying "check your email" and no email. Five still stops a
+     * mailbox being used as a way to post somebody a stack of mail.
+     */
+    private const PER_ADDRESS = 5;
     private const PER_IP = 12;
     private const WINDOW = 3600;
 
@@ -155,22 +163,31 @@ final class PasswordReset
     /**
      * Ask for a link.
      *
-     * Returns nothing, on purpose. There is no outcome a caller could report
-     * without reporting whether the address has an account, so there is nothing
-     * to return -- the page above says "if that address has an account, the
-     * link is on its way" either way, and means it.
+     * Returns false only when the request was throttled, true otherwise.
+     *
+     * That one distinction is safe to report and the rest is not. The limits
+     * are counted before any lookup, so they apply to an address whether or not
+     * it has an account -- saying "you have asked too many times" reveals
+     * nothing about who our customers are. Everything after that point is
+     * silent, and the page says the same thing whether the address was found
+     * or not.
+     *
+     * It matters because the alternative is what shipped: somebody who asks a
+     * fourth time gets "check your email" and then no email, which is
+     * indistinguishable from the feature being broken -- and sends them round
+     * the loop that produces the fifth and sixth attempts.
      */
-    public static function request(string $email): void
+    public static function request(string $email): bool
     {
         if (!self::ready()) {
             self::skipped('the password_resets table does not exist yet');
-            return;
+            return true;
         }
 
         $email = mb_strtolower(trim($email));
         if ($email === '' || !Mailer::isSendableAddress($email)) {
             self::skipped('that was not a usable email address');
-            return;
+            return true;
         }
 
         // The IP bucket first. Somebody working through a list of addresses
@@ -181,7 +198,7 @@ final class PasswordReset
                 'this IP has asked %d times in the last hour, which is the limit',
                 self::PER_IP,
             ));
-            return;
+            return false;
         }
         // And per address, so one person's mailbox cannot be used as a way to
         // send them a dozen emails from us.
@@ -190,7 +207,7 @@ final class PasswordReset
                 'that address has asked %d times in the last hour, which is the limit',
                 self::PER_ADDRESS,
             ));
-            return;
+            return false;
         }
 
         self::purge();
@@ -201,7 +218,7 @@ final class PasswordReset
                 'no active, non-staff member account with that address (check the spelling, '
                 . 'and that the account has a business attached to it)',
             );
-            return;
+            return true;
         }
 
         $userId = (int) $user['id'];
@@ -242,6 +259,8 @@ final class PasswordReset
         Audit::log('auth.password_reset_requested', 'user', $userId);
 
         self::send($user, $token);
+
+        return true;
     }
 
     /**
