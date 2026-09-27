@@ -88,10 +88,7 @@ final class PasswordResetController
             // account -- this says nothing about who our customers are, and
             // saying nothing at all is what sends somebody round the loop
             // again, spending the allowance they have just been told about.
-            $this->failForgot(
-                'That is a few too many requests in the last hour. Wait an hour and try again, '
-                . 'or get in touch and we will sort your password out by hand.',
-            );
+            $this->failForgot('Too many attempts. Please try again later.');
         }
 
         // Identical whether or not that address has an account. This is the
