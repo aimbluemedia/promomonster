@@ -100,8 +100,12 @@ final class PasswordReset
             return;
         }
 
+        // Expired rather than deleted, for the same reason as in request():
+        // a row that is gone is indistinguishable from a token never issued,
+        // and the reset route throttles those.
         Database::run(
-            'DELETE FROM password_resets WHERE user_id = :uid AND used_at IS NULL',
+            'UPDATE password_resets SET expires_at = NOW()
+              WHERE user_id = :uid AND used_at IS NULL AND expires_at > NOW()',
             ['uid' => $userId],
         );
     }
@@ -202,12 +206,23 @@ final class PasswordReset
 
         $userId = (int) $user['id'];
 
-        // Anything outstanding is dead the moment a new one is issued. Deleted
-        // rather than marked used, because it was never used: used_at is
-        // evidence that somebody clicked, and it should not also mean "we
-        // replaced this".
+        // Anything outstanding dies the moment a new one is issued -- expired,
+        // not deleted, and not marked used either.
+        //
+        // Not used, because used_at is evidence that somebody clicked and must
+        // not also mean "we replaced this". Not deleted, because a row that is
+        // gone cannot be told apart from a token that was never issued, and the
+        // reset route throttles tokens it has never seen. Delete them and
+        // somebody clicking the older of two emails looks exactly like somebody
+        // guessing -- so twenty stale clicks lock them out of the live link,
+        // and the person most likely to do that is the one who just asked for
+        // several resets because none seemed to work.
+        //
+        // Expiring it says the true thing: that link stopped working when the
+        // next one was issued. purge() clears them out a week later.
         Database::run(
-            'DELETE FROM password_resets WHERE user_id = :uid AND used_at IS NULL',
+            'UPDATE password_resets SET expires_at = NOW()
+              WHERE user_id = :uid AND used_at IS NULL AND expires_at > NOW()',
             ['uid' => $userId],
         );
 
@@ -278,6 +293,26 @@ final class PasswordReset
     }
 
     /**
+     * Was this token ever real, whatever state it is in now?
+     *
+     * Used to tell a person clicking a stale link apart from somebody guessing.
+     * Both get the same page -- that part is deliberate -- but only one of them
+     * should count against the throttle, and it is not the customer who clicked
+     * the older of two emails we sent them.
+     */
+    public static function everExisted(string $token): bool
+    {
+        if (strlen($token) !== self::TOKEN_BYTES * 2 || !ctype_xdigit($token) || !self::ready()) {
+            return false;
+        }
+
+        return Database::first(
+            'SELECT 1 AS found FROM password_resets WHERE token_hash = :hash LIMIT 1',
+            ['hash' => self::hash($token)],
+        ) !== null;
+    }
+
+    /**
      * Spend the link and set the password.
      *
      * False means the link was already spent between the form being shown and
@@ -302,11 +337,12 @@ final class PasswordReset
         Auth::setPassword($reset['user_id'], $password);
 
         // Any other link for this account dies too. Two outstanding links
-        // cannot normally exist -- request() clears the old one -- but if one
+        // cannot normally exist -- request() expires the old one -- but if one
         // ever does, the account has just been recovered and nothing older
-        // should still open it.
+        // should still open it. Expired, not deleted, as above.
         Database::run(
-            'DELETE FROM password_resets WHERE user_id = :uid AND used_at IS NULL',
+            'UPDATE password_resets SET expires_at = NOW()
+              WHERE user_id = :uid AND used_at IS NULL AND expires_at > NOW()',
             ['uid' => $reset['user_id']],
         );
 

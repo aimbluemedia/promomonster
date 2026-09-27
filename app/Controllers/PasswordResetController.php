@@ -182,7 +182,19 @@ final class PasswordResetController
         }
 
         $reset = PasswordReset::find($token);
-        if ($reset === null) {
+
+        // Only a token that was never real counts against the throttle.
+        //
+        // Every miss used to count, which turned a small annoyance into a
+        // lockout: asking for a second link kills the first, so anybody who
+        // clicks the older of two emails gets the dead-link page -- and after
+        // twenty of those the LIVE link gets the same page too, with no way to
+        // tell the difference. The person most likely to trip it is the one
+        // who just asked for several resets because none of them seemed to
+        // work, which is precisely who must not be locked out.
+        //
+        // A token we have never issued is somebody guessing, and still counts.
+        if ($reset === null && !PasswordReset::everExisted($token)) {
             RateLimiter::record($bucket);
         }
 

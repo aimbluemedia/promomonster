@@ -174,9 +174,27 @@ function emailedToken(): ?string
     return preg_match('~/members/reset/([0-9a-f]{64})~', mailLog(), $m) === 1 ? $m[1] : null;
 }
 
+/** Every row, live or not. */
 function rows(): int
 {
     $row = Database::first('SELECT COUNT(*) AS n FROM password_resets');
+    return (int) ($row['n'] ?? 0);
+}
+
+/**
+ * Rows a link could still be redeemed from.
+ *
+ * Distinct from rows() because superseding a link expires it rather than
+ * deleting it: a row that is gone cannot be told apart from a token that was
+ * never issued, and the reset route throttles the ones it has never seen. So
+ * "how many links work" and "how many rows exist" stopped being the same
+ * question, and most of these assertions mean the first one.
+ */
+function liveRows(): int
+{
+    $row = Database::first(
+        'SELECT COUNT(*) AS n FROM password_resets WHERE used_at IS NULL AND expires_at > NOW()'
+    );
     return (int) ($row['n'] ?? 0);
 }
 
@@ -298,7 +316,8 @@ PasswordReset::request('dana@acmepools.test');
 $second = (string) emailedToken();
 
 ok('a second request issues a different token', $first !== $second && $second !== '');
-check('and leaves only one live row', rows(), 1);
+check('and leaves only one live row', liveRows(), 1);
+check('the superseded one is kept, expired', rows(), 2);
 ok('the first link is dead', PasswordReset::find($first) === null);
 ok('the second link works', PasswordReset::find($second) !== null);
 
@@ -398,7 +417,7 @@ ok('the third request in the window still sends', emailedToken() !== null);
 clearMail();
 PasswordReset::request('dana@acmepools.test');
 ok('the fourth sends nothing', emailedToken() === null);
-check('and issues no new row', rows(), 1);
+check('and issues no new live row', liveRows(), 1);
 
 // The IP bucket is wider, and is what an address-guessing run runs into.
 seed();
@@ -578,7 +597,8 @@ seed();
 PasswordReset::request('dana@acmepools.test');
 check('a live link exists', rows(), 1);
 PasswordReset::revokeFor(1);
-check('handing the account over revokes it', rows(), 0);
+check('handing the account over revokes it', liveRows(), 0);
+check('but the row stays, so a stale click is not mistaken for guessing', rows(), 1);
 
 // Spent rows are evidence and stay.
 seed();
@@ -600,6 +620,39 @@ try {
 ok('revoking is safe with no table', !$threw);
 Database::run('RENAME TABLE password_resets_parked TO password_resets');
 forgetReadyCache();
+
+// =====================================================================
+// A stale link must not lock somebody out of the live one
+// =====================================================================
+// Asking again supersedes the previous link, so anybody who clicks the older
+// of two emails gets the dead-link page. That is fine. What is not fine is
+// that the route throttles tokens it does not recognise -- so if a superseded
+// row were deleted, those clicks would look exactly like guessing, and twenty
+// of them would deny the live link too. The person most likely to do that is
+// the one who just asked for several resets because none seemed to work.
+seed();
+PasswordReset::request('dana@acmepools.test');
+$stale = (string) emailedToken();
+RateLimiter::forgetAll();
+clearMail();
+PasswordReset::request('dana@acmepools.test');
+$live = (string) emailedToken();
+
+ok('the superseded link no longer resolves', PasswordReset::find($stale) === null);
+ok('but it is still recognised as one of ours', PasswordReset::everExisted($stale));
+ok('while a token never issued is not', !PasswordReset::everExisted(str_repeat('c', 64)));
+ok('and the live link still works', PasswordReset::find($live) !== null);
+
+// A spent link has to survive the same way, for the same reason.
+seed();
+PasswordReset::request('dana@acmepools.test');
+$spent = (string) emailedToken();
+PasswordReset::complete(PasswordReset::find($spent), NEW_PASSWORD);
+ok('a spent link is still recognised as one of ours', PasswordReset::everExisted($spent));
+
+// Shape is checked before the database, so rubbish never reaches a query.
+ok('a malformed token is not "one of ours"', !PasswordReset::everExisted('not-a-token'));
+ok('nor is an empty one', !PasswordReset::everExisted(''));
 
 echo "\n{$passed} passed, {$failed} failed\n";
 exit($failed === 0 ? 0 : 1);
