@@ -380,10 +380,18 @@ if ($mailFiles !== []) {
     // 1. The signing key. Without it every send fails when it tries to build
     //    the unsubscribe link, which is a confusing place to discover it.
     if ($appKey === '') {
+        // Generated here, on this server, by this server's PHP. Telling
+        // somebody on shared hosting to run a command line is telling them to
+        // use a shell they do not have -- and the alternative most people
+        // reach for is a random string typed by hand, or one pasted from a
+        // website, neither of which is a key. A fresh one every page load, so
+        // this page cannot be used to learn which one was taken.
         add($checks, 'Signing key (app_key)', 'fail',
             "app/config.php has no 'app_key'. Unsubscribe links cannot be signed without one, "
-            . 'so every send will fail. Generate one once and never change it: '
-            . 'php -r "echo bin2hex(random_bytes(32));"');
+            . 'so every review request will fail to send. It goes at the TOP level of the file, '
+            . 'next to app_name -- not inside the mail section. Copy this line in, once, and '
+            . 'never change it: '
+            . "'app_key' => '" . bin2hex(random_bytes(32)) . "',");
     } elseif (strlen($appKey) < 32) {
         add($checks, 'Signing key (app_key)', 'fail',
             'app_key is only ' . strlen($appKey) . ' characters. Use at least 32 — '
@@ -536,10 +544,12 @@ if ($mailFiles !== []) {
     // 4. The webhook secret. Not fatal, but without it bounces and complaints
     //    never come back, and a complaint nobody records is one nobody acts on.
     if (trim((string) ($mailCfg['webhook_secret'] ?? '')) === '') {
+        $suggested = bin2hex(random_bytes(16));
         add($checks, 'Delivery webhook', 'todo',
             'No mail.webhook_secret, so the bounce and complaint endpoint refuses everything. '
-            . 'Set one, then point Postmark at '
-            . 'https://' . (string) ($_SERVER['HTTP_HOST'] ?? 'your-domain') . '/webhooks/email/THAT-SECRET');
+            . "Add \"'webhook_secret' => '" . $suggested . "',\" inside the mail section, then "
+            . 'point Postmark at https://' . (string) ($_SERVER['HTTP_HOST'] ?? 'your-domain')
+            . '/webhooks/email/' . $suggested);
     } else {
         add($checks, 'Delivery webhook', 'pass',
             'Secret set. Point Postmark at /webhooks/email/YOUR-SECRET for bounces and complaints.');
