@@ -289,9 +289,14 @@ if ($missingClaude !== []) {
     }
 
     if ($apiKey === '') {
-        add($checks, 'Competitor comparison', 'fail',
-            "Code is uploaded, but app/config.php has no 'anthropic' => ['api_key' => '...'] entry, "
-            . 'so the feature stays disabled.');
+        // Not switched on rather than broken. This feature is optional and
+        // costs money to run, so never configuring it is a decision, not a
+        // fault -- and listing a decision under "problems found" is how a
+        // report trains you to stop reading it.
+        add($checks, 'Competitor comparison', 'todo',
+            "No 'anthropic' => ['api_key' => '...'] entry in app/config.php, so the competitor "
+            . 'comparison stays switched off. Nothing else depends on it, and it is the only '
+            . 'feature here that costs money per use.');
     } elseif (!extension_loaded('curl')) {
         add($checks, 'Competitor comparison', 'fail',
             'A key is set, but the curl PHP extension is off. Enable it in hPanel → PHP Configuration.');
@@ -665,7 +670,18 @@ if (is_file($logPath)) {
     $raw = (string) @file_get_contents($logPath);
     // Entries start with "[date] REFERENCE  Class: message".
     $blocks = preg_split('/\n(?=\[\d{4}-)/', trim($raw)) ?: [];
-    $recentErrors = array_slice(array_reverse($blocks), 0, 5);
+
+    // Drop the empties. preg_split on an empty string returns one empty
+    // element, not none -- so a log file that had been emptied rather than
+    // deleted was reported as "1 error(s)" with a blank message and no date,
+    // which then could not be aged and so came out as a hard failure. Telling
+    // somebody to clear the log and having that create a phantom error is a
+    // special kind of unhelpful.
+    $recentErrors = array_slice(
+        array_values(array_filter(array_reverse($blocks), static fn (string $b): bool => trim($b) !== '')),
+        0,
+        5,
+    );
 }
 
 // If the log cannot be written, every reference is a dead end and the visitor
