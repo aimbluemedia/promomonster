@@ -38,6 +38,18 @@ final class Smtp
     /** Base64 wraps at 76, which is well inside the 998-octet line limit. */
     private const WRAP = 76;
 
+    /**
+     * TLS 1.2 and above, and nothing older.
+     *
+     * PHP's STREAM_CRYPTO_METHOD_TLS_CLIENT is every version including 1.0 and
+     * 1.1, both long deprecated and both removed from every mail provider worth
+     * using. Accepting them would mean a downgrade is available to anyone who
+     * can sit in the middle of this connection -- and what crosses it is a
+     * mailbox password. Saying the certificate must verify and then accepting
+     * TLS 1.0 to carry the credential is half a position.
+     */
+    public const CRYPTO = STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT | STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT;
+
     /** @var resource|null */
     private $socket = null;
 
@@ -139,6 +151,9 @@ final class Smtp
             'allow_self_signed' => false,
             'SNI_enabled'       => true,
             'peer_name'         => $this->host,
+            // Applies to ssl:// (implicit TLS). STARTTLS passes the same set
+            // to stream_socket_enable_crypto() below.
+            'crypto_method'     => self::CRYPTO,
         ]]);
 
         $socket = @stream_socket_client(
@@ -180,16 +195,12 @@ final class Smtp
     {
         $this->command('STARTTLS', [220]);
 
-        $ok = @stream_socket_enable_crypto(
-            $this->socket,
-            true,
-            STREAM_CRYPTO_METHOD_TLS_CLIENT,
-        );
+        $ok = @stream_socket_enable_crypto($this->socket, true, self::CRYPTO);
 
         if ($ok !== true) {
             throw new \RuntimeException(
-                'STARTTLS failed on ' . $this->host . '. The certificate did not verify, '
-                . 'or the server does not actually support TLS on this port.',
+                'STARTTLS failed on ' . $this->host . '. The certificate did not verify, or the '
+                . 'server does not offer TLS 1.2 or better on this port.',
             );
         }
     }

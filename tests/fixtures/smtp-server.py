@@ -20,14 +20,28 @@ USER, PASS = 'logins@promomonster.test', 'mailbox-secret'
 ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
 ctx.load_cert_chain(os.environ['SMTP_TEST_CERT'], os.environ['SMTP_TEST_KEY'])
 
+# Optional: pin the server to an old TLS version, so the client's refusal to
+# speak it can be asserted rather than assumed.
+_max = os.environ.get('SMTP_TEST_MAXTLS')
+if _max:
+    ctx.minimum_version = getattr(ssl.TLSVersion, _max)
+    ctx.maximum_version = getattr(ssl.TLSVersion, _max)
+    try:
+        ctx.set_ciphers('DEFAULT@SECLEVEL=0')
+    except ssl.SSLError:
+        pass
+
 def handle(conn):
-    got = {'from': None, 'rcpt': [], 'data': None, 'authed': False, 'ehlo': 0}
+    got = {'from': None, 'rcpt': [], 'data': None, 'authed': False, 'ehlo': 0, 'tls': None}
     f = conn.makefile('rwb')
     def send(s):
         f.write((s + '\r\n').encode()); f.flush()
     def line():
         l = f.readline()
         return l.decode('utf-8', 'replace').rstrip('\r\n') if l else None
+
+    if isinstance(conn, ssl.SSLSocket):
+        got['tls'] = conn.version()
 
     send('220 test.local ESMTP ready')
     while True:
@@ -51,6 +65,7 @@ def handle(conn):
         elif up == 'STARTTLS':
             send('220 Go ahead')
             conn = ctx.wrap_socket(conn, server_side=True)
+            got['tls'] = conn.version()
             f = conn.makefile('rwb')
         elif up == 'AUTH LOGIN':
             send('334 ' + base64.b64encode(b'Username:').decode())

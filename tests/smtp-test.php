@@ -291,6 +291,12 @@ foreach ($ports as $mode => $port) {
         array_filter($lines, static fn (string $l) => str_starts_with($l, '.')) === []);
     check("{$mode}: every newline is a CRLF",
         substr_count((string) $got['data'], "\n"), substr_count((string) $got['data'], "\r\n"));
+
+    // What was actually negotiated, reported by the far end. PHP's
+    // STREAM_CRYPTO_METHOD_TLS_CLIENT would happily accept TLS 1.0, and a
+    // mailbox password is what crosses this connection.
+    ok("{$mode}: negotiated TLS 1.2 or better (got " . (string) ($got['tls'] ?? 'nothing') . ')',
+        in_array($got['tls'] ?? null, ['TLSv1.2', 'TLSv1.3'], true));
 }
 
 // =====================================================================
@@ -418,6 +424,75 @@ if (is_file($untrustedCert)) {
 
     ok('a certificate from an untrusted issuer is refused', $result['ok'] === false);
     ok('and that message was not delivered either', !is_file($dir . '/untrusted.json'));
+
+    if ($pid > 0) {
+        @posix_kill($pid, SIGTERM);
+    }
+}
+
+// =====================================================================
+// The floor on TLS versions
+// =====================================================================
+// Asserted directly, because it cannot be asserted through a socket here.
+//
+// The black-box attempt is below and it is honest about what it is worth: on
+// this machine OpenSSL 3 refuses TLS 1.0 and 1.1 outright, so a server offering
+// only those is unreachable whatever PHP was asked for -- swapping the constant
+// back to STREAM_CRYPTO_METHOD_TLS_CLIENT changed none of those results. A
+// green assertion that stays green when the thing it guards is removed is not
+// evidence, so the guarantee is pinned to the value itself.
+$crypto = (int) (new ReflectionClass(App\Support\Smtp::class))->getConstant('CRYPTO');
+
+// Containment, not "shares a bit". These constants are not independent flags:
+// every _CLIENT value carries the same low bit, so TLSv1_0 (9) and TLSv1_2 (33)
+// overlap on it and an & test reads "includes TLS 1.0" for a set that plainly
+// does not. Testing for the whole flag is the only way to ask the question.
+$includes = static fn (int $flag): bool => ($crypto & $flag) === $flag;
+
+ok('the client offers TLS 1.2', $includes(STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT));
+ok('and TLS 1.3', $includes(STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT));
+ok('but not TLS 1.0', !$includes(STREAM_CRYPTO_METHOD_TLSv1_0_CLIENT));
+ok('nor TLS 1.1', !$includes(STREAM_CRYPTO_METHOD_TLSv1_1_CLIENT));
+
+// And a server on an old version, for the machines where PHP is what refuses
+// it. These prove the outcome, not the mechanism.
+foreach (['TLSv1', 'TLSv1_1'] as $old) {
+    $oldPort = freePort();
+    $pid = (int) shell_exec(sprintf(
+        'SMTP_TEST_CERT=%s SMTP_TEST_KEY=%s SMTP_TEST_MAXTLS=%s nohup python3 %s %d ssl %s > %s 2>&1 & echo $!',
+        escapeshellarg($cert),
+        escapeshellarg($key),
+        escapeshellarg($old),
+        escapeshellarg(BASE_PATH . '/tests/fixtures/smtp-server.py'),
+        $oldPort,
+        escapeshellarg($dir . '/old-' . $old . '.json'),
+        escapeshellarg($dir . '/old-' . $old . '.log'),
+    ));
+
+    $up = false;
+    for ($i = 0; $i < 30; $i++) {
+        $probe = @fsockopen('127.0.0.1', $oldPort, $errno, $errstr, 0.2);
+        if ($probe !== false) {
+            fclose($probe);
+            $up = true;
+            break;
+        }
+        usleep(150_000);
+    }
+
+    if (!$up) {
+        // Modern OpenSSL often refuses to serve these at all, which is the
+        // right outcome for a different reason. Not something to fake a pass
+        // over, and not a failure either.
+        echo "note: could not start a {$old} server, so that refusal is unproven here\n";
+        continue;
+    }
+
+    configure(['port' => $oldPort, 'encryption' => 'ssl']);
+    $result = Mailer::send(['to' => 'a@b.test', 'subject' => 'x', 'text' => 'y', 'driver' => 'smtp']);
+
+    ok("a server offering only {$old} is unusable", $result['ok'] === false);
+    ok("and nothing was delivered to it", !is_file($dir . '/old-' . $old . '.json'));
 
     if ($pid > 0) {
         @posix_kill($pid, SIGTERM);
