@@ -540,30 +540,61 @@ if ($mailFiles !== []) {
         } else {
             require_once $base . '/app/Support/Config.php';
             require_once $base . '/app/Support/Mailer.php';
+            require_once $base . '/app/Support/Smtp.php';
             App\Support\Config::load(is_array($config) ? $config : []);
 
-            $result = App\Support\Mailer::send([
-                'to'      => $to,
-                'subject' => 'PromoMonster test send',
-                'text'    => "This is a test from diagnose.php.\n\n"
-                           . "If you are reading it in your inbox rather than your spam folder,\n"
-                           . "review requests will arrive the same way.\n",
-                'from_name' => App\Support\Mailer::fromHeader(null, false),
-                'tag'     => 'diagnostic',
-            ]);
+            // BOTH lanes, separately. They can be different providers, and for
+            // a while this only ever tested the bulk one -- so somebody could
+            // configure SMTP for password resets, press the test button, watch
+            // it pass, and still have no resets arriving. The lane that was
+            // never exercised is exactly the lane that was broken.
+            $lanes = [
+                'Test send (review requests)' => [
+                    'driver'    => App\Support\Mailer::driver(),
+                    'from'      => App\Support\Mailer::from(),
+                    'from_name' => App\Support\Mailer::fromHeader(null, false),
+                    'stream'    => (string) ($mailCfg['stream'] ?? 'outbound'),
+                    'note'      => 'a 401 means the token is wrong; "sender signature" means the '
+                                 . 'From domain is not verified in Postmark yet.',
+                ],
+                'Test send (password resets)' => [
+                    'driver'    => App\Support\Mailer::transactionalDriver(),
+                    'from'      => App\Support\Mailer::transactionalFrom(),
+                    'from_name' => App\Support\Mailer::transactionalHeader(),
+                    'stream'    => App\Support\Mailer::transactionalStream(),
+                    'note'      => 'on SMTP, "refused authentication" means the mailbox password is '
+                                 . 'wrong; "Could not reach" means the host or port is wrong, or '
+                                 . 'your server does not allow outbound connections on it.',
+                ],
+            ];
 
-            if ($result['ok']) {
-                add($checks, 'Test send', 'pass',
-                    'Accepted by the "' . $result['driver'] . '" driver'
-                    . ($result['driver'] === 'log'
-                        ? ' — which means it was written to storage/logs/mail.log, NOT delivered.'
-                        : ', id ' . (string) $result['id']
-                          . '. Check the inbox, and check the spam folder before celebrating.'));
-            } else {
-                add($checks, 'Test send', 'fail',
-                    (string) $result['error']
-                    . ' — a 401 means the token is wrong; "sender signature" means the From '
-                    . 'domain is not verified in Postmark yet.');
+            foreach ($lanes as $label => $lane) {
+                $result = App\Support\Mailer::send([
+                    'to'        => $to,
+                    'subject'   => 'PromoMonster test send',
+                    'text'      => "This is a test from diagnose.php.\n\n"
+                                 . "Lane: " . $label . "\n"
+                                 . "Driver: " . $lane['driver'] . "\n"
+                                 . "From: " . $lane['from'] . "\n",
+                    'from_name' => $lane['from_name'],
+                    'from'      => $lane['from'],
+                    'driver'    => $lane['driver'],
+                    'stream'    => $lane['stream'],
+                    'tag'       => 'diagnostic',
+                ]);
+
+                if ($result['ok']) {
+                    add($checks, $label, 'pass',
+                        'Accepted by the "' . $result['driver'] . '" driver, from ' . $lane['from']
+                        . ($result['driver'] === 'log'
+                            ? ' — which means it was written to storage/logs/mail.log, NOT delivered.'
+                            : ', id ' . (string) $result['id']
+                              . '. Check the inbox, and check the spam folder before celebrating.'));
+                } else {
+                    add($checks, $label, 'fail',
+                        'Driver "' . $result['driver'] . '" refused it: ' . (string) $result['error']
+                        . ' — ' . $lane['note']);
+                }
             }
         }
     }

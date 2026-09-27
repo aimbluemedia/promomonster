@@ -81,6 +81,38 @@ final class ErrorHandler
             . '<strong>' . $reference . '</strong>.</p></div>';
     }
 
+    /**
+     * Records something that went wrong but did not throw.
+     *
+     * A failed send is the case this exists for. It is not an exception -- the
+     * mailer returns failure so the caller can carry on -- but it is exactly
+     * the kind of thing somebody stares at a working-looking page wondering
+     * about. error_log() was not enough: that goes to the server's log, which
+     * is not the file diagnose.php reads, so the one place anybody actually
+     * looks stayed empty while sends failed.
+     *
+     * Same format as a crash entry, so the same reader picks it up.
+     */
+    public static function note(string $what, string $detail): void
+    {
+        $line = sprintf(
+            "[%s] %-8s %s: %s%s",
+            date('Y-m-d H:i:s'),
+            'NOTE',
+            $what,
+            str_replace(["\r", "\n"], ' ', $detail),
+            PHP_EOL . PHP_EOL,
+        );
+
+        $dir = BASE_PATH . '/storage/logs';
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0775, true);
+        }
+        if (@file_put_contents($dir . '/error.log', $line, FILE_APPEND | LOCK_EX) === false) {
+            error_log('promomonster ' . $what . ': ' . $detail);
+        }
+    }
+
     private static function write(string $reference, Throwable $e): void
     {
         $line = sprintf(

@@ -159,11 +159,13 @@ final class PasswordReset
     public static function request(string $email): void
     {
         if (!self::ready()) {
+            self::skipped('the password_resets table does not exist yet');
             return;
         }
 
         $email = mb_strtolower(trim($email));
         if ($email === '' || !Mailer::isSendableAddress($email)) {
+            self::skipped('that was not a usable email address');
             return;
         }
 
@@ -171,11 +173,19 @@ final class PasswordReset
         // burns it on their second or third guess, before any of those guesses
         // reach the address bucket.
         if (RateLimiter::tooManyAttempts('pwreset-ip:' . Request::ip(), self::PER_IP, self::WINDOW)) {
+            self::skipped(sprintf(
+                'this IP has asked %d times in the last hour, which is the limit',
+                self::PER_IP,
+            ));
             return;
         }
         // And per address, so one person's mailbox cannot be used as a way to
         // send them a dozen emails from us.
         if (RateLimiter::tooManyAttempts('pwreset-address:' . $email, self::PER_ADDRESS, self::WINDOW)) {
+            self::skipped(sprintf(
+                'that address has asked %d times in the last hour, which is the limit',
+                self::PER_ADDRESS,
+            ));
             return;
         }
 
@@ -183,6 +193,10 @@ final class PasswordReset
 
         $user = self::member($email);
         if ($user === null) {
+            self::skipped(
+                'no active, non-staff member account with that address (check the spelling, '
+                . 'and that the account has a business attached to it)',
+            );
             return;
         }
 
@@ -385,11 +399,36 @@ final class PasswordReset
         ]);
 
         if (!$result['ok']) {
-            // Nothing to show the person asking -- telling them the send failed
-            // would confirm the address exists. This is for whoever reads the
-            // log afterwards wondering why no email arrived.
-            error_log('password reset send failed: ' . (string) $result['error']);
+            // Nothing is shown to the person asking: telling them the send
+            // failed would confirm the address exists. But it has to be visible
+            // to whoever is wondering why no email arrived, and error_log()
+            // was not that -- it goes to the server's log rather than the one
+            // diagnose.php reads, so the page everybody checks stayed empty
+            // while every send failed.
+            ErrorHandler::note(
+                'Password reset not sent',
+                'driver "' . $result['driver'] . '" refused it: ' . (string) $result['error'],
+            );
         }
+    }
+
+    /**
+     * Records why no email went out, for staff eyes only.
+     *
+     * The page above says the same thing whichever of these happened, and it
+     * has to: an account recovery form that distinguishes "no such address"
+     * from "sent" is a way to test addresses against our customer list. But
+     * that leaves an operator with one message for five different causes, and
+     * "I updated everything and no emails arrive" has no next step.
+     *
+     * So the reason goes in the log diagnose.php reads. No address is recorded
+     * with it -- whoever is debugging knows what they typed, and a log slowly
+     * accumulating the addresses of people who are NOT customers is not
+     * something to keep.
+     */
+    private static function skipped(string $reason): void
+    {
+        ErrorHandler::note('Password reset not sent', $reason);
     }
 
     private static function url(string $token): string
