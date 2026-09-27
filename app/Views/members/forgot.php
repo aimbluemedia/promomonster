@@ -1,5 +1,23 @@
-<?php use App\Support\Csrf; use App\Support\View;
-/** @var ?string $error @var ?string $sent @var int $minutes @var bool $sending @var bool $ready @var ?string $title */ ?>
+<?php use App\Support\Csrf; use App\Support\Mailer; use App\Support\PasswordReset; use App\Support\View;
+/** @var ?string $error @var ?string $sent @var int $minutes @var ?string $title */
+
+/* Asked here rather than handed in.
+ *
+ * These two were passed from the controller, which meant two files had to
+ * agree about what is true -- and on a host where deploying is uploading files
+ * by hand, a current view paired with last week's controller reports whatever
+ * last week believed. That is not hypothetical: an older controller asked
+ * whether REVIEW REQUESTS could send instead of whether account email could,
+ * so this page announced that sending was switched off while a perfectly good
+ * mailbox sat configured behind it, and no amount of fixing the config moved
+ * it.
+ *
+ * One source of truth, read at the moment it is displayed. The page cannot now
+ * disagree with the code that does the sending.
+ */
+$sending = Mailer::transactionalIsLive();
+$ready   = PasswordReset::ready();
+?>
 <!doctype html>
 <html lang="en">
 <head>

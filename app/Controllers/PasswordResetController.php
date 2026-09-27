@@ -48,15 +48,11 @@ final class PasswordResetController
             'error'   => is_string($error) ? $error : null,
             'sent'    => is_string($sent) ? $sent : null,
             'minutes' => PasswordReset::lifetimeMinutes(),
-            // The files can be on the server before the migration has been run
-            // through phpMyAdmin, and in that window this page is the one thing
-            // a locked-out member will try. Say so rather than fail on submit.
-            'ready'   => PasswordReset::ready(),
-            // Said out loud rather than left as a mystery. Until Postmark is
-            // connected a reset email goes to storage/logs/mail.log, which is
-            // no use to the person on this page, and "check your inbox" would
-            // be a straight lie.
-            'sending' => Mailer::transactionalIsLive(),
+            // 'ready' and 'sending' are deliberately NOT passed. The view asks
+            // for them itself, so that a stale copy of this file cannot make
+            // that page announce something the sender disagrees with -- which
+            // is exactly what happened, and took a week to find.
+
         ]);
     }
 
