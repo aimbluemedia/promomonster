@@ -426,9 +426,19 @@ if ($mailFiles !== []) {
     // 3. The from address, which has to be on a domain verified with the
     //    provider or every send is rejected.
     if ($mailFrom === '' || filter_var($mailFrom, FILTER_VALIDATE_EMAIL) === false) {
-        add($checks, 'From address', 'fail',
-            'mail.from is missing or not an address. Set it to something on a domain you '
-            . 'have verified with Postmark.');
+        // Only fatal once the bulk lane can actually send. Before Postmark is
+        // connected, review requests are not going out for a reason this row
+        // has nothing to do with, and reporting it as a failure puts a problem
+        // on the list that cannot be fixed into a working state yet -- which
+        // trains you to skim the list.
+        add($checks, 'From address', $driver === 'postmark' ? 'fail' : 'todo',
+            'mail.from is missing or not an address'
+            . ($driver === 'postmark'
+                ? ', so every review request will be rejected. Set it to something on a domain '
+                  . 'you have verified with Postmark.'
+                : '. This one is only used for review requests, which cannot send yet anyway '
+                  . '(no mail.token). Set it when you connect Postmark; password resets do not '
+                  . 'use it.'));
     } else {
         $domain = substr($mailFrom, strpos($mailFrom, '@') + 1);
         add($checks, 'From address', 'pass',
@@ -680,8 +690,39 @@ if ($recentErrors === []) {
         if (str_starts_with(trim($line), '#0 ')) { $frame = trim($line); break; }
     }
 
-    add($checks, 'Error log', 'fail',
-        count($recentErrors) . ' recent error(s). NEWEST: ' . $headline
+    // How old the newest one is, which is most of what you want to know.
+    //
+    // Without it a crash from two days ago, already fixed, keeps being reported
+    // as a current problem for ever -- so the report says "2 problems found"
+    // when nothing is wrong, and the one time something IS wrong it does not
+    // stand out. An entry nobody can date is an entry nobody can dismiss.
+    $age = null;
+    if (preg_match('/^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]/', $headline, $m) === 1) {
+        $when = strtotime($m[1]);
+        $age = $when === false ? null : max(0, time() - $when);
+    }
+
+    $ago = static function (int $n, string $unit): string {
+        return ' (' . $n . ' ' . $unit . ($n === 1 ? '' : 's') . ' ago)';
+    };
+
+    $howLongAgo = match (true) {
+        $age === null => '',
+        $age < 3600   => $ago(max(1, (int) round($age / 60)), 'minute'),
+        $age < 86400  => $ago((int) round($age / 3600), 'hour'),
+        default       => $ago((int) round($age / 86400), 'day'),
+    };
+
+    // Older than a day and nothing since: worth reading, not worth alarm.
+    $stale = $age !== null && $age > 86400;
+
+    add($checks, 'Error log', $stale ? 'todo' : 'fail',
+        count($recentErrors) . ' error(s) in the log, newest' . $howLongAgo
+        . ($stale
+            ? '. Nothing has gone wrong since, so this is history rather than a live problem '
+              . '— delete storage/logs/error.log to clear it. NEWEST: '
+            : '. NEWEST: ')
+        . $headline
         . ($frame !== '' ? '  |  ' . $frame : '')
         . '  — copy this whole line when asking for help.');
 }
