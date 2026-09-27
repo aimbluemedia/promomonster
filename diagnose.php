@@ -14,6 +14,29 @@ declare(strict_types=1);
  * DELETE IT once the site is working.
  */
 
+// Hand off to the support dump, before a byte of HTML is written.
+//
+// support.php cannot be opened directly in this layout: the root .htaccess
+// rewrites every unrecognised root file into public/, and its exemption list
+// named three tools by hand. A fourth was added without being added to it, so
+// the URL answered with the site's own 404 page. The .htaccess is fixed, but
+// that is a dotfile, and asking somebody to upload a hidden file to reach the
+// tool that diagnoses their upload problems is a poor trade.
+//
+// Requiring it is a filesystem read, not a request, so no rewrite rule is
+// involved and this works the moment the file is on disk -- reachable through
+// diagnose.php, which is already exempt and already uploaded.
+if (isset($_GET['support'])) {
+    $dump = __DIR__ . '/support.php';
+    if (is_file($dump)) {
+        require $dump;
+        exit;
+    }
+    header('Content-Type: text/plain; charset=utf-8');
+    echo "support.php is not on the server yet. Upload it beside this file and reload.\n";
+    exit;
+}
+
 header('Content-Type: text/html; charset=utf-8');
 
 $checks = [];

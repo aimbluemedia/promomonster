@@ -14,10 +14,19 @@
     RewriteCond %{REQUEST_URI} ^/public/
     RewriteRule ^ - [L]
 
-    # The diagnostic lives at the root and must not be rewritten away.
-    RewriteRule ^diagnose\.php$ - [L]
-    RewriteRule ^migrate-web\.php$ - [L]
-    RewriteRule ^reset-admin\.php$ - [L]
+    # The operator tools live at the root and must not be rewritten away.
+    #
+    # Named one at a time until a fourth was added and this list was not, so
+    # /support.php answered with the site's own 404 page -- the tool for
+    # diagnosing a broken deployment, unreachable because of the deployment.
+    # Any PHP file that really exists in the project root is served as itself
+    # now, which fixes the whole class rather than the one instance.
+    #
+    # Scoped tightly on purpose: ^[^/]+\.php$ matches the project root only,
+    # never a path, so nothing under app/ or storage/ can be reached this way,
+    # and -f means only files that are actually there.
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^[^/]+\.php$ - [L]
 
     # Serve a real file under /assets/ from the project root if one is there.
     #
