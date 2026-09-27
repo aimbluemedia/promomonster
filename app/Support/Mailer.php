@@ -168,8 +168,33 @@ final class Mailer
     public static function transactionalDriver(): string
     {
         $driver = trim((string) Config::get('mail.transactional_driver', ''));
+        if ($driver !== '') {
+            return $driver;
+        }
 
-        return $driver !== '' ? $driver : self::driver();
+        // A filled-in mailbox means SMTP, without having to say so twice.
+        //
+        // Nobody types a host, a username and a mailbox password by accident,
+        // so treating that as the intent it obviously is removes a trap worth
+        // removing: fill in the whole smtp block, miss the separate
+        // transactional_driver key, and the lane quietly falls back to the log
+        // driver -- which looks exactly like the mail settings not working.
+        //
+        // The same inference driver() already makes about a Postmark token,
+        // for the same reason. An explicit setting still wins over both.
+        if (self::smtpConfigured()) {
+            return 'smtp';
+        }
+
+        return self::driver();
+    }
+
+    /** Host, mailbox and password all present: enough to attempt a send. */
+    private static function smtpConfigured(): bool
+    {
+        return trim((string) Config::get('mail.smtp.host', '')) !== ''
+            && trim((string) Config::get('mail.smtp.username', '')) !== ''
+            && trim((string) Config::get('mail.smtp.password', '')) !== '';
     }
 
     /**
@@ -184,10 +209,43 @@ final class Mailer
     {
         return match (self::transactionalDriver()) {
             'postmark' => self::token() !== '',
-            'smtp'     => trim((string) Config::get('mail.smtp.host', '')) !== ''
-                && trim((string) Config::get('mail.smtp.username', '')) !== ''
-                && (string) Config::get('mail.smtp.password', '') !== '',
+            'smtp'     => self::smtpConfigured(),
             default    => false,
+        };
+    }
+
+    /**
+     * Why transactionalIsLive() answers as it does, in a sentence.
+     *
+     * For diagnose.php, because "the page says sending is off" is a question
+     * about a decision rather than about a setting, and reading five config
+     * keys and reimplementing the rule is how a diagnostic ends up disagreeing
+     * with the thing it is diagnosing. Asked of the same function the page
+     * asks.
+     */
+    public static function transactionalStatus(): string
+    {
+        $driver   = self::transactionalDriver();
+        $explicit = trim((string) Config::get('mail.transactional_driver', '')) !== '';
+        $how      = $explicit ? 'set to' : 'working out as';
+
+        return match (true) {
+            $driver === 'smtp' => 'Account email is ' . $how . ' SMTP via '
+                . (trim((string) Config::get('mail.smtp.host', '')) ?: '(no host)') . ' as '
+                . (trim((string) Config::get('mail.smtp.username', '')) ?: '(no username)') . '.',
+
+            $driver === 'postmark' && self::token() !== '' =>
+                'Account email is ' . $how . ' Postmark.',
+
+            $driver === 'postmark' =>
+                'Account email is ' . $how . ' Postmark, but mail.token is empty, so nothing can send.',
+
+            $driver === 'log' =>
+                'Account email is ' . $how . ' the log driver, so messages are written to '
+                . 'storage/logs/mail.log instead of being delivered. To send through a mailbox, '
+                . 'fill in mail.smtp host, username and password; for Postmark, set mail.token.',
+
+            default => 'Account email is ' . $how . ' the "' . $driver . '" driver, which does not deliver.',
         };
     }
 

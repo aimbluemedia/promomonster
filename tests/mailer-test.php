@@ -159,6 +159,68 @@ check('and its own From header',
 check('while the bulk address is unchanged', Mailer::from(), 'reviews@notify.promomonster.com');
 
 // =====================================================================
+// Which driver account email works out as
+// =====================================================================
+// A filled-in mailbox is an unambiguous statement of intent, and needing to
+// say so a second time in another key is a trap: fill in the whole smtp block,
+// miss transactional_driver, and the lane silently falls back to the log
+// driver -- which looks exactly like the mail settings not working. It did.
+$mailbox = ['host' => 'smtp.example.com', 'username' => 'logins@example.com', 'password' => 's3cret'];
+
+Config::load(['mail' => ['driver' => '', 'token' => '', 'smtp' => $mailbox]]);
+check('a complete mailbox means smtp, with nothing else said', Mailer::transactionalDriver(), 'smtp');
+ok('and account email is live', Mailer::transactionalIsLive());
+ok('while the bulk lane is still only the log driver', !Mailer::isLive());
+check('and bulk stays on log', Mailer::driver(), 'log');
+
+foreach (['host', 'username', 'password'] as $missing) {
+    Config::load(['mail' => ['driver' => '', 'token' => '',
+        'smtp' => array_merge($mailbox, [$missing => ''])]]);
+    check("a mailbox missing {$missing} does not count", Mailer::transactionalDriver(), 'log');
+    ok("and account email is not live without {$missing}", !Mailer::transactionalIsLive());
+}
+
+// Whitespace is not a password.
+Config::load(['mail' => ['driver' => '', 'token' => '',
+    'smtp' => array_merge($mailbox, ['password' => '   '])]]);
+ok('nor is a whitespace password', !Mailer::transactionalIsLive());
+
+// An explicit setting always beats the inference, in both directions.
+Config::load(['mail' => ['driver' => '', 'token' => '', 'transactional_driver' => 'log',
+    'smtp' => $mailbox]]);
+check('an explicit driver overrides a complete mailbox', Mailer::transactionalDriver(), 'log');
+ok('so account email is off even with a mailbox set up', !Mailer::transactionalIsLive());
+
+Config::load(['mail' => ['driver' => 'postmark', 'token' => 'a-token', 'transactional_driver' => 'smtp',
+    'smtp' => $mailbox]]);
+check('and it overrides the bulk driver too', Mailer::transactionalDriver(), 'smtp');
+
+// The two lanes are genuinely independent: either can be on without the other.
+Config::load(['mail' => ['driver' => 'postmark', 'token' => 'a-token']]);
+ok('postmark alone: bulk is live', Mailer::isLive());
+ok('and so is account email', Mailer::transactionalIsLive());
+
+Config::load(['mail' => ['driver' => '', 'token' => '', 'smtp' => $mailbox]]);
+ok('mailbox alone: account email is live', Mailer::transactionalIsLive());
+ok('but bulk is not', !Mailer::isLive());
+
+// What diagnose.php prints. Asked of the same function the page asks, so the
+// two cannot drift apart and disagree about what the visitor is seeing.
+Config::load(['mail' => ['driver' => '', 'token' => '', 'smtp' => $mailbox]]);
+ok('the status names SMTP and the host', str_contains(Mailer::transactionalStatus(), 'SMTP via smtp.example.com'));
+ok('and says it was worked out rather than set', str_contains(Mailer::transactionalStatus(), 'working out as'));
+
+Config::load(['mail' => ['driver' => '', 'token' => '', 'transactional_driver' => 'smtp', 'smtp' => $mailbox]]);
+ok('an explicit setting is described as set', str_contains(Mailer::transactionalStatus(), 'is set to'));
+
+Config::load(['mail' => ['driver' => '', 'token' => '']]);
+ok('with nothing configured it names the log driver', str_contains(Mailer::transactionalStatus(), 'log driver'));
+ok('and says what to fill in', str_contains(Mailer::transactionalStatus(), 'mail.smtp'));
+
+Config::load(['mail' => ['driver' => 'postmark', 'token' => '']]);
+ok('postmark with no token says so', str_contains(Mailer::transactionalStatus(), 'mail.token is empty'));
+
+// =====================================================================
 // send() — the null driver, so nothing leaves and nothing is written
 // =====================================================================
 Config::load([

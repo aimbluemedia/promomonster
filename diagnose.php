@@ -429,6 +429,25 @@ if ($mailFiles !== []) {
             . 'or every send is rejected.');
     }
 
+    // 3. Does the forgot-password page think it can send?
+    //
+    //    Its own words, from the same function the page calls, because "that
+    //    notice is still showing" is a question about a decision and not about
+    //    a setting. Re-deriving the rule here is how a diagnostic ends up
+    //    confidently disagreeing with the page it is diagnosing.
+    require_once $base . '/app/Support/Config.php';
+    require_once $base . '/app/Support/Mailer.php';
+    require_once $base . '/app/Support/Smtp.php';
+    App\Support\Config::load(is_array($config) ? $config : []);
+
+    $accountLive = App\Support\Mailer::transactionalIsLive();
+    add($checks, 'Password reset email', $accountLive ? 'pass' : 'todo',
+        App\Support\Mailer::transactionalStatus()
+        . ' So /members/forgot '
+        . ($accountLive
+            ? 'shows the form and will send a link.'
+            : 'shows "Email sending is not switched on yet" and will not send a link.'));
+
     // 3a. The account-email lane, which can be a different provider entirely.
     //     Worth its own row because "review requests are sending" and "a
     //     locked-out customer can get back in" are now two separate switches.
@@ -538,10 +557,7 @@ if ($mailFiles !== []) {
             add($checks, 'Test send', 'fail',
                 'Add a real address: ?mail=you@example.com');
         } else {
-            require_once $base . '/app/Support/Config.php';
-            require_once $base . '/app/Support/Mailer.php';
-            require_once $base . '/app/Support/Smtp.php';
-            App\Support\Config::load(is_array($config) ? $config : []);
+            // Config and Mailer are already loaded by the lane check above.
 
             // BOTH lanes, separately. They can be different providers, and for
             // a while this only ever tested the bulk one -- so somebody could
