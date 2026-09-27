@@ -83,6 +83,54 @@ foreach ([
                 : 'MISSING. FTP clients and file managers hide dotfiles by default — turn on "show hidden files" and upload it.');
 }
 
+// --- The deny rules that keep secrets off the web -------------------------
+//
+// app/, storage/ and database/ each ship an .htaccess that refuses every
+// request. They only matter when those folders are inside the web root -- which
+// is this installation's layout -- and they are dotfiles, which FTP clients and
+// file managers hide and therefore skip by default. Uploading "the app folder"
+// and silently leaving its .htaccess behind is the ordinary way this goes
+// wrong, and nothing was checking for it.
+//
+// What each one is holding back is worth stating plainly, because "a missing
+// .htaccess" does not sound like anything:
+$denyDirs = [
+    'app'      => 'app/config.php, which holds your database password and your mailbox password',
+    'storage'  => 'storage/logs/mail.log, which holds live password-reset links and customer addresses',
+    'database' => 'the migration files, which map out the whole schema',
+];
+
+$undefended = [];
+foreach ($denyDirs as $dir => $holds) {
+    if (is_dir($base . '/' . $dir) && !is_file($base . '/' . $dir . '/.htaccess')) {
+        $undefended[$dir] = $holds;
+    }
+}
+
+if ($undefended === []) {
+    add($checks, 'Sensitive folders', 'pass',
+        'app/, storage/ and database/ each have the .htaccess that refuses web requests.');
+} elseif ($layout !== 'public-as-docroot') {
+    // Anything but the safe layout, including 'unknown': if we cannot prove the
+    // folders are outside the web root, assume they are inside it.
+    add($checks, 'Sensitive folders', 'fail',
+        'EXPOSED: ' . implode(', ', array_map(
+            static fn (string $d, string $h): string => $d . '/.htaccess is missing, which was denying ' . $h,
+            array_keys($undefended),
+            $undefended,
+        ))
+        . '. These folders sit inside the web root on this server, so without those files anyone '
+        . 'can fetch them over HTTP. Turn on "show hidden files" in File Manager and upload them. '
+        . 'Test one: open https://' . (string) ($_SERVER['HTTP_HOST'] ?? 'your-domain')
+        . '/storage/logs/mail.log — you should get 403 or 404, never a page of email.');
+} else {
+    add($checks, 'Sensitive folders', 'todo',
+        'Missing .htaccess in: ' . implode(', ', array_keys($undefended))
+        . '. The document root points at public/ on this server, so these folders are outside it '
+        . 'and nothing is exposed today. '
+        . 'Upload them anyway: the layout is one hPanel setting away from changing.');
+}
+
 // --- mod_rewrite ----------------------------------------------------------
 $rewrite = null;
 if (function_exists('apache_get_modules')) {
