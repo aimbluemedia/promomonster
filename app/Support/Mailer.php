@@ -85,6 +85,14 @@ final class Mailer
      * Falls back to `log` rather than `postmark` when no token is set: a
      * missing token should make sending visibly local, not fail every send
      * with an authentication error nobody reads.
+     *
+     * Deliberately does NOT infer 'smtp' from a filled-in mailbox the way
+     * transactionalDriver() does. That inference is right for account email --
+     * a handful of messages a day to people who just asked for one -- and wrong
+     * here. Review requests go out in batches to people who did not ask, and an
+     * ordinary shared-hosting mailbox has an hourly cap it will enforce by
+     * refusing the rest of the run, then by suspending the mailbox the password
+     * resets are also using. Bulk through a mailbox has to be typed out.
      */
     public static function driver(): string
     {
@@ -99,17 +107,86 @@ final class Mailer
     /**
      * True when mail actually leaves the building.
      *
-     * The token is part of the question, not just the driver name. Setting
-     * mail.driver to 'postmark' with no token satisfies driver() and then fails
-     * every single send with "No Postmark server token configured" -- and the
-     * two screens that ask this (the Get reviews page and the forgot-password
-     * form) would both have stopped warning about it, so a customer gets told
-     * their link is on its way while nothing is being sent at all. Whether we
-     * are live means whether a send can succeed.
+     * Asks whether a send can succeed, not what the driver is called. Two ways
+     * that comes apart:
+     *
+     * Setting mail.driver to 'postmark' with no token satisfies driver() and
+     * then fails every single send with "No Postmark server token configured"
+     * -- and the two screens that ask this (the Google reviews page and the
+     * forgot-password form) would both have stopped warning about it, so a
+     * customer gets told their link is on its way while nothing is being sent.
+     *
+     * The other direction is just as bad and is what this used to get wrong:
+     * send() has dispatched 'smtp' since the mailbox driver was added, so with
+     * mail.driver set to 'smtp' review requests really do go out -- while this
+     * returned false, the page kept insisting sending was off, and the obvious
+     * conclusion was that the mail settings had not taken. A lane is live when
+     * its own driver can deliver, which is the same question
+     * transactionalIsLive() asks about the other one.
      */
     public static function isLive(): bool
     {
-        return self::driver() === 'postmark' && self::token() !== '';
+        return match (self::driver()) {
+            'postmark' => self::token() !== '',
+            'smtp'     => self::smtpConfigured(),
+            default    => false,
+        };
+    }
+
+    /**
+     * Why isLive() answers as it does, in a sentence.
+     *
+     * The bulk counterpart to transactionalStatus(), and there for the same
+     * reason: "the page says sending is off" is a question about a decision,
+     * and reading the config keys back and reimplementing the rule is how a
+     * diagnostic ends up disagreeing with the screen it is diagnosing.
+     *
+     * This one is read by diagnose.php and support.php, never by the member
+     * area. A business owner looking at their own account cannot act on the
+     * name of a config key, so the notice they see stays in their language and
+     * this stays in ours.
+     */
+    public static function status(): string
+    {
+        $driver   = self::driver();
+        $explicit = trim((string) Config::get('mail.driver', '')) !== '';
+        $how      = $explicit ? 'set to' : 'working out as';
+
+        return match (true) {
+            $driver === 'postmark' && self::token() !== '' =>
+                'Review requests are ' . $how . ' Postmark.',
+
+            $driver === 'postmark' =>
+                'Review requests are ' . $how . ' Postmark, but mail.token is empty, so nothing can send.',
+
+            $driver === 'smtp' && self::smtpConfigured() =>
+                'Review requests are ' . $how . ' SMTP via '
+                . (trim((string) Config::get('mail.smtp.host', '')) ?: '(no host)')
+                . ' as ' . trim((string) Config::get('mail.smtp.username', '')) . '.'
+                . self::fromAlignment()
+                . ' Watch the hourly cap on a shared mailbox: a batch that trips it '
+                . 'fails the rest of the run, and a mailbox suspension takes the '
+                . 'password reset email down with it. Postmark for real volume.',
+
+            $driver === 'smtp' =>
+                'Review requests are ' . $how . ' SMTP, but the mail.smtp block is '
+                . 'incomplete (host, username and password are all needed), so nothing can send.',
+
+            $driver === 'log' && self::smtpConfigured() =>
+                'Review requests are ' . $how . ' the log driver, so they are written to '
+                . 'storage/logs/mail.log instead of being delivered. The mailbox that sends '
+                . 'account email is NOT used for these unless mail.driver is set to "smtp" '
+                . 'in as many words -- bulk through a shared mailbox is a decision, not a '
+                . 'default. Set mail.token for Postmark, which is what this is meant to use.',
+
+            $driver === 'log' =>
+                'Review requests are ' . $how . ' the log driver, so they are written to '
+                . 'storage/logs/mail.log instead of being delivered. Set mail.token and '
+                . 'mail.from for Postmark.',
+
+            default => 'Review requests are ' . $how . ' the "' . $driver
+                . '" driver, which does not deliver.',
+        };
     }
 
     /** The address every review request is sent from. */
@@ -187,6 +264,48 @@ final class Mailer
         }
 
         return self::driver();
+    }
+
+    /**
+     * A note about the From address, when sending through a mailbox.
+     *
+     * Smtp puts the authenticated mailbox in MAIL FROM, so the envelope always
+     * matches the login and a send is not refused outright. The visible From
+     * header is mail.from, which is a different address on purpose -- review
+     * requests want to come from a sending subdomain. That is fine while the
+     * two are the same organisational domain, because DMARC's relaxed alignment
+     * covers a subdomain. Point mail.from at a domain the mailbox has nothing
+     * to do with and the mail is aligned with nothing, which is a spam folder
+     * rather than an error message: worth saying here, where it can be read
+     * before a batch goes out rather than after.
+     *
+     * Returns '' when there is nothing to say.
+     */
+    private static function fromAlignment(): string
+    {
+        $mailbox = self::domainOf(trim((string) Config::get('mail.smtp.username', '')));
+        $header  = self::domainOf(self::from());
+
+        if ($mailbox === '' || $header === '' || $mailbox === $header) {
+            return '';
+        }
+
+        // A subdomain either way round is still aligned under DMARC relaxed.
+        if (str_ends_with($header, '.' . $mailbox) || str_ends_with($mailbox, '.' . $header)) {
+            return '';
+        }
+
+        return ' NOTE: mail.from is ' . self::from() . ', on a different domain to the'
+            . ' mailbox, so these will not be DMARC-aligned and are likely to be filtered.'
+            . ' Use an address on ' . $mailbox . '.';
+    }
+
+    /** The domain half of an address, lowercased, or '' if there isn't one. */
+    private static function domainOf(string $address): string
+    {
+        $at = strrpos($address, '@');
+
+        return $at === false ? '' : mb_strtolower(substr($address, $at + 1));
     }
 
     /** Host, mailbox and password all present: enough to attempt a send. */
@@ -428,9 +547,6 @@ final class Mailer
             $message['to'],
             $message['from_name'] ?? self::fromHeader(null),
             $message['reply_to'] ?? '-',
-            // Recorded because it is otherwise invisible until something is
-            // sent for real, and sending account mail on the bulk stream is
-            // exactly the mistake worth catching before that.
             // Which driver a real send would have used, and on which stream.
             // Both are otherwise invisible until something goes out for real,
             // and account mail on the bulk settings is exactly the mistake

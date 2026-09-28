@@ -124,10 +124,23 @@ try {
     $say('  account lane resolves to  ' . $lane);
     $say('  transactionalIsLive()     ' . var_export($live, true));
     $say('  transactionalFrom()       ' . App\Support\Mailer::transactionalFrom());
-    $say('  bulk driver()             ' . App\Support\Mailer::driver());
     $say('  /members/forgot will      ' . ($live
         ? 'show the form and try to send'
         : 'show "Email sending is not switched on yet"'));
+
+    // The bulk lane is a separate question with a separate answer, and the
+    // Google reviews page shows the same wording for it. Reading only the
+    // account lane here is how "email works" and "the page still says sending
+    // is off" both end up true with nothing to explain the gap.
+    $bulk     = App\Support\Mailer::driver();
+    $bulkLive = App\Support\Mailer::isLive();
+    $say('  bulk lane resolves to     ' . $bulk);
+    $say('  isLive()                  ' . var_export($bulkLive, true));
+    $say('  from()                    ' . App\Support\Mailer::from());
+    $say('  /members/reviews will     ' . ($bulkLive
+        ? 'send review requests (once the cron job is running)'
+        : 'show "Email sending is not switched on yet"'));
+    $say('  why                       ' . App\Support\Mailer::status());
 } catch (Throwable $e) {
     $say('  FAILED: ' . get_class($e) . ': ' . $e->getMessage());
 }

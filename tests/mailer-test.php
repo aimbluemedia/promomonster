@@ -221,6 +221,79 @@ Config::load(['mail' => ['driver' => 'postmark', 'token' => '']]);
 ok('postmark with no token says so', str_contains(Mailer::transactionalStatus(), 'mail.token is empty'));
 
 // =====================================================================
+// The bulk lane can use a mailbox too, but only when told to
+// =====================================================================
+// send() has dispatched 'smtp' since the mailbox driver was added, so review
+// requests through a mailbox really do go out. isLive() said otherwise, which
+// left the Google reviews page insisting sending was off at a server that was
+// sending -- and the only visible conclusion was that the config had not taken.
+Config::load(['mail' => ['driver' => 'smtp', 'token' => '', 'smtp' => $mailbox]]);
+check('an explicit smtp driver is what driver() reports', Mailer::driver(), 'smtp');
+ok('and the bulk lane is live', Mailer::isLive());
+ok('so is account email, off the same mailbox', Mailer::transactionalIsLive());
+
+foreach (['host', 'username', 'password'] as $missing) {
+    Config::load(['mail' => ['driver' => 'smtp', 'token' => '',
+        'smtp' => array_merge($mailbox, [$missing => ''])]]);
+    ok("naming smtp without {$missing} is not live", !Mailer::isLive());
+    ok("and the status says the block is incomplete for {$missing}",
+        str_contains(Mailer::status(), 'incomplete'));
+}
+
+// The inference transactionalDriver() makes is deliberately NOT made here. A
+// shared mailbox has an hourly cap; a batch of review requests walks into it,
+// the rest of the run fails, and a suspension takes the password reset email
+// down with it. Bulk through a mailbox has to be typed out.
+Config::load(['mail' => ['driver' => '', 'token' => '', 'smtp' => $mailbox]]);
+check('a complete mailbox alone leaves bulk on log', Mailer::driver(), 'log');
+ok('and bulk is not live off it', !Mailer::isLive());
+ok('while the status explains that it is a decision, not a default',
+    str_contains(Mailer::status(), 'mail.driver is set to "smtp"'));
+
+// =====================================================================
+// What diagnose.php prints about the bulk lane
+// =====================================================================
+Config::load(['mail' => ['driver' => 'smtp', 'token' => '', 'smtp' => $mailbox,
+    'from' => 'reviews@example.com']]);
+ok('the bulk status names SMTP and the host', str_contains(Mailer::status(), 'SMTP via smtp.example.com'));
+ok('and names the mailbox', str_contains(Mailer::status(), 'as logins@example.com'));
+ok('and says it was set rather than worked out', str_contains(Mailer::status(), 'set to'));
+ok('and warns about the hourly cap', str_contains(Mailer::status(), 'hourly cap'));
+
+Config::load(['mail' => ['driver' => 'postmark', 'token' => 'a-token']]);
+ok('postmark with a token reads as Postmark', str_contains(Mailer::status(), 'are set to Postmark.'));
+
+Config::load(['mail' => ['driver' => '', 'token' => '']]);
+ok('nothing configured names the log driver', str_contains(Mailer::status(), 'log driver'));
+ok('and points at Postmark, which is what bulk is for', str_contains(Mailer::status(), 'mail.token'));
+
+Config::load(['mail' => ['driver' => 'nonsense', 'token' => '']]);
+ok('an unknown driver is not live', !Mailer::isLive());
+ok('and is named in the status', str_contains(Mailer::status(), '"nonsense"'));
+
+// -- The From header has to be aligned with the mailbox --------------------
+// Smtp puts the authenticated mailbox in MAIL FROM, so a mismatched mail.from
+// is never refused outright -- it just fails DMARC alignment and lands in spam,
+// which is the kind of failure that looks like success from in here.
+Config::load(['mail' => ['driver' => 'smtp', 'token' => '', 'smtp' => $mailbox,
+    'from' => 'reviews@example.com']]);
+ok('the same domain needs no warning', !str_contains(Mailer::status(), 'NOTE: mail.from'));
+
+Config::load(['mail' => ['driver' => 'smtp', 'token' => '', 'smtp' => $mailbox,
+    'from' => 'reviews@notify.example.com']]);
+ok('nor does a subdomain, which DMARC relaxed still aligns',
+    !str_contains(Mailer::status(), 'NOTE: mail.from'));
+
+Config::load(['mail' => ['driver' => 'smtp', 'token' => '', 'smtp' => $mailbox,
+    'from' => 'reviews@somewhere-else.test']]);
+ok('an unrelated domain is warned about', str_contains(Mailer::status(), 'NOTE: mail.from'));
+ok('and the mailbox domain is named as the fix', str_contains(Mailer::status(), 'Use an address on example.com'));
+
+Config::load(['mail' => ['driver' => 'smtp', 'token' => '', 'smtp' => $mailbox,
+    'from' => 'REVIEWS@EXAMPLE.COM']]);
+ok('the comparison ignores case', !str_contains(Mailer::status(), 'NOTE: mail.from'));
+
+// =====================================================================
 // send() — the null driver, so nothing leaves and nothing is written
 // =====================================================================
 Config::load([

@@ -60,7 +60,7 @@ final class MembersController
     }
 
     /**
-     * "Get reviews" — the one screen where the work happens.
+     * "Google reviews" — the one screen where the work happens.
      *
      * Was a list of reviews synced from Google, which needs Business Profile
      * API access we have not applied for, so it showed nothing and always

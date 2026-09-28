@@ -19,7 +19,7 @@ $business  = trim((string) ($location['name'] ?? ($account['name'] ?? 'your busi
          for fifty. Without it the sender refuses every request, so it is the
          first thing on the page and the only thing on it until it is done. */ ?>
 <div class="admin-title">
-  <h1>Get reviews</h1>
+  <h1>Google reviews</h1>
   <?php if ($ready): ?>
     <span class="muted" style="font-size:.9rem;">
       <?php if ($limit['month_limit'] === null): ?>

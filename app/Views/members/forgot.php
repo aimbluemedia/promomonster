@@ -84,7 +84,7 @@ $ready   = PasswordReset::ready();
         </div>
 
       <?php elseif (!$sending): ?>
-        <?php /* Same honesty as the Get reviews page. Until the mail provider is
+        <?php /* Same honesty as the Google reviews page. Until the mail provider is
                  connected a reset link cannot reach anybody, and "check your
                  inbox" would send somebody to wait for an email that is sitting
                  in a log file on the server. */ ?>

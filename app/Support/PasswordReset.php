@@ -135,7 +135,7 @@ final class PasswordReset
      * already cannot get in.
      *
      * So the page asks first and says plainly that the feature is not switched
-     * on yet, which is the same thing the Get reviews page does about sending.
+     * on yet, which is the same thing the Google reviews page does about sending.
      * diagnose.php names the pending migration for whoever has to fix it.
      */
     public static function ready(): bool

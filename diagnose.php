@@ -443,9 +443,19 @@ $mailToken = trim((string) ($mailCfg['token'] ?? ''));
 $mailFrom  = trim((string) ($mailCfg['from'] ?? ''));
 $loginFrom = trim((string) ($mailCfg['transactional_from'] ?? ''));
 $appKey    = (isset($config) && is_array($config)) ? trim((string) ($config['app_key'] ?? '')) : '';
-$driver    = trim((string) ($mailCfg['driver'] ?? ''));
-if ($driver === '') {
-    $driver = $mailToken === '' ? 'log' : 'postmark';
+// Asked of Mailer rather than worked out here. This block used to re-derive the
+// rule from the config keys, which is exactly the drift the comment further down
+// warns about: the bulk lane learned to send through a mailbox and this page
+// carried on reporting "no mail.token is set, nothing is being delivered" at a
+// server that was delivering. One source for the decision, two readers.
+if ($mailFiles === []) {
+    require_once $base . '/app/Support/Config.php';
+    require_once $base . '/app/Support/Mailer.php';
+    require_once $base . '/app/Support/Smtp.php';
+    App\Support\Config::load(is_array($config) ? $config : []);
+    $driver = App\Support\Mailer::driver();
+} else {
+    $driver = trim((string) ($mailCfg['driver'] ?? '')) ?: ($mailToken === '' ? 'log' : 'postmark');
 }
 
 if ($mailFiles !== []) {
@@ -478,26 +488,23 @@ if ($mailFiles !== []) {
             . 'already sitting in an inbox is signed with this one.');
     }
 
-    // 2. The provider.
-    if ($driver === 'log') {
-        add($checks, 'Email sending', 'todo',
-            'Queued but NOT sending. No mail.token is set, so messages are written to '
-            . 'storage/logs/mail.log instead of being delivered. Add your Postmark SERVER '
-            . 'token (not the account token) as mail.token in app/config.php.');
-    } elseif ($driver === 'null') {
-        add($checks, 'Email sending', 'todo',
-            "mail.driver is 'null', which accepts and discards every message. "
-            . "Set it to '' or 'postmark' to send for real.");
-    } elseif ($driver === 'postmark') {
-        add($checks, 'Email sending', 'pass',
-            'Postmark, token set (' . strlen($mailToken) . ' characters, ending '
-            . substr($mailToken, -4) . '), stream "'
-            . (string) ($mailCfg['stream'] ?? 'outbound') . '". Add ?mail=you@example.com '
-            . 'to this URL to send a real test message.');
-    } else {
-        add($checks, 'Email sending', 'fail',
-            'Unknown mail.driver "' . $driver . '".');
-    }
+    // 2. The provider, in Mailer's own words and with the same verdict the
+    //    Google reviews page reaches from the same function.
+    //    A driver name that is not one of the four is a typo in config.php and
+    //    fails every send, so it is a failure rather than something still to do.
+    $bulkLive = App\Support\Mailer::isLive();
+    $bulkState = match (true) {
+        $bulkLive => 'pass',
+        in_array($driver, ['postmark', 'smtp', 'log', 'null'], true) => 'todo',
+        default => 'fail',
+    };
+    add($checks, 'Email sending', $bulkState,
+        App\Support\Mailer::status()
+        . ' So /members/reviews '
+        . ($bulkLive
+            ? 'sends review requests -- as long as the scheduled job below is running. '
+              . 'Use the test-send form on this page to put a real message through it.'
+            : 'shows "Email sending is not switched on yet" and queues them instead.'));
 
     // 3. The from address, which has to be on a domain verified with the
     //    provider or every send is rejected.
