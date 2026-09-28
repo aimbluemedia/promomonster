@@ -92,7 +92,7 @@ function add(array $extra = []): array
 {
     return HostedReviews::add(array_merge([
         'account' => 1, 'source' => 'public_link',
-        'name' => 'Sam Doyle', 'rating' => 4, 'body' => 'Good job.',
+        'name' => 'Sam Doyle', 'city' => 'Mesa, AZ', 'rating' => 4, 'body' => 'Good job.',
     ], $extra));
 }
 
@@ -123,6 +123,17 @@ ok('a rating of six is refused', !add(['rating' => 6])['ok']);
 ok('an empty body is refused', !add(['body' => '   '])['ok']);
 ok('an empty name is refused', !add(['name' => ''])['ok']);
 ok('a body longer than the column is refused', !add(['body' => str_repeat('x', 4100)])['ok']);
+
+// City and state is asked for, not suggested: required="" on the input is a
+// courtesy to the browser, and a form posted around it has to be refused too.
+ok('a missing city is refused', !add(['city' => null])['ok']);
+ok('an empty city is refused', !add(['city' => ''])['ok']);
+ok('a city of spaces is refused', !add(['city' => "  \t "])['ok']);
+ok('a city longer than the column is refused', !add(['city' => str_repeat('x', 121)])['ok']);
+seed();
+add(['city' => '  Mesa, AZ  ']);
+check('the city is stored, trimmed',
+    (string) Database::first('SELECT author_city FROM hosted_reviews')['author_city'], 'Mesa, AZ');
 
 // A form must not be able to claim the one label we vouch for.
 seed();

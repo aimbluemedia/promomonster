@@ -28,6 +28,7 @@ final class HostedReviews
     /** Anything longer is a paragraph somebody pasted by accident. */
     private const MAX_BODY = 4000;
     private const MAX_NAME = 120;
+    private const MAX_CITY = 120;
 
     /** Public submissions allowed from one address in an hour. */
     private const PER_IP = 5;
@@ -202,7 +203,7 @@ final class HostedReviews
      * Records a review.
      *
      * @param array{account:int, location?:?int, contact?:?int, source:string,
-     *              name:string, email?:?string, city?:?string, rating:int,
+     *              name:string, email?:?string, city:string, rating:int,
      *              body:string, source_url?:?string} $review
      * @return array{ok:bool, error:?string}
      */
@@ -213,6 +214,7 @@ final class HostedReviews
         }
 
         $name = trim($review['name']);
+        $city = trim((string) ($review['city'] ?? ''));
         $body = trim($review['body']);
         $rating = (int) $review['rating'];
 
@@ -221,6 +223,12 @@ final class HostedReviews
         }
         if (mb_strlen($name) > self::MAX_NAME) {
             return ['ok' => false, 'error' => 'That name is too long.'];
+        }
+        if ($city === '') {
+            return ['ok' => false, 'error' => 'Please add the city and state.'];
+        }
+        if (mb_strlen($city) > self::MAX_CITY) {
+            return ['ok' => false, 'error' => 'That city and state is too long.'];
         }
         if ($rating < 1 || $rating > 5) {
             return ['ok' => false, 'error' => 'Choose a rating from one to five stars.'];
@@ -239,7 +247,6 @@ final class HostedReviews
         ) ? $review['source'] : 'public_link';
 
         $email = trim((string) ($review['email'] ?? ''));
-        $city  = trim((string) ($review['city'] ?? ''));
 
         // Only a Google link, and only on a Google row. It is shown to the
         // public as "read it on Google", so it must not be able to point
@@ -267,7 +274,7 @@ final class HostedReviews
                 'source'   => $source,
                 'url'      => $sourceUrl,
                 'name'     => $name,
-                'city'     => $city === '' ? null : mb_substr($city, 0, 120),
+                'city'     => $city,
                 'email'    => $email === '' ? null : $email,
                 'rating'   => $rating,
                 'body'     => $body,

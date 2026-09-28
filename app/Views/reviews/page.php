@@ -88,8 +88,8 @@ $name = trim((string) $account['name']);
         </div>
 
         <div>
-          <label for="author_city">City, State <span class="muted">(optional)</span></label>
-          <input class="field" id="author_city" name="author_city" type="text" maxlength="120"
+          <label for="author_city">City, State</label>
+          <input class="field" id="author_city" name="author_city" type="text" required maxlength="120"
                  placeholder="Mesa, AZ" autocomplete="address-level2">
         </div>
 

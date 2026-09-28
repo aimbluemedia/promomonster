@@ -60,6 +60,11 @@ CREATE TABLE IF NOT EXISTS hosted_reviews (
     -- Where they are, as they typed it: "Mesa, AZ". One free-text field rather
     -- than a city column and a state column, because a reviewer writes it in
     -- one breath and half of them are not in the United States.
+    --
+    -- Required on both forms and refused by HostedReviews::add() when blank.
+    -- The column stays nullable all the same, so the guarded ALTER below can
+    -- add it to a table that already holds reviews without a backfill step,
+    -- and so a row recorded before it existed still reads back.
     author_city  VARCHAR(120) NULL,
     author_email VARCHAR(254) NULL,
     rating       TINYINT UNSIGNED NOT NULL,
