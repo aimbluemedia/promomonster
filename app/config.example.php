@@ -43,6 +43,18 @@ return [
     //         Leave it empty and it picks 'postmark' when a token is set and
     //         'log' when it is not — so a half-configured install is visibly
     //         local rather than quietly broken.
+    //
+    //         'smtp' also works, and sends review requests through the same
+    //         mailbox as the 'smtp' block below. It is the only way to get
+    //         review requests out before Postmark is connected, and it is a
+    //         stopgap, not the destination: read the warning on
+    //         transactional_driver, and note that the hourly cap on a shared
+    //         mailbox is smaller than one full run of the queue (25 every five
+    //         minutes, so 300 an hour). A tripped cap fails the rest of the
+    //         run; a suspended mailbox takes the password reset email with it.
+    //
+    //         Unlike transactional_driver, this is never inferred from a
+    //         filled-in mailbox. Bulk through a mailbox has to be typed out.
     // token   Postmark SERVER token, not the account token.
     // from    The address on the envelope. Use a subdomain you do not send
     //         password resets from: every free user's spam complaints land on
@@ -102,6 +114,12 @@ return [
         // username is the full mailbox address, and it is also what the message
         // is posted as -- so make it the same address as transactional_from, or
         // the host will refuse it.
+        //
+        // If you also set the bulk 'driver' to 'smtp', put 'from' above on the
+        // same domain as this mailbox. The envelope sender is always this
+        // address, so a mismatch is not refused -- it just leaves the visible
+        // From header aligned with nothing, which is the spam folder rather
+        // than an error. diagnose.php says so when the two disagree.
         //
         // The certificate is always verified. There is no flag to turn that
         // off: this password crosses the wire inside the tunnel, so an
