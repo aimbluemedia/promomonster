@@ -1154,3 +1154,44 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
   line-height:1.1; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
 .hero-stat__l{ display:block; margin-top:.1rem; font-size:.82rem; color:#9fb6cd;
   line-height:1.45; }
+
+/* --- Email templates ---------------------------------------------------- */
+/* A small button, for the row of actions under each template. The default .btn
+   is sized for "Send the request" and three of them in a row under a card is a
+   wall of buttons rather than a set of choices. */
+.btn--sm{ padding:.45rem .8rem; font-size:.85rem; }
+.btn--quiet{ background:transparent; color:var(--muted); border-color:var(--line); }
+.btn--quiet:hover{ background:var(--wash); color:var(--ink); }
+
+.checkline{ display:flex; align-items:center; gap:.55rem; font-size:.92rem; color:var(--body); }
+.checkline input{ width:1rem; height:1rem; accent-color:var(--brand); }
+
+/* The merge fields. Two columns where there is room, because the name and what
+   it becomes are read together and a wrapped pair reads as two entries. */
+.merge-fields{ display:grid; gap:.35rem .9rem; margin:0; font-size:.86rem; }
+@media (min-width:620px){ .merge-fields{ grid-template-columns:auto 1fr; } }
+.merge-fields dt{ font-weight:600; }
+.merge-fields dt code{ background:var(--wash); border:1px solid var(--line);
+  border-radius:5px; padding:.1rem .35rem; font-size:.84rem; white-space:nowrap; }
+.merge-fields dd{ margin:0 0 .35rem; color:var(--muted); }
+@media (min-width:620px){ .merge-fields dd{ margin-bottom:0; } }
+
+.tmpl{ border-top:1px solid var(--line); padding:1.1rem 0; }
+.tmpl:first-of-type{ border-top:0; padding-top:0; }
+.tmpl--default{ border-left:3px solid var(--brand); padding-left:.9rem; }
+.tmpl__head{ display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
+.tmpl__tag{ font-size:.72rem; font-weight:700; letter-spacing:.03em;
+  text-transform:uppercase; color:var(--brand); background:var(--wash);
+  border:1px solid var(--line); border-radius:99px; padding:.12rem .5rem; }
+.tmpl__tag--muted{ color:var(--muted); }
+.tmpl__subject{ margin:.3rem 0 0; color:var(--body); font-size:.92rem; }
+.tmpl__actions{ display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.8rem; }
+
+/* The preview is the email, so it keeps the email's line breaks. pre-wrap
+   rather than pre: the stored text is wrapped for a mail client, not for a
+   column this narrow, and a horizontal scrollbar on a phone hides the end of
+   every line. */
+.tmpl__body{ margin:.7rem 0 0; padding:.9rem 1rem; background:var(--wash);
+  border:1px solid var(--line); border-radius:9px; color:var(--body);
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.85rem;
+  line-height:1.65; white-space:pre-wrap; word-break:break-word; }

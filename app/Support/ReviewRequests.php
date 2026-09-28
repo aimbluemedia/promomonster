@@ -35,12 +35,21 @@ final class ReviewRequests
     /**
      * Queue one request. Returns why not, rather than throwing.
      *
+     * $templateId is what the member picked on the form, or null for their
+     * default. It is not trusted: EmailTemplates::resolve() checks the row
+     * belongs to this account before it can become the wording that goes out
+     * over their name.
+     *
      * @param array<string,mixed> $location
      * @param array<string,mixed> $contact
      * @return array{ok:bool, id:?int, error:?string}
      */
-    public static function queue(array $location, array $contact, ?int $askedByUserId = null): array
-    {
+    public static function queue(
+        array $location,
+        array $contact,
+        ?int $askedByUserId = null,
+        ?int $templateId = null,
+    ): array {
         $email = trim((string) ($contact['email'] ?? ''));
 
         if (!Mailer::isSendableAddress($email)) {
@@ -56,7 +65,7 @@ final class ReviewRequests
             return self::no('That customer has opted out.');
         }
 
-        $template = self::systemTemplate('request');
+        $template = EmailTemplates::resolve((int) $location['account_id'], $templateId, 'request');
         if ($template === null) {
             return self::no('No request template is installed. Run the migrations.');
         }
@@ -114,7 +123,16 @@ final class ReviewRequests
             return null;
         }
 
-        $template = self::systemTemplate('follow_up');
+        // The account's own reminder wording, if they have written one. The
+        // reminder and the request are one ask in two parts, so a business that
+        // rewrote the first and got the stock wording for the second would read
+        // to the customer as two different people.
+        $owner = Database::first(
+            'SELECT account_id FROM locations WHERE id = :id',
+            ['id' => (int) $parent['location_id']],
+        );
+
+        $template = EmailTemplates::defaultFor((int) ($owner['account_id'] ?? 0), 'follow_up');
         if ($template === null) {
             return null;
         }

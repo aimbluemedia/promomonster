@@ -6,6 +6,7 @@ use App\Support\View;
 /**
  * @var array $account @var ?array $location @var array $limit
  * @var string $replyTo @var int $stuck @var bool $sending @var array $recent
+ * @var array $templates @var ?int $templateChosen
  */
 $reviewUrl = trim((string) ($location['google_review_url'] ?? ''));
 $ready     = $reviewUrl !== '';
@@ -145,6 +146,26 @@ $business  = trim((string) ($location['name'] ?? ($account['name'] ?? 'your busi
         <input class="field" id="email" name="email" type="email" required
                placeholder="dana@example.com" autocomplete="off">
       </div>
+
+      <?php /* Only drawn once there is a choice to make. With one template the
+               select is a control that cannot be operated, which is worse than
+               no control: it implies a decision exists and then refuses it. */ ?>
+      <?php if (count($templates) > 1): ?>
+        <div>
+          <label for="template_id">Which wording</label>
+          <select class="field" id="template_id" name="template_id">
+            <?php foreach ($templates as $t): ?>
+              <option value="<?= (int) $t['id'] ?>"<?= $templateChosen === (int) $t['id'] ? ' selected' : '' ?>>
+                <?= View::e((string) $t['name']) ?><?= $templateChosen === (int) $t['id'] ? ' (default)' : '' ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
+          <p class="form__note">
+            Change the wording, or write another, on
+            <a href="/members/templates">Email templates</a>.
+          </p>
+        </div>
+      <?php endif; ?>
 
       <button class="btn btn--primary btn--xl" type="submit" style="justify-self:start;">
         Send the request

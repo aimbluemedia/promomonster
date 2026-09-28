@@ -9,6 +9,7 @@ use App\Support\Auth;
 use App\Support\Config;
 use App\Support\Csrf;
 use App\Support\Database;
+use App\Support\EmailTemplates;
 use App\Support\HostedReviews;
 use App\Support\Mailer;
 use App\Support\Plans;
@@ -80,6 +81,14 @@ final class MembersController
             'replyTo'  => $this->replyToAddress($location),
             'stuck'    => $this->queueLooksStuck((int) $account['id']),
             'sending'  => Mailer::isLive(),
+            // The wording to offer on the send form. One entry means there is
+            // nothing to choose between, and the picker is not drawn.
+            'templates'      => EmailTemplates::forAccount((int) $account['id'], 'request'),
+            'templateChosen' => (function () use ($account): ?int {
+                $row = EmailTemplates::defaultFor((int) $account['id'], 'request');
+
+                return $row === null ? null : (int) $row['id'];
+            })(),
             'recent'   => Database::all(
                 'SELECT r.status, r.sent_at, r.created_at, r.first_clicked_at,
                         r.is_follow_up, r.failure_reason,
@@ -167,7 +176,17 @@ final class MembersController
         $contact = $this->upsertContact((int) $location['id'], $first,
             trim((string) ($_POST['last_name'] ?? '')), $email);
 
-        $queued = ReviewRequests::queue($location, $contact, (int) ((Auth::user() ?? [])['id'] ?? 0) ?: null);
+        // Which wording. An id off a form is not trusted any further than
+        // EmailTemplates::resolve(), which refuses one belonging to another
+        // account and falls back to this account's default.
+        $templateId = (int) ($_POST['template_id'] ?? 0);
+
+        $queued = ReviewRequests::queue(
+            $location,
+            $contact,
+            (int) ((Auth::user() ?? [])['id'] ?? 0) ?: null,
+            $templateId > 0 ? $templateId : null,
+        );
 
         if (!$queued['ok']) {
             $this->back((string) $queued['error']);
@@ -283,6 +302,111 @@ final class MembersController
             'reviews'  => HostedReviews::forAccount($id),
             'error'    => $this->takeFlash('promo_review_error'),
         ]);
+    }
+
+    // =====================================================================
+    // Email templates
+    // =====================================================================
+
+    /**
+     * The wording that goes out, and which of it is the default.
+     *
+     * Both kinds on one page rather than two. A member who rewrites the request
+     * and leaves the stock reminder behind has written two emails in two
+     * voices to the same customer, and the way to stop that happening is to
+     * have them both on screen at once.
+     */
+    public function templates(): void
+    {
+        $account = Auth::account() ?? [];
+        $id      = (int) $account['id'];
+
+        $sets = [];
+        foreach (EmailTemplates::KINDS as $kind => $label) {
+            $default = EmailTemplates::defaultFor($id, $kind);
+            $sets[$kind] = [
+                'label'     => $label,
+                'rows'      => EmailTemplates::forAccount($id, $kind),
+                'defaultId' => $default === null ? null : (int) $default['id'],
+            ];
+        }
+
+        // An id in the query string opens that one for editing. Loaded through
+        // find(), so a guessed id belonging to another account opens nothing.
+        $editing = EmailTemplates::find($id, (int) ($_GET['edit'] ?? 0));
+
+        echo View::members('members/templates', [
+            'title'   => 'Email templates · PromoMonster',
+            'account' => $account,
+            'ready'   => EmailTemplates::ready(),
+            'sets'    => $sets,
+            'editing' => $editing,
+            'error'   => $this->takeFlash('template_error'),
+        ]);
+    }
+
+    /** Creates or updates one of the account's own templates. */
+    public function saveTemplate(): void
+    {
+        $this->guardTo('/members/templates');
+        $account = Auth::account() ?? [];
+
+        $result = EmailTemplates::save((int) $account['id'], [
+            'id'           => (int) ($_POST['id'] ?? 0),
+            'kind'         => (string) ($_POST['kind'] ?? 'request'),
+            'name'         => (string) ($_POST['name'] ?? ''),
+            'subject'      => (string) ($_POST['subject'] ?? ''),
+            'body'         => (string) ($_POST['body'] ?? ''),
+            'make_default' => !empty($_POST['make_default']),
+        ]);
+
+        if (!$result['ok']) {
+            $_SESSION['template_error'] = (string) $result['error'];
+            Request::redirect('/members/templates');
+        }
+
+        Audit::log('template.saved', 'template', (int) $result['id']);
+        $_SESSION['members_flash'] = 'Saved. New requests will use it when you pick it.';
+        Request::redirect('/members/templates');
+    }
+
+    /** Points this account's default at one of its own templates. */
+    public function makeTemplateDefault(): void
+    {
+        $this->guardTo('/members/templates');
+        $account = Auth::account() ?? [];
+
+        // The stock wording is not a row this account owns, so choosing it is
+        // clearing the flag rather than setting one. See EmailTemplates.
+        $id = (int) ($_POST['id'] ?? 0);
+        if ($id === 0) {
+            EmailTemplates::useSystemDefault((int) $account['id'], (string) ($_POST['kind'] ?? 'request'));
+            $_SESSION['members_flash'] = 'Back to the wording we ship with.';
+        } elseif (EmailTemplates::makeDefault((int) $account['id'], $id)) {
+            Audit::log('template.default_set', 'template', $id);
+            $_SESSION['members_flash'] = 'That is the one we will use from now on.';
+        } else {
+            $_SESSION['template_error'] = 'That template is not one we can set as your default.';
+        }
+
+        Request::redirect('/members/templates');
+    }
+
+    /** Deletes one of the account's own templates. */
+    public function deleteTemplate(): void
+    {
+        $this->guardTo('/members/templates');
+        $account = Auth::account() ?? [];
+
+        $id = (int) ($_POST['id'] ?? 0);
+        if (EmailTemplates::delete((int) $account['id'], $id)) {
+            Audit::log('template.deleted', 'template', $id);
+            $_SESSION['members_flash'] = 'Deleted. Anything already queued will go out in your default wording.';
+        } else {
+            $_SESSION['template_error'] = 'That one cannot be deleted. The wording we ship with stays put.';
+        }
+
+        Request::redirect('/members/templates');
     }
 
     /** Adds a review the business is entering on somebody's behalf. */

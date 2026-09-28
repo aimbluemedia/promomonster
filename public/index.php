@@ -171,6 +171,12 @@ $router->post('/members/plan',   static fn () => (new MembersController())->requ
 $router->post('/members/review-link', static fn () => (new MembersController())->saveReviewLink());
 $router->post('/members/ask',         static fn () => (new MembersController())->ask());
 
+// The wording the review requests go out in.
+$router->get('/members/templates',         static fn () => (new MembersController())->templates());
+$router->post('/members/templates/save',   static fn () => (new MembersController())->saveTemplate());
+$router->post('/members/templates/default', static fn () => (new MembersController())->makeTemplateDefault());
+$router->post('/members/templates/delete', static fn () => (new MembersController())->deleteTemplate());
+
 // Reviews hosted here, rather than on Google.
 $router->get('/members/promomonster-reviews',
     static fn () => (new MembersController())->promoReviews());

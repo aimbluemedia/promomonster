@@ -43,6 +43,7 @@ unset($_SESSION['members_flash']);
         '/members/reviews'  => 'Google reviews',
         '/members/promomonster-reviews' => 'PromoMonster reviews',
         '/members/requests' => 'Requests',
+        '/members/templates' => 'Email templates',
         '/members/playbook' => 'Your playbook',
         '/members/settings' => 'Settings',
       ] as $href => $label): ?>
