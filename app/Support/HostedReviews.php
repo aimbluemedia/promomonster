@@ -37,7 +37,26 @@ final class HostedReviews
     /** @var array<string,bool>|null */
     private static ?bool $ready = null;
 
-    /** Whether migration 020 has been run. Same pattern as PasswordReset. */
+    /** Every column add() writes. A table missing any of them cannot take a review. */
+    private const NEEDED = ['source', 'source_url', 'author_name', 'author_city', 'rating', 'body'];
+
+    /**
+     * Whether the table can actually take a review.
+     *
+     * This used to ask only whether hosted_reviews existed, and that was not
+     * the same question. 020 gained columns after it had already been run on
+     * the live database, and the runner records a migration by filename: once
+     * recorded it is never replayed, so editing the file changes nothing for
+     * the server that needs it most. The table was there, ready() said yes,
+     * and add() went to the database with a column name it did not have --
+     * which is a 500 and a reference number, from a form, for a member who
+     * did nothing wrong.
+     *
+     * Asking for the columns the code writes turns that into the notice this
+     * page already has for "not switched on yet", and diagnose.php names the
+     * column and its migration. Any column added to this table from here on is
+     * covered without anybody remembering to come back.
+     */
     public static function ready(): bool
     {
         if (self::$ready !== null) {
@@ -45,15 +64,31 @@ final class HostedReviews
         }
 
         try {
+            // Interpolated rather than bound: an IN list needs one placeholder
+            // per value, and these are a private constant of literal column
+            // names with nothing from outside in them.
             $row = Database::first(
-                'SELECT 1 AS present FROM information_schema.TABLES
-                  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = \'hosted_reviews\' LIMIT 1',
+                'SELECT COUNT(*) AS n FROM information_schema.COLUMNS
+                  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = \'hosted_reviews\'
+                    AND COLUMN_NAME IN (\'' . implode("', '", self::NEEDED) . '\')',
             );
         } catch (\PDOException $e) {
             return self::$ready = false;
         }
 
-        return self::$ready = $row !== null;
+        return self::$ready = ((int) ($row['n'] ?? 0)) === count(self::NEEDED);
+    }
+
+    /**
+     * Drop the cached answer.
+     *
+     * The cache is right for a web request, where the schema cannot change
+     * underneath one page load. It is wrong for the test that takes the column
+     * away and asks again, which is the only caller.
+     */
+    public static function forget(): void
+    {
+        self::$ready = null;
     }
 
     // -- The public address --------------------------------------------------

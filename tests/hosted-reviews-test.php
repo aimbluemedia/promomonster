@@ -233,5 +233,44 @@ for ($i = 0; $i < 8; $i++) {
 }
 check('five public submissions an hour from one address', $allowed, 5);
 
+// =====================================================================
+// A half-applied migration is a notice, not a 500
+// =====================================================================
+// 020 gained columns after it had already run on the live database, and the
+// runner records a migration by filename and never replays a recorded name --
+// so the edit reached nobody who needed it. ready() asked only whether the
+// table existed, said yes, and add() went to the database with a column name
+// it did not have. A member adding a review got an error page and a reference
+// number for doing nothing wrong.
+//
+// Reproduced by dropping the column rather than by mocking, because what is
+// under test is what MySQL does about it.
+seed();
+$probe = 'hosted_reviews_ready_probe';
+Database::run("DROP TABLE IF EXISTS {$probe}");
+Database::run("CREATE TABLE {$probe} LIKE hosted_reviews");
+
+try {
+    Database::run('ALTER TABLE hosted_reviews DROP COLUMN author_city');
+    HostedReviews::forget();
+
+    ok('a table missing a column the code writes is not ready', !HostedReviews::ready());
+
+    $result = add();
+    ok('so adding a review is refused rather than fatal', !$result['ok']);
+    ok('and says the feature is not switched on',
+        str_contains((string) $result['error'], 'not switched on'));
+} finally {
+    // Put it back however the assertions went, or every later run of this
+    // suite starts against a broken table.
+    Database::run('DROP TABLE hosted_reviews');
+    Database::run("RENAME TABLE {$probe} TO hosted_reviews");
+    HostedReviews::forget();
+}
+
+ok('and the table is whole again afterwards', HostedReviews::ready());
+seed();
+ok('with a working insert', add()['ok']);
+
 echo "\n{$passed} passed, {$failed} failed\n";
 exit($failed === 0 ? 0 : 1);

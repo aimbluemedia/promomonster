@@ -298,6 +298,23 @@ if (!is_file($configPath)) {
                 'audits.results_generated_at'      => '016',
                 'audits.website'                   => '017',
                 'audits.score'                     => '017',
+                'locations.reply_to_email'         => '018',
+                'review_requests.attempts'         => '018',
+                'review_requests.provider_ref'     => '018',
+                'review_requests.sent_subject'     => '018',
+                'review_requests.sent_body'        => '018',
+                'password_resets.token_hash'       => '019',
+                'accounts.public_slug'             => '020 or 022',
+                'hosted_reviews.source_url'        => '020 or 022',
+                // The one that got away. 020 was already recorded as applied
+                // when this column was added to it, and the runner never
+                // replays a recorded name -- so the table existed, the code
+                // wrote the column, and adding a review was a 500. 022 exists
+                // to add it to a database in that state, and this row is what
+                // would have named it in seconds.
+                'hosted_reviews.author_city'       => '020 or 022',
+                'templates.is_default'             => '021',
+                'templates.updated_at'             => '021',
             ];
 
             $columnCache = [];
@@ -324,9 +341,16 @@ if (!is_file($configPath)) {
             add($checks, 'Required columns', $missing === [] ? 'pass' : 'fail',
                 $missing === []
                     ? count($required) . ' columns checked, all present.'
+                    // Comma-joined rather than "and": one of these entries is
+                    // itself "020 or 022", and "020 or 022 and 021" parses as
+                    // nothing anybody would want to read at this moment.
                     : 'MISSING: ' . implode(', ', $missing)
-                      . ' — added by migration ' . implode(' and ', array_keys($blame))
-                      . '. Pages that read them return a 500 until it is applied.');
+                      . ' — added by migration ' . implode(', ', array_keys($blame))
+                      . '. Pages that read them return a 500 until it is applied. '
+                      . 'If the migrations row above says none are pending, the file was '
+                      . 'edited after it ran: the runner records a name and never replays '
+                      . 'it, so paste that migration into phpMyAdmin by hand. Every one of '
+                      . 'them is guarded and safe to run twice.');
         } catch (Throwable $e) {
             add($checks, 'Database connection', 'fail', $e->getMessage());
         }
