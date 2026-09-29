@@ -54,6 +54,65 @@ final class EmailTemplates
         'city'          => 'The city on your location',
     ];
 
+    /**
+     * The wording the product ships with.
+     *
+     * A copy of what 018 seeds, and the templates-test asserts the two are
+     * character-for-character identical so they cannot drift. The duplication
+     * buys something worth more than it costs: 018's INSERTs are the only
+     * place these words existed, so a database that never ran 018 -- or ran a
+     * version of it before the seed was added -- had no request template at
+     * all, and every attempt to ask a customer for a review stopped dead on
+     * "No request template is installed. Run the migrations."
+     *
+     * That is a feature that cannot work until somebody runs SQL by hand, for
+     * a product whose whole job is that one feature. install() puts the rows in
+     * when they are missing, so the migration becomes the fast path rather than
+     * the only path.
+     *
+     * Written to be read by somebody who has just had work done and is not
+     * expecting an email: short, specific about who is asking, honest that it
+     * takes a minute, and with no incentive of any kind. Offering anything in
+     * exchange for a review breaks Google's policy outright, so the wording we
+     * ship has to make the compliant path the easy one.
+     */
+    public const SYSTEM = [
+        'request' => [
+            'name'    => 'Standard review request',
+            'subject' => 'How did we do, {{first_name}}?',
+            'body'    => "Hi {{first_name}},\n"
+                . "\n"
+                . "Thanks for choosing {{business_name}}. It was good to work with you.\n"
+                . "\n"
+                . "If you have a minute, would you leave us a review? It is the main way\n"
+                . "people find us, and honest feedback helps the next customer decide.\n"
+                . "\n"
+                . "{{review_url}}\n"
+                . "\n"
+                . "It takes about a minute, and you can say whatever you actually think.\n"
+                . "\n"
+                . "Thanks,\n"
+                . '{{business_name}}',
+        ],
+        'follow_up' => [
+            'name'    => 'Standard reminder',
+            'subject' => 'A quick reminder, {{first_name}}',
+            'body'    => "Hi {{first_name}},\n"
+                . "\n"
+                . "I sent you a note a few days ago about leaving {{business_name}} a\n"
+                . "review. If you have already done it, thank you, and please ignore this.\n"
+                . "\n"
+                . "If not, the link is here:\n"
+                . "\n"
+                . "{{review_url}}\n"
+                . "\n"
+                . "This is the only reminder you will get from us.\n"
+                . "\n"
+                . "Thanks,\n"
+                . '{{business_name}}',
+        ],
+    ];
+
     /** Sample values for the preview, so nobody has to send one to find out. */
     private const SAMPLE = [
         'first_name'    => 'Dana',
@@ -64,6 +123,9 @@ final class EmailTemplates
     ];
 
     private static ?bool $ready = null;
+
+    /** install() is worth attempting once per request, not once per lookup. */
+    private static bool $installed = false;
 
     /**
      * Has migration 021 been applied?
@@ -91,6 +153,88 @@ final class EmailTemplates
         }
     }
 
+    /**
+     * Put the shipped templates in, if they are not already.
+     *
+     * Runs on the read path rather than as a migration, because the migration
+     * is the part that did not happen. Cheap: one indexed count, and after the
+     * first call in a request it does not ask again.
+     *
+     * The insert is guarded the same way 018 guards it, so this and the
+     * migration cannot produce two copies whichever order they run in. A row
+     * an account has written is never touched -- only is_system rows with no
+     * account and no vertical are considered, and only when there are none.
+     *
+     * Returns how many rows it added, for the test and for diagnose.php.
+     */
+    public static function install(): int
+    {
+        $added = 0;
+
+        foreach (self::SYSTEM as $kind => $shipped) {
+            try {
+                $have = Database::first(
+                    'SELECT COUNT(*) AS n FROM templates
+                      WHERE is_system = 1 AND channel = :channel AND kind = :kind AND vertical IS NULL',
+                    ['channel' => 'email', 'kind' => $kind],
+                );
+                if (((int) ($have['n'] ?? 0)) > 0) {
+                    continue;
+                }
+
+                // account_id NULL and is_system 1 is what makes it everybody's.
+                // is_default stays 0: a system row is shared, so flagging it
+                // would flag it for every account on the server. defaultFor()
+                // falls through to it instead.
+                Database::run(
+                    'INSERT INTO templates (account_id, vertical, channel, kind, name, subject, body, is_system)
+                     VALUES (NULL, NULL, :channel, :kind, :name, :subject, :body, 1)',
+                    ['channel' => 'email', 'kind' => $kind, 'name' => $shipped['name'],
+                     'subject' => $shipped['subject'], 'body' => $shipped['body']],
+                );
+                $added++;
+            } catch (PDOException) {
+                // No templates table at all, which is 009 missing and a bigger
+                // problem than this method can fix. The caller's own "not
+                // installed" message is the right answer, so say nothing here.
+                return $added;
+            }
+        }
+
+        return $added;
+    }
+
+    /**
+     * The shipped template for one kind, installing it if it has gone missing.
+     *
+     * Every path that needs a system row comes through here, so there is one
+     * place that knows a missing row is repairable rather than fatal.
+     *
+     * @return array<string,mixed>|null
+     */
+    private static function shipped(string $kind): ?array
+    {
+        $row = ReviewRequests::systemTemplate($kind);
+        if ($row !== null) {
+            return $row;
+        }
+
+        if (self::$installed) {
+            return null;
+        }
+        self::$installed = true;
+        self::install();
+
+        return ReviewRequests::systemTemplate($kind);
+    }
+
+    /** For the tests, which install and uninstall around each case. */
+    public static function forget(): void
+    {
+        self::$ready     = null;
+        self::$installed = false;
+    }
+
     // -- Reading ---------------------------------------------------------
 
     /**
@@ -108,6 +252,13 @@ final class EmailTemplates
         if (!self::ready()) {
             return [];
         }
+
+        // "Always present" is a claim this has to make true rather than assume.
+        // Asking for it installs it if it has gone missing, so the page and the
+        // send form cannot show an empty list on a database that never ran the
+        // seed -- which is the state that made asking a customer for a review
+        // impossible until somebody ran SQL by hand.
+        self::shipped(self::kind($kind));
 
         return Database::all(
             'SELECT * FROM templates
@@ -156,7 +307,7 @@ final class EmailTemplates
     public static function defaultFor(int $accountId, string $kind = 'request'): ?array
     {
         if (!self::ready()) {
-            return ReviewRequests::systemTemplate(self::kind($kind));
+            return self::shipped(self::kind($kind));
         }
 
         $own = Database::first(
@@ -166,7 +317,7 @@ final class EmailTemplates
             ['account' => $accountId, 'channel' => 'email', 'kind' => self::kind($kind)],
         );
 
-        return $own ?? ReviewRequests::systemTemplate(self::kind($kind));
+        return $own ?? self::shipped(self::kind($kind));
     }
 
     /**

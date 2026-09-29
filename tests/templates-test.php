@@ -76,10 +76,9 @@ if (!EmailTemplates::ready()) {
     echo "SKIP  migration 021 has not been applied to the test database\n";
     exit(0);
 }
-if (ReviewRequests::systemTemplate('request') === null) {
-    echo "SKIP  migration 018 has not seeded the system templates\n";
-    exit(0);
-}
+// Deliberately not a skip any more: a missing system template is the state
+// this is here to test, because it is the state the live site was in.
+EmailTemplates::install();
 
 /** Two accounts, so every ownership claim has somebody to steal from. */
 function seed(): void
@@ -303,6 +302,102 @@ ok('the body has the sample name', str_contains($preview['body'], 'Hi Dana,'));
 ok('and the sample business', str_contains($preview['body'], 'Acme Pools here.'));
 ok('and a link that looks like a link', str_contains($preview['body'], 'https://'));
 ok('with nothing left in braces', !str_contains($preview['body'], '{{'));
+
+// =====================================================================
+// The shipped wording installs itself when the seed never ran
+// =====================================================================
+// "No request template is installed. Run the migrations." was a dead end on
+// the live site: the templates table was there, 018's INSERTs were not, and
+// asking a customer for a review was impossible until somebody ran SQL by
+// hand. The wording now lives in PHP as well, and a missing row is repaired
+// on the read path.
+seed();
+Database::run("DELETE FROM templates WHERE is_system = 1 AND channel = 'email'");
+EmailTemplates::forget();
+ok('with the seed gone there is no system template', ReviewRequests::systemTemplate('request') === null);
+
+$location = Database::first('SELECT * FROM locations WHERE id = 1');
+$contact  = Database::first('SELECT * FROM contacts WHERE id = 1');
+$rescued  = ReviewRequests::queue($location, $contact);
+ok('but queueing a request still works', $rescued['ok']);
+ok('because the template was put back', ReviewRequests::systemTemplate('request') !== null);
+
+$installed = Database::first(
+    "SELECT * FROM templates WHERE is_system = 1 AND channel = 'email' AND kind = 'request'");
+check('with the shipped subject', (string) $installed['subject'], EmailTemplates::SYSTEM['request']['subject']);
+check('and the shipped body', (string) $installed['body'], EmailTemplates::SYSTEM['request']['body']);
+check('owned by nobody, so every account sees it', $installed['account_id'], null);
+check('and flagged as ours', (int) $installed['is_system'], 1);
+check('but not as anybody\'s default', (int) $installed['is_default'], 0);
+
+// Running it twice must not leave two.
+EmailTemplates::forget();
+check('installing again adds nothing', EmailTemplates::install(), 0);
+check('so there is exactly one of each kind',
+    (int) Database::first("SELECT COUNT(*) n FROM templates WHERE is_system = 1 AND channel = 'email'")['n'],
+    count(EmailTemplates::KINDS));
+
+// The reminder heals the same way.
+seed();
+Database::run("DELETE FROM templates WHERE is_system = 1 AND channel = 'email'");
+EmailTemplates::forget();
+ok('the reminder is reinstalled too',
+    EmailTemplates::defaultFor(1, 'follow_up') !== null);
+
+// And the page is not left with an empty list.
+seed();
+Database::run("DELETE FROM templates WHERE is_system = 1 AND channel = 'email'");
+EmailTemplates::forget();
+ok('the templates page still has something to show',
+    count(EmailTemplates::forAccount(1, 'request')) === 1);
+
+// =====================================================================
+// The PHP copy and the migration must not drift
+// =====================================================================
+// Two copies of the same words is the cost of the repair above. A test that
+// reads the migration is what stops that cost turning into two DIFFERENT
+// emails depending on which one ran first.
+$sql = (string) file_get_contents(dirname(__DIR__) . '/database/migrations/018_email_sending.sql');
+
+foreach (EmailTemplates::SYSTEM as $kind => $shipped) {
+    // Each INSERT ... SELECT block, from the kind to its guard.
+    $block = '';
+    if (preg_match("/'email',\s*\n\s*'" . $kind . "',(.*?)WHERE NOT EXISTS/s", $sql, $m) === 1) {
+        $block = $m[1];
+    }
+    ok("018 has a block for {$kind}", $block !== '');
+
+    // The name and subject are the two bare quoted strings before CONCAT_WS.
+    $head = substr($block, 0, strpos($block, 'CONCAT_WS') ?: 0);
+    preg_match_all("/'((?:[^']|'')*)'/", $head, $heads);
+    $parts = array_map(static fn (string $v): string => str_replace("''", "'", $v), $heads[1]);
+
+    check("the {$kind} name matches the migration", $parts[0] ?? '', $shipped['name']);
+    check("the {$kind} subject matches the migration", $parts[1] ?? '', $shipped['subject']);
+
+    // The body is the quoted lines inside CONCAT_WS, joined with a newline.
+    // Matched past the separator argument rather than cut at the first '),':
+    // CONCAT_WS(CHAR(10 USING utf8mb4), ends in exactly that, so cutting there
+    // threw the whole body away and compared '' to '' for both kinds -- a test
+    // that passes because it is looking at nothing.
+    $tail = '';
+    if (preg_match('/CONCAT_WS\(CHAR\(10 USING utf8mb4\),(.*?)\n\s*\),/s', $block, $bm) === 1) {
+        $tail = $bm[1];
+    }
+    ok("the {$kind} body is readable out of the migration", trim($tail) !== '');
+
+    preg_match_all("/'((?:[^']|'')*)'/", $tail, $lines);
+    $body = implode("\n", array_map(
+        static fn (string $v): string => str_replace("''", "'", $v),
+        $lines[1],
+    ));
+
+    check("the {$kind} body matches the migration character for character", $body, $shipped['body']);
+}
+
+// Whatever this file did to the shared seed, leave it as it found it.
+EmailTemplates::forget();
+EmailTemplates::install();
 
 echo "\n{$passed} passed, {$failed} failed\n";
 exit($failed === 0 ? 0 : 1);
