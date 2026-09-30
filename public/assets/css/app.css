@@ -1195,3 +1195,48 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
   border:1px solid var(--line); border-radius:9px; color:var(--body);
   font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.85rem;
   line-height:1.65; white-space:pre-wrap; word-break:break-word; }
+
+/* --- Choosing where a review request points ----------------------------- */
+/* Two cards, not a dropdown. It is the first decision on the page and it
+   changes what the customer sees when they click, so it gets the room a
+   decision needs. */
+.dest{ border:0; padding:0; margin:0; display:grid; gap:1rem; }
+@media (min-width:760px){ .dest{ grid-template-columns:1fr 1fr; } }
+
+.dest__card{ position:relative; display:block; cursor:pointer;
+  background:var(--surface); border:2px solid var(--line); border-radius:12px;
+  padding:1.15rem 1.25rem; transition:border-color .12s, background .12s; }
+.dest__card:hover{ border-color:var(--brand); }
+
+/* The radio stays in the accessibility tree and keeps keyboard focus; it is
+   just not where the eye goes. Clipped rather than display:none, which would
+   take it out of the tab order and out of the form. */
+.dest__card input{ position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+.dest__card:has(input:checked){ border-color:var(--brand); background:var(--wash); }
+.dest__card:has(input:focus-visible){ outline:2px solid var(--brand); outline-offset:2px; }
+
+/* :has() is young enough that a browser without it must still show which one is
+   selected -- otherwise the page offers a choice and never says what was
+   chosen. The checkmark is drawn from the input itself, which every browser
+   that renders a radio can do. */
+.dest__card input:checked + .dest__body .dest__title::after{ content:" ✓"; color:var(--brand); }
+
+.dest__body{ display:block; }
+.dest__title{ display:flex; align-items:center; gap:.5rem; font-weight:700;
+  color:var(--ink); line-height:1.35; }
+.dest__title .icon{ width:1.1rem; height:1.1rem; color:var(--brand); flex-shrink:0; }
+.dest__blurb{ display:block; margin-top:.45rem; color:var(--muted);
+  font-size:.88rem; line-height:1.5; }
+.dest__problem{ display:block; margin-top:.6rem; color:var(--ink);
+  font-size:.84rem; line-height:1.5; font-weight:600; }
+
+.dest__card--off{ cursor:not-allowed; opacity:.72; background:var(--wash); }
+.dest__card--off:hover{ border-color:var(--line); }
+
+/* Which destination a sent request pointed at. */
+.dest-tag{ display:inline-block; font-size:.75rem; font-weight:700;
+  border:1px solid var(--line); border-radius:99px; padding:.1rem .5rem;
+  white-space:nowrap; }
+.dest-tag--promomonster{ color:var(--brand); }
+.dest-tag--google{ color:var(--muted); }

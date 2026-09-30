@@ -28,6 +28,65 @@ final class ReviewRequests
     /** The playbook's one reminder. Not two, and never three. */
     public const FOLLOW_UP_DAYS = 3;
 
+    /**
+     * Where a request can send somebody.
+     *
+     * Two, and they are not interchangeable. Google is somebody else's
+     * platform: it carries far more weight with a stranger searching, and we
+     * cannot touch what is written there. A review hosted here is ours to show
+     * on the business's own site and in the widget, and is the only option for
+     * a business whose Google listing is not set up yet.
+     */
+    public const DESTINATIONS = [
+        'promomonster' => 'PromoMonster',
+        'google'       => 'Google',
+    ];
+
+    /** @var bool|null Whether migration 023 has been applied. */
+    private static ?bool $hasDestination = null;
+
+    /**
+     * Whether the row can say where it points.
+     *
+     * Asked rather than assumed, for the reason the templates page had to learn
+     * twice: the files go up by FTP and the migration is run by hand afterwards,
+     * so a day or two where the code is ahead of the schema is normal. Without
+     * the column every request behaves as a Google one, which is what every row
+     * written before it was is.
+     */
+    public static function hasDestination(): bool
+    {
+        if (self::$hasDestination !== null) {
+            return self::$hasDestination;
+        }
+
+        try {
+            $row = Database::first(
+                'SELECT COUNT(*) AS n FROM information_schema.COLUMNS
+                  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t AND COLUMN_NAME = :c',
+                ['t' => 'review_requests', 'c' => 'destination'],
+            );
+
+            return self::$hasDestination = ((int) ($row['n'] ?? 0)) === 1;
+        } catch (PDOException) {
+            return self::$hasDestination = false;
+        }
+    }
+
+    /** For the tests, which take the column away and put it back. */
+    public static function forgetDestination(): void
+    {
+        self::$hasDestination = null;
+    }
+
+    /** Anything that is not one of the two is Google, which is what every old row is. */
+    public static function destination(?string $destination): string
+    {
+        return array_key_exists((string) $destination, self::DESTINATIONS)
+            ? (string) $destination
+            : 'google';
+    }
+
     // =====================================================================
     // Queueing
     // =====================================================================
@@ -49,15 +108,24 @@ final class ReviewRequests
         array $contact,
         ?int $askedByUserId = null,
         ?int $templateId = null,
+        string $destination = 'google',
     ): array {
-        $email = trim((string) ($contact['email'] ?? ''));
+        $email       = trim((string) ($contact['email'] ?? ''));
+        $destination = self::destination($destination);
 
         if (!Mailer::isSendableAddress($email)) {
             return self::no('That is not an email address we can send to.');
         }
-        if (trim((string) ($location['google_review_url'] ?? '')) === '') {
-            return self::no('This location has no Google review link yet, so there is nothing to send them to.');
+
+        // Each destination has its own thing that has to exist first, and
+        // neither can stand in for the other. Checked here rather than at send
+        // time because a request that cannot land anywhere should never reach
+        // the queue -- it would sit there looking sent.
+        $target = self::target($location, $destination);
+        if ($target['error'] !== null) {
+            return self::no($target['error']);
         }
+
         if (self::isSuppressed($email)) {
             return self::no('That address has opted out of review requests. We will not email it again.');
         }
@@ -70,21 +138,25 @@ final class ReviewRequests
             return self::no('No request template is installed. Run the migrations.');
         }
 
+        $withDestination = self::hasDestination();
+
         try {
             Database::run(
                 'INSERT INTO review_requests
                     (location_id, contact_id, template_id, channel, status,
-                     asked_by_user_id, is_follow_up, scheduled_for, click_token)
+                     asked_by_user_id, is_follow_up, scheduled_for, click_token'
+                 . ($withDestination ? ', destination' : '') . ')
                  VALUES
                     (:location, :contact, :template, \'email\', \'queued\',
-                     :asked_by, 0, NOW(), :token)',
-                [
+                     :asked_by, 0, NOW(), :token'
+                 . ($withDestination ? ', :destination' : '') . ')',
+                array_merge([
                     'location' => (int) $location['id'],
                     'contact'  => (int) $contact['id'],
                     'template' => (int) $template['id'],
                     'asked_by' => $askedByUserId,
                     'token'    => self::newToken(),
-                ],
+                ], $withDestination ? ['destination' => $destination] : []),
             );
         } catch (PDOException $e) {
             return self::no('Could not queue that request: ' . $e->getMessage());
@@ -137,24 +209,130 @@ final class ReviewRequests
             return null;
         }
 
+        // The reminder inherits where the first one pointed. It is the second
+        // half of one ask: sending somebody to Google on Tuesday and to a page
+        // they have never heard of on Friday is two businesses writing.
+        $withDestination = self::hasDestination();
+
         Database::run(
             'INSERT INTO review_requests
                 (location_id, contact_id, template_id, channel, status,
-                 asked_by_user_id, is_follow_up, parent_request_id, scheduled_for, click_token)
+                 asked_by_user_id, is_follow_up, parent_request_id, scheduled_for, click_token'
+             . ($withDestination ? ', destination' : '') . ')
              VALUES
                 (:location, :contact, :template, \'email\', \'scheduled\',
-                 :asked_by, 1, :parent, NOW() + INTERVAL ' . (int) self::FOLLOW_UP_DAYS . ' DAY, :token)',
-            [
+                 :asked_by, 1, :parent, NOW() + INTERVAL ' . (int) self::FOLLOW_UP_DAYS . ' DAY, :token'
+             . ($withDestination ? ', :destination' : '') . ')',
+            array_merge([
                 'location' => (int) $parent['location_id'],
                 'contact'  => (int) $parent['contact_id'],
                 'template' => (int) $template['id'],
                 'asked_by' => $parent['asked_by_user_id'],
                 'parent'   => $parentId,
                 'token'    => self::newToken(),
-            ],
+            ], $withDestination
+                ? ['destination' => self::destination((string) ($parent['destination'] ?? 'google'))]
+                : []),
         );
 
         return (int) Database::connection()->lastInsertId();
+    }
+
+    /**
+     * Where this request will send somebody, and why it cannot.
+     *
+     * The single place that turns a destination into a URL. click() goes
+     * through it too, which is the point: the link a customer follows is built
+     * from our own configuration and the account's own row, never from
+     * anything stored per-request and never from anything that arrived on a
+     * form.
+     *
+     * That matters most for the PromoMonster destination. /r/{token} redirects
+     * to whatever this returns, so if a URL could be put in from outside, the
+     * token would be an open redirect wearing promomonster.com's name. Here the
+     * PromoMonster answer is our own app_url plus a slug we generated, and the
+     * Google answer has already been through ReviewLink::check() before it
+     * could be saved on the location.
+     *
+     * @param array<string,mixed> $location a locations row, or a due()/click() row carrying the same keys
+     * @return array{url:?string, error:?string}
+     */
+    public static function target(array $location, string $destination): array
+    {
+        if (self::destination($destination) === 'promomonster') {
+            if (!HostedReviews::ready()) {
+                return ['url' => null, 'error' => 'Reviews hosted here are not switched on yet, '
+                    . 'so there is nowhere to send them. Ask for a Google review instead.'];
+            }
+
+            // Made on demand, so a business that has never opened the
+            // PromoMonster reviews page can still send one.
+            $slug = trim((string) ($location['public_slug'] ?? '')) !== ''
+                ? trim((string) $location['public_slug'])
+                : HostedReviews::slug(
+                    (int) ($location['account_id'] ?? 0),
+                    (string) ($location['account_name'] ?? $location['location_name'] ?? $location['name'] ?? ''),
+                );
+
+            if ($slug === null || $slug === '') {
+                return ['url' => null, 'error' => 'We could not work out your review page address. '
+                    . 'Open the PromoMonster reviews page once and try again.'];
+            }
+
+            $base = rtrim((string) Config::get('app_url', 'https://promomonster.com'), '/');
+
+            return ['url' => $base . '/reviews/' . $slug, 'error' => null];
+        }
+
+        $url = trim((string) ($location['google_review_url'] ?? ''));
+        if ($url === '') {
+            return ['url' => null, 'error' => 'This location has no Google review link yet, '
+                . 'so there is nothing to send them to.'];
+        }
+
+        return ['url' => $url, 'error' => null];
+    }
+
+    /**
+     * What this account has sent, newest first.
+     *
+     * One query for the three screens that show it: the Review requests page
+     * shows everything, the Google page and the PromoMonster page each show
+     * their own. Three hand-written copies of the same join is how one of them
+     * ends up quietly showing another account's rows.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public static function recent(int $accountId, ?string $destination = null, int $limit = 25): array
+    {
+        $filter = '';
+        $params = ['account' => $accountId];
+
+        if ($destination !== null && self::hasDestination()) {
+            $filter = ' AND r.destination = :destination';
+            $params['destination'] = self::destination($destination);
+        } elseif ($destination !== null && self::destination($destination) === 'promomonster') {
+            // No column yet, so nothing can be a PromoMonster request: every
+            // row predates the idea. Returning the Google list here would show
+            // the same requests on both pages and make it look as though the
+            // send had gone to both places.
+            return [];
+        }
+
+        return Database::all(
+            'SELECT r.id, r.status, r.sent_at, r.created_at, r.first_clicked_at,
+                    r.is_follow_up, r.failure_reason, '
+            . (self::hasDestination() ? 'r.destination' : '\'google\' AS destination') . ',
+                    c.first_name, c.last_name, c.email,
+                    l.name AS location_name
+               FROM review_requests r
+               JOIN contacts  c ON c.id = r.contact_id
+               JOIN locations l ON l.id = r.location_id
+              WHERE l.account_id = :account' . $filter . '
+           ORDER BY r.created_at DESC
+              LIMIT ' . max(1, min(200, $limit)),
+            $params,
+        );
     }
 
     // =====================================================================
@@ -327,9 +505,13 @@ final class ReviewRequests
     public static function click(string $token): ?string
     {
         $row = Database::first(
-            'SELECT r.id, r.status, r.first_clicked_at, l.google_review_url
+            'SELECT r.id, r.status, r.first_clicked_at, '
+            . (self::hasDestination() ? 'r.destination' : '\'google\' AS destination') . ',
+                    l.google_review_url, l.name AS location_name,
+                    a.id AS account_id, a.name AS account_name, a.public_slug
                FROM review_requests r
                JOIN locations l ON l.id = r.location_id
+               JOIN accounts  a ON a.id = l.account_id
               WHERE r.click_token = :token',
             ['token' => $token],
         );
@@ -347,9 +529,11 @@ final class ReviewRequests
         );
         self::event((int) $row['id'], 'clicked', null, []);
 
-        $url = trim((string) ($row['google_review_url'] ?? ''));
-
-        return $url === '' ? null : $url;
+        // Built here, from our own configuration and this account's own row.
+        // A null means the destination has gone away since the send -- the
+        // Google link was cleared, or hosted reviews were switched off -- and
+        // the caller shows a 404 rather than guessing somewhere to send them.
+        return self::target($row, (string) $row['destination'])['url'];
     }
 
     public static function isSuppressed(string $email): bool

@@ -36,6 +36,7 @@ spl_autoload_register(static function (string $class): void {
 use App\Support\Config;
 use App\Support\Database;
 use App\Support\EmailTemplates;
+use App\Support\HostedReviews;
 use App\Support\ReviewRequests;
 
 date_default_timezone_set('America/Phoenix');
@@ -571,6 +572,149 @@ foreach (EmailTemplates::SYSTEM as $shipped) {
 
     check("the {$kind} body matches the migration character for character", $body, $shipped['body']);
 }
+
+// =====================================================================
+// Where a request points
+// =====================================================================
+// A request used to have one possible destination and never said so: it read
+// locations.google_review_url at click time, days after the send. With reviews
+// hosted here too, the row has to record which, and the link has to be built
+// from our own configuration rather than from anything stored per request --
+// /r/{token} redirects to whatever click() returns, so a URL that could come
+// from outside would make the token an open redirect on our own domain.
+seed();
+$location = Database::first('SELECT * FROM locations WHERE id = 1');
+$contact  = Database::first('SELECT * FROM contacts WHERE id = 1');
+$context  = array_merge($location, ['account_id' => 1, 'account_name' => 'Acme Pools']);
+
+check('an unknown destination is treated as Google', ReviewRequests::destination('elsewhere'), 'google');
+check('and so is nothing at all', ReviewRequests::destination(null), 'google');
+check('a real one is kept', ReviewRequests::destination('promomonster'), 'promomonster');
+
+// -- Google ---------------------------------------------------------------
+$g = ReviewRequests::queue($location, $contact, null, null, 'google');
+ok('a Google request queues when the link is saved', $g['ok']);
+check('and is recorded as Google',
+    (string) Database::first('SELECT destination FROM review_requests WHERE id = :i',
+        ['i' => (int) $g['id']])['destination'], 'google');
+
+$token = (string) Database::first('SELECT click_token FROM review_requests WHERE id = :i',
+    ['i' => (int) $g['id']])['click_token'];
+check('and the click goes to the Google link',
+    ReviewRequests::click($token), 'https://g.page/r/ACME');
+
+// Without a Google link there is nowhere for it to land.
+seed();
+Database::run('UPDATE locations SET google_review_url = NULL WHERE id = 1');
+$bare = Database::first('SELECT * FROM locations WHERE id = 1');
+$none = ReviewRequests::queue($bare, Database::first('SELECT * FROM contacts WHERE id = 1'),
+    null, null, 'google');
+ok('a Google request is refused without a link', !$none['ok']);
+ok('and says so', str_contains((string) $none['error'], 'Google review link'));
+
+// -- PromoMonster ----------------------------------------------------------
+seed();
+$location = Database::first('SELECT * FROM locations WHERE id = 1');
+$contact  = Database::first('SELECT * FROM contacts WHERE id = 1');
+$context  = array_merge($location, ['account_id' => 1, 'account_name' => 'Acme Pools']);
+
+$p = ReviewRequests::queue($context, $contact, null, null, 'promomonster');
+ok('a PromoMonster request queues', $p['ok']);
+check('and is recorded as PromoMonster',
+    (string) Database::first('SELECT destination FROM review_requests WHERE id = :i',
+        ['i' => (int) $p['id']])['destination'], 'promomonster');
+
+$token = (string) Database::first('SELECT click_token FROM review_requests WHERE id = :i',
+    ['i' => (int) $p['id']])['click_token'];
+$url   = ReviewRequests::click($token);
+ok('the click goes to our own review page', str_starts_with((string) $url, 'https://promomonster.test/reviews/'));
+ok('and not to Google', !str_contains((string) $url, 'g.page'));
+ok('the slug is the account slug', str_ends_with((string) $url, '/' . HostedReviews::slug(1, 'Acme Pools')));
+
+// A PromoMonster request needs no Google link at all -- that is the point.
+seed();
+Database::run('UPDATE locations SET google_review_url = NULL WHERE id = 1');
+$bare = array_merge(Database::first('SELECT * FROM locations WHERE id = 1'),
+    ['account_id' => 1, 'account_name' => 'Acme Pools']);
+ok('a PromoMonster request queues with no Google link',
+    ReviewRequests::queue($bare, Database::first('SELECT * FROM contacts WHERE id = 1'),
+        null, null, 'promomonster')['ok']);
+
+// -- The click link cannot be steered from outside -------------------------
+// target() builds the PromoMonster URL from app_url and the account's own slug.
+// Nothing a form can set reaches it, which is what keeps /r/{token} from being
+// an open redirect wearing our domain.
+seed();
+$evil = array_merge(Database::first('SELECT * FROM locations WHERE id = 1'), [
+    'account_id' => 1, 'account_name' => 'Acme Pools',
+    'public_slug' => 'https://evil.test/phish',
+]);
+$built = ReviewRequests::target($evil, 'promomonster')['url'];
+ok('a slug that looks like a URL is still hung off our own origin',
+    str_starts_with((string) $built, 'https://promomonster.test/reviews/'));
+
+// -- The reminder goes where the first one went ----------------------------
+seed();
+$context = array_merge(Database::first('SELECT * FROM locations WHERE id = 1'),
+    ['account_id' => 1, 'account_name' => 'Acme Pools']);
+$first = ReviewRequests::queue($context, Database::first('SELECT * FROM contacts WHERE id = 1'),
+    null, null, 'promomonster');
+$followUpId = ReviewRequests::queueFollowUp((int) $first['id']);
+ok('a reminder is scheduled', $followUpId !== null);
+check('and inherits the destination',
+    (string) Database::first('SELECT destination FROM review_requests WHERE id = :i',
+        ['i' => (int) $followUpId])['destination'], 'promomonster');
+
+// -- The three lists show the right rows -----------------------------------
+seed();
+$context = array_merge(Database::first('SELECT * FROM locations WHERE id = 1'),
+    ['account_id' => 1, 'account_name' => 'Acme Pools']);
+$contact = Database::first('SELECT * FROM contacts WHERE id = 1');
+ReviewRequests::queue($context, $contact, null, null, 'google');
+ReviewRequests::queue($context, $contact, null, null, 'promomonster');
+ReviewRequests::queue($context, $contact, null, null, 'promomonster');
+
+check('the Review requests page shows every one', count(ReviewRequests::recent(1, null)), 3);
+check('the Google page shows only Google', count(ReviewRequests::recent(1, 'google')), 1);
+check('the PromoMonster page shows only its own', count(ReviewRequests::recent(1, 'promomonster')), 2);
+check("and another account's list is empty", count(ReviewRequests::recent(2, null)), 0);
+
+// =====================================================================
+// Sending still works before 023 has been run
+// =====================================================================
+// The same lesson as 021, applied before it is learned the hard way: the files
+// go up by FTP and the migration is run by hand afterwards. Without the column
+// every request is a Google one, which is exactly what every row written before
+// it existed is.
+seed();
+try {
+    Database::run('ALTER TABLE review_requests DROP COLUMN destination');
+    ReviewRequests::forgetDestination();
+
+    ok('the column is gone', !ReviewRequests::hasDestination());
+
+    $location = Database::first('SELECT * FROM locations WHERE id = 1');
+    $contact  = Database::first('SELECT * FROM contacts WHERE id = 1');
+    $q = ReviewRequests::queue($location, $contact, null, null, 'google');
+    ok('a Google request still queues', $q['ok']);
+
+    $token = (string) Database::first('SELECT click_token FROM review_requests WHERE id = :i',
+        ['i' => (int) $q['id']])['click_token'];
+    check('and still clicks through to Google',
+        ReviewRequests::click($token), 'https://g.page/r/ACME');
+
+    check('the all-destinations list still works', count(ReviewRequests::recent(1, null)), 1);
+    check('the Google list still works', count(ReviewRequests::recent(1, 'google')), 1);
+    // Nothing can be a PromoMonster request yet, and showing the Google ones
+    // here would read as the same send having gone to both places.
+    check('and the PromoMonster list is empty rather than wrong',
+        count(ReviewRequests::recent(1, 'promomonster')), 0);
+} finally {
+    Database::run("ALTER TABLE review_requests ADD COLUMN destination ENUM('google', 'promomonster')
+                   NOT NULL DEFAULT 'google' AFTER channel");
+    ReviewRequests::forgetDestination();
+}
+ok('023 is back afterwards', ReviewRequests::hasDestination());
 
 // Whatever this file did to the shared seed, leave it as it found it.
 EmailTemplates::forget();

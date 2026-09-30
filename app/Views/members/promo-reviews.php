@@ -1,6 +1,7 @@
 <?php use App\Support\Csrf; use App\Support\HostedReviews; use App\Support\View;
 /** @var array $account @var bool $ready @var ?string $slug @var ?string $pageUrl
- *  @var ?string $widgetJs @var array $summary @var array $reviews @var ?string $error */
+ *  @var ?string $widgetJs @var array $summary @var array $reviews
+ *  @var array $requests @var ?string $error */
 ?>
 <div class="admin-title">
   <h1>PromoMonster reviews</h1>
@@ -169,4 +170,19 @@
       negative reviews is against the FTC's rules on consumer reviews.
     </p>
   <?php endif; ?>
+
+  <?php /* ---- Who was asked ---------------------------------------------- */ ?>
+  <?php /* The reviews above are what came back. This is what went out, and the
+           gap between the two is the number worth looking at: requests with no
+           click are a wording problem, clicks with no review are a page
+           problem. */ ?>
+  <div class="admin-title" style="margin-top:2rem;">
+    <h2 style="font-size:1.05rem;margin:0;">Requests sent to your page</h2>
+    <a class="btn btn--sm" href="/members/requests">Send another</a>
+  </div>
+  <?= View::render('members/_requests', [
+      'rows'      => $requests,
+      'empty'     => 'None yet. Send one from the Review requests page.',
+      'showWhere' => false,
+  ]) ?>
 <?php endif; ?>

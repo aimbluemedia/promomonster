@@ -61,12 +61,13 @@ final class MembersController
     }
 
     /**
-     * "Google reviews" — the one screen where the work happens.
+     * "Google reviews" — everything about the Google side, in one place.
      *
-     * Was a list of reviews synced from Google, which needs Business Profile
-     * API access we have not applied for, so it showed nothing and always
-     * would. It is now the place a member sets their review link and asks a
-     * customer, which is the only thing the product can actually do today.
+     * The form that asks a customer used to live here. It now sits on the
+     * Review requests page, because there are two places a review can be left
+     * and a form that only ever pointed at Google could not be the one that
+     * offers the choice. What is left here is what is genuinely Google's: the
+     * review link, and the requests that were sent to it.
      */
     public function reviews(): void
     {
@@ -77,46 +78,31 @@ final class MembersController
             'title'    => 'Google reviews · PromoMonster',
             'account'  => $account,
             'location' => $location,
-            'limit'    => SendLimit::check((int) $account['id'], (string) ($account['plan'] ?? Plans::FREE)),
-            'replyTo'  => $this->replyToAddress($location),
             'stuck'    => $this->queueLooksStuck((int) $account['id']),
             'sending'  => Mailer::isLive(),
-            // The wording to offer on the send form. One entry means there is
-            // nothing to choose between, and the picker is not drawn.
-            'templates'      => EmailTemplates::forAccount((int) $account['id'], 'request'),
-            'templateChosen' => (function () use ($account): ?int {
-                $row = EmailTemplates::defaultFor((int) $account['id'], 'request');
-
-                return $row === null ? null : (int) $row['id'];
-            })(),
-            'recent'   => Database::all(
-                'SELECT r.status, r.sent_at, r.created_at, r.first_clicked_at,
-                        r.is_follow_up, r.failure_reason,
-                        c.first_name, c.last_name, c.email
-                   FROM review_requests r
-                   JOIN contacts c ON c.id = r.contact_id
-                   JOIN locations l ON l.id = r.location_id
-                  WHERE l.account_id = :id AND r.is_follow_up = 0
-               ORDER BY r.created_at DESC LIMIT 8',
-                ['id' => (int) $account['id']],
-            ),
+            'requests' => ReviewRequests::recent((int) $account['id'], 'google', 25),
         ]);
     }
 
-    /** Saves the Google review link, which nothing could set before this. */
+    /**
+     * Saves the Google review link, which nothing could set before this.
+     *
+     * Every exit goes back to the Google page, which is where this form is.
+     */
     public function saveReviewLink(): void
     {
         $account = Auth::account() ?? [];
-        $this->guard();
+        $here    = '/members/reviews';
+        $this->guard($here);
 
         $location = $this->primaryLocation((int) $account['id']);
         if ($location === null) {
-            $this->back('We could not find a location on your account. Please get in touch.');
+            $this->backTo($here, 'We could not find a location on your account. Please get in touch.');
         }
 
         $checked = ReviewLink::check((string) ($_POST['review_url'] ?? ''));
         if (!$checked['ok']) {
-            $this->back((string) $checked['error']);
+            $this->backTo($here, (string) $checked['error']);
         }
 
         // Replies belong to the business, not to us, and the owner's login
@@ -138,7 +124,8 @@ final class MembersController
         );
 
         Audit::log('location.review_link', 'location', (int) $location['id']);
-        $this->back('Saved. You can send your first review request now.');
+        $this->backTo($here, 'Saved. You can send a Google review request now, '
+            . 'from the Review requests page.');
     }
 
     /**
@@ -153,9 +140,17 @@ final class MembersController
         $account = Auth::account() ?? [];
         $this->guard();
 
+        // Where it points. Checked before anything else is validated, because
+        // it decides what "set up" even means: a PromoMonster request needs no
+        // Google link, and refusing one for the want of it -- which is what the
+        // old guard here did for every request -- would make the new
+        // destination impossible to use.
+        $destination = ReviewRequests::destination((string) ($_POST['destination'] ?? 'promomonster'));
+
         $location = $this->primaryLocation((int) $account['id']);
-        if ($location === null || trim((string) ($location['google_review_url'] ?? '')) === '') {
-            $this->back('Save your Google review link first — there is nowhere to send them yet.');
+        $target   = ReviewRequests::target($this->targetContext($account, $location), $destination);
+        if ($location === null || $target['error'] !== null) {
+            $this->back($target['error'] ?? 'There is nowhere to send them yet.');
         }
 
         $first = trim((string) ($_POST['first_name'] ?? ''));
@@ -182,10 +177,11 @@ final class MembersController
         $templateId = (int) ($_POST['template_id'] ?? 0);
 
         $queued = ReviewRequests::queue(
-            $location,
+            $this->targetContext($account, $location),
             $contact,
             (int) ((Auth::user() ?? [])['id'] ?? 0) ?: null,
             $templateId > 0 ? $templateId : null,
+            $destination,
         );
 
         if (!$queued['ok']) {
@@ -194,8 +190,9 @@ final class MembersController
 
         Audit::log('request.queued', 'review_request', (int) $queued['id']);
         $this->back(sprintf(
-            'On its way to %s. We will remind them once in %d days, then stop.',
+            'On its way to %s, pointing at %s. We will remind them once in %d days, then stop.',
             $first,
+            ReviewRequests::DESTINATIONS[$destination],
             ReviewRequests::FOLLOW_UP_DAYS,
         ));
     }
@@ -300,6 +297,7 @@ final class MembersController
             'widgetJs' => $slug === null ? null : $base . '/widget/' . $slug . '.js',
             'summary'  => HostedReviews::summary($id),
             'reviews'  => HostedReviews::forAccount($id),
+            'requests' => ReviewRequests::recent($id, 'promomonster', 25),
             'error'    => $this->takeFlash('promo_review_error'),
         ]);
     }
@@ -482,34 +480,96 @@ final class MembersController
         }
     }
 
-    private function guard(): void
+    private function guard(string $back = '/members/requests'): void
     {
         if (!Csrf::check($_POST['_csrf'] ?? null)) {
-            $this->back('Your session expired. Please try again.');
+            $this->backTo($back, 'Your session expired. Please try again.');
         }
     }
 
+    /**
+     * Back to the Review requests page, where the send form is.
+     *
+     * It used to mean the Google page, which is where the form used to live.
+     * The form moved and this had to move with it, or somebody who pressed Send
+     * would land on a different screen with the result of their action left
+     * behind on the one they came from. saveReviewLink() is the one caller that
+     * belongs to the Google page still, and it uses backTo().
+     */
     private function back(string $message): never
     {
-        $_SESSION['members_flash'] = $message;
-        Request::redirect('/members/reviews');
+        $this->backTo('/members/requests', $message);
     }
 
+    private function backTo(string $path, string $message): never
+    {
+        $_SESSION['members_flash'] = $message;
+        Request::redirect($path);
+    }
+
+    /**
+     * "Review requests" — choose where, then ask.
+     *
+     * The one screen that sends. Where the review is left is the first
+     * decision, not a setting buried in a form, because it changes what the
+     * customer sees when they click and it is the thing a business actually
+     * chooses between.
+     */
     public function requests(): void
     {
-        $account = Auth::account() ?? [];
+        $account  = Auth::account() ?? [];
+        $id       = (int) $account['id'];
+        $location = $this->primaryLocation($id);
+
+        // Whether each destination can be sent to at all, worked out once here
+        // rather than guessed in the view. A card that cannot send says why.
+        $available = [];
+        foreach (array_keys(ReviewRequests::DESTINATIONS) as $destination) {
+            $available[$destination] = ReviewRequests::target(
+                $this->targetContext($account, $location),
+                $destination,
+            );
+        }
+
         echo View::members('members/requests', [
-            'title'   => 'Review requests · PromoMonster',
-            'account' => $account,
-            'rows'    => Database::all(
-                'SELECT r.*, l.name AS location_name, c.first_name, c.last_name
-                   FROM review_requests r
-                   JOIN locations l ON l.id = r.location_id
-                   JOIN contacts c ON c.id = r.contact_id
-                  WHERE l.account_id = :id
-               ORDER BY r.created_at DESC LIMIT 100',
-                ['id' => (int) $account['id']],
-            ),
+            'title'       => 'Review requests · PromoMonster',
+            'account'     => $account,
+            'location'    => $location,
+            'limit'       => SendLimit::check($id, (string) ($account['plan'] ?? Plans::FREE)),
+            'replyTo'     => $this->replyToAddress($location),
+            'stuck'       => $this->queueLooksStuck($id),
+            'sending'     => Mailer::isLive(),
+            'available'   => $available,
+            // The wording to offer. One entry means there is nothing to choose
+            // between, and the picker is not drawn.
+            'templates'      => EmailTemplates::forAccount($id, 'request'),
+            'templateChosen' => (function () use ($id): ?int {
+                $row = EmailTemplates::defaultFor($id, 'request');
+
+                return $row === null ? null : (int) $row['id'];
+            })(),
+            'requests'    => ReviewRequests::recent($id, null, 100),
+        ]);
+    }
+
+    /**
+     * The row target() needs: the location, plus who owns it.
+     *
+     * target() resolves a PromoMonster link from the account's slug and a
+     * Google link from the location's, so it needs both sides. A location on
+     * its own is missing half the answer, and a brand new account has no
+     * location row at all.
+     *
+     * @param array<string,mixed> $account
+     * @param array<string,mixed>|null $location
+     * @return array<string,mixed>
+     */
+    private function targetContext(array $account, ?array $location): array
+    {
+        return array_merge($location ?? [], [
+            'account_id'   => (int) $account['id'],
+            'account_name' => (string) ($account['name'] ?? ''),
+            'public_slug'  => $account['public_slug'] ?? null,
         ]);
     }
 
