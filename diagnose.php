@@ -632,10 +632,28 @@ if ($mailFiles !== []) {
         $ago   = App\Support\Heartbeat::inWords($beat['ago_seconds']);
 
         if ($beat['state'] === 'never') {
+            // Everything needed to create the job, with this server's own
+            // paths filled in, so none of it has to be matched up by eye.
+            // The log line is the important half: if cron fires at all, even
+            // with the wrong PHP binary, the shell's error lands in that file
+            // and names the problem outright.
+            $logDirOk = is_dir($base . '/storage/logs') && is_writable($base . '/storage/logs');
+
             add($checks, 'Send queue runner', 'fail',
-                'HAS NEVER RUN. Nothing queued will ever send. In hPanel: Advanced -> Cron Jobs, '
-                . 'every 5 minutes: /usr/bin/php ' . $base . '/bin/send-due.php >> '
-                . $base . '/storage/logs/cron.log 2>&1');
+                'HAS NEVER RUN, so nothing queued will ever send. In hPanel: Advanced -> Cron Jobs, '
+                . 'every 5 minutes, with this as the command: '
+                . '/usr/bin/php ' . $base . '/bin/send-due.php >> '
+                . $base . '/storage/logs/cron.log 2>&1'
+                . '  ||  If hPanel rejects /usr/bin/php, try the PHP selector it offers, or '
+                . 'php instead of the full path. This server reports its own binary as '
+                . PHP_BINARY . ' (that is the web one, so the CLI path may differ).'
+                . '  ||  Once the job exists, read ' . $base . '/storage/logs/cron.log: '
+                . 'content means it ran, an empty or absent file means it did not fire at all.'
+                . ($logDirOk
+                    ? ''
+                    : '  ||  WARNING: ' . $base . '/storage/logs is missing or not writable, '
+                      . 'so the >> redirect will fail and you will get no log to read. '
+                      . 'Create it and make it writable first.'));
         } elseif ($beat['state'] === 'late') {
             add($checks, 'Send queue runner', 'fail',
                 'STOPPED. Last run ' . $beat['last_at'] . ' (' . $ago . ' ago)'
