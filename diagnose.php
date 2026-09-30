@@ -616,6 +616,40 @@ if ($mailFiles !== []) {
     require_once $base . '/app/Support/Smtp.php';
     App\Support\Config::load(is_array($config) ? $config : []);
 
+    // --- Is the scheduled job running? ---------------------------------
+    // The one question no configuration check can answer, and the one that
+    // decides whether anything ever leaves. Measured from the runner's own
+    // rows, so it reports what happened rather than what was intended.
+    require_once $base . '/app/Support/Heartbeat.php';
+    if (!App\Support\Heartbeat::ready()) {
+        add($checks, 'Send queue runner', 'todo',
+            'Not tracked yet: migration 024 adds the cron_runs table the runner writes to. '
+            . 'Until it is applied there is no way to tell a cron job that was never created '
+            . 'from one that is about to fire.');
+    } else {
+        $beat = App\Support\Heartbeat::status(App\Support\Heartbeat::SEND_QUEUE);
+        $every = App\Support\Heartbeat::inWords($beat['every_seconds']);
+        $ago   = App\Support\Heartbeat::inWords($beat['ago_seconds']);
+
+        if ($beat['state'] === 'never') {
+            add($checks, 'Send queue runner', 'fail',
+                'HAS NEVER RUN. Nothing queued will ever send. In hPanel: Advanced -> Cron Jobs, '
+                . 'every 5 minutes: /usr/bin/php ' . $base . '/bin/send-due.php >> '
+                . $base . '/storage/logs/cron.log 2>&1');
+        } elseif ($beat['state'] === 'late') {
+            add($checks, 'Send queue runner', 'fail',
+                'STOPPED. Last run ' . $beat['last_at'] . ' (' . $ago . ' ago)'
+                . ($beat['every_seconds'] === null ? '' : ', having run about every ' . $every)
+                . '. Check the cron job still exists in hPanel.');
+        } else {
+            add($checks, 'Send queue runner', 'pass',
+                'Running about every ' . $every . '. Last run ' . $beat['last_at']
+                . ' (' . $ago . ' ago), outcome "' . $beat['last_outcome'] . '", '
+                . $beat['last_sent'] . ' sent that run'
+                . ($beat['next_at'] === null ? '.' : '. Next expected ' . $beat['next_at'] . '.'));
+        }
+    }
+
     $accountLive = App\Support\Mailer::transactionalIsLive();
     add($checks, 'Password reset email', $accountLive ? 'pass' : 'todo',
         App\Support\Mailer::transactionalStatus()

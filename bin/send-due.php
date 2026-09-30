@@ -28,6 +28,7 @@ if (PHP_SAPI !== 'cli') {
 require dirname(__DIR__) . '/app/bootstrap.php';
 
 use App\Support\Database;
+use App\Support\Heartbeat;
 use App\Support\Mailer;
 use App\Support\ReviewRequests;
 
@@ -55,9 +56,25 @@ $lockName  = 'promomonster_send_due';
  * released when this script's connection closes, including on a fatal error,
  * which is exactly the behaviour a lock file does not have.
  */
+/**
+ * Say that we woke up, before doing anything else.
+ *
+ * Every run, including the ones with nothing to do and the ones that find
+ * another copy already going. The empty runs are the valuable ones: they are
+ * the only evidence that the cron job exists at all, and without them a
+ * schedule that was never set up is indistinguishable from one that is about
+ * to fire. The gap between these rows is what the members area reads as the
+ * real interval.
+ *
+ * Nothing here can throw. A heartbeat that breaks the job it is watching would
+ * be worse than no heartbeat.
+ */
+$runId = Heartbeat::start(Heartbeat::SEND_QUEUE);
+
 $lock = Database::first('SELECT GET_LOCK(:name, 0) AS got', ['name' => $lockName]);
 
 if ((int) ($lock['got'] ?? 0) !== 1) {
+    Heartbeat::finish($runId, 'locked');
     echo line('Another run is still going. Nothing to do.');
     exit(0);
 }
@@ -66,6 +83,8 @@ try {
     $due = ReviewRequests::due(BATCH);
 
     if ($due === []) {
+        Heartbeat::finish($runId, 'ok');
+        Heartbeat::prune(Heartbeat::SEND_QUEUE);
         echo line('Nothing due.');
         exit(0);
     }
@@ -94,6 +113,9 @@ try {
             usleep(PAUSE_MICROSECONDS);
         }
     }
+
+    Heartbeat::finish($runId, 'ok', count($due), $sent, $failed, $skipped);
+    Heartbeat::prune(Heartbeat::SEND_QUEUE);
 
     echo line(sprintf(
         'Done: %d sent, %d failed, %d cancelled, in %.1fs',

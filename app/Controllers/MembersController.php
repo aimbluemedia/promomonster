@@ -10,6 +10,7 @@ use App\Support\Config;
 use App\Support\Csrf;
 use App\Support\Database;
 use App\Support\EmailTemplates;
+use App\Support\Heartbeat;
 use App\Support\HostedReviews;
 use App\Support\Mailer;
 use App\Support\Plans;
@@ -544,6 +545,9 @@ final class MembersController
             // says so rather than letting somebody queue requests that will
             // never leave.
             'blocked'     => ReviewRequests::missingForSending(),
+            // What the queue runner is actually doing, measured from its own
+            // runs rather than from what the crontab is supposed to say.
+            'runner'      => Heartbeat::status(Heartbeat::SEND_QUEUE),
             'available'   => $available,
             // The wording to offer. One entry means there is nothing to choose
             // between, and the picker is not drawn.

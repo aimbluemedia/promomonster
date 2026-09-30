@@ -4,8 +4,9 @@ use App\Support\Icon;
 use App\Support\View;
 /**
  * @var array $account @var ?array $location @var array $limit @var string $replyTo
- * @var int $stuck @var bool $sending @var array $blocked @var array $available
- * @var array $templates @var ?int $templateChosen @var array $requests
+ * @var int $stuck @var bool $sending @var array $blocked @var array $runner
+ * @var array $available @var array $templates @var ?int $templateChosen
+ * @var array $requests
  */
 $business = trim((string) ($location['name'] ?? ($account['name'] ?? 'your business')));
 
@@ -13,6 +14,7 @@ $business = trim((string) ($location['name'] ?? ($account['name'] ?? 'your busin
 // nine of ten variables is a 500 on the page whose whole job this week has been
 // to stop being one.
 $blocked = $blocked ?? [];
+$runner  = $runner ?? ['state' => 'unknown'];
 
 // Which card starts selected. PromoMonster, because it is the one that works
 // for every account on day one -- a Google listing has to exist and be claimed
@@ -72,14 +74,62 @@ $canSendAnything = $chosen !== null;
   </div>
 <?php endif; ?>
 
-<?php if ($stuck > 0): ?>
+<?php /* ---- The thing that actually sends ------------------------------- */ ?>
+<?php /* "Queued" used to mean "waiting for a process we cannot see, on a
+         schedule we were told about once". The runner now writes a row every
+         time it wakes, so this is measured: when it last ran, and when the gap
+         between its own runs says it will run again. A cron job that was never
+         created and one that is about to fire are no longer the same picture. */ ?>
+<?php
+  $runState = (string) ($runner['state'] ?? 'unknown');
+  $runWhen  = static function (?string $at): string {
+      $stamp = $at === null ? false : strtotime($at);
+
+      return $stamp === false ? '' : date('j M, H:i', $stamp);
+  };
+?>
+<?php if ($runState === 'never'): ?>
+  <div class="notice" style="margin-bottom:1.5rem;border-left-color:var(--star);">
+    <strong>The sender has never run.</strong>
+    <p>Requests are recorded safely, but nothing leaves until the scheduled job
+      on the server runs for the first time. In hPanel: <strong>Advanced &rarr;
+      Cron Jobs</strong>, every 5 minutes, running
+      <code>bin/send-due.php</code>. This box will change the moment it does.</p>
+  </div>
+<?php elseif ($runState === 'late'): ?>
+  <div class="notice" style="margin-bottom:1.5rem;border-left-color:var(--star);">
+    <strong>The sender has stopped.</strong>
+    <p>Last run was <?= View::e($runWhen($runner['last_at'])) ?>,
+      <?= View::e(App\Support\Heartbeat::inWords($runner['ago_seconds'])) ?> ago<?php
+        if (($runner['every_seconds'] ?? null) !== null): ?>, and it had been
+      running about every
+      <?= View::e(App\Support\Heartbeat::inWords($runner['every_seconds'])) ?><?php
+        endif; ?>. Nothing is lost &mdash; everything queued goes out when it
+      starts again. Check the cron job in hPanel.</p>
+  </div>
+<?php elseif ($runState === 'ok'): ?>
+  <p class="runner runner--ok">
+    <span class="runner__dot"></span>
+    Sender ran <strong><?= View::e($runWhen($runner['last_at'])) ?></strong>
+    (<?= View::e(App\Support\Heartbeat::inWords($runner['ago_seconds'])) ?> ago)<?php
+      if (($runner['next_at'] ?? null) !== null): ?>,
+    runs again <strong><?= View::e($runWhen($runner['next_at'])) ?></strong><?php
+      if (($runner['due_seconds'] ?? null) !== null && (int) $runner['due_seconds'] > 0): ?>
+      &mdash; about <?= View::e(App\Support\Heartbeat::inWords($runner['due_seconds'])) ?> from now<?php
+      endif; ?><?php endif; ?>.
+  </p>
+<?php elseif ($stuck > 0): ?>
+  <?php /* No heartbeat table yet, so fall back to the old evidence: things
+           have been sitting in the queue longer than anything should. */ ?>
   <div class="notice" style="margin-bottom:1.5rem;border-left-color:var(--star);">
     <strong><?= (int) $stuck ?> <?= $stuck === 1 ? 'request has' : 'requests have' ?> been waiting more than fifteen minutes.</strong>
     <p>Nothing has picked them up, which usually means the scheduled job on the
       server is not running yet. Nothing is lost &mdash; they will all go out as
       soon as it is.</p>
   </div>
-<?php elseif (!$sending): ?>
+<?php endif; ?>
+
+<?php if (!$sending): ?>
   <div class="notice" style="margin-bottom:1.5rem;">
     <strong>Email sending is not switched on yet.</strong>
     <p>Requests you add here are queued and recorded, and they will send as soon

@@ -36,6 +36,7 @@ spl_autoload_register(static function (string $class): void {
 use App\Support\Config;
 use App\Support\Database;
 use App\Support\EmailTemplates;
+use App\Support\Heartbeat;
 use App\Support\HostedReviews;
 use App\Support\SendLimit;
 use App\Support\ReviewRequests;
@@ -866,6 +867,131 @@ try {
     ReviewRequests::forgetDestination();
 }
 check('and is clear again once it is back', ReviewRequests::missingForSending(), []);
+
+// =====================================================================
+// Tying the cron job to the queue
+// =====================================================================
+// "Queued" could not tell a cron job that runs in four minutes from one that
+// was never created. Nothing here can read the crontab, so the runner records
+// every wake and the schedule is measured from those rows.
+Heartbeat::forget();
+if (!Heartbeat::ready()) {
+    echo "SKIP  migration 024 has not been applied to the test database\n";
+} else {
+    Database::run("DELETE FROM cron_runs WHERE job = 'test-job'");
+    check('with no runs at all the state is never',
+        Heartbeat::status('test-job')['state'], 'never');
+    check('and no interval can be measured', Heartbeat::interval('test-job'), null);
+
+    // One run: alive, but a single point cannot give a cadence.
+    $id = Heartbeat::start('test-job');
+    ok('a run records an id', $id !== null);
+    Heartbeat::finish($id, 'ok', 3, 2, 1, 0);
+    $one = Heartbeat::status('test-job');
+    check('one run reads as ok', $one['state'], 'ok');
+    check('with no interval yet', $one['every_seconds'], null);
+    check('but it remembers what the run did', $one['last_sent'], 2);
+    check('and its outcome', $one['last_outcome'], 'ok');
+
+    // Five runs five minutes apart, written on the database clock.
+    Database::run("DELETE FROM cron_runs WHERE job = 'test-job'");
+    for ($i = 5; $i >= 1; $i--) {
+        Database::run(
+            "INSERT INTO cron_runs (job, started_at, finished_at, outcome)
+             VALUES ('test-job', NOW() - INTERVAL :m MINUTE, NOW() - INTERVAL :m2 MINUTE, 'ok')",
+            ['m' => $i * 5, 'm2' => $i * 5],
+        );
+    }
+    check('five runs five minutes apart measure as 300 seconds',
+        Heartbeat::interval('test-job'), 300);
+
+    $five = Heartbeat::status('test-job');
+    check('and the state is ok', $five['state'], 'ok');
+    ok('with a next run predicted', $five['next_at'] !== null);
+    ok('which is after the last one', strtotime((string) $five['next_at']) > strtotime((string) $five['last_at']));
+
+    // A single missed run must not halve the reported cadence. The median is
+    // what makes that true; a mean would fold the gap in and mislead.
+    Database::run(
+        "INSERT INTO cron_runs (job, started_at, outcome)
+         VALUES ('test-job', NOW() - INTERVAL 25 MINUTE, 'ok')");
+    check('one long gap does not move the measured interval',
+        Heartbeat::interval('test-job'), 300);
+
+    // Silence for long enough is "stopped", and it is measured in intervals
+    // rather than in a fixed number of minutes -- an hourly job is not late at
+    // six minutes and a five-minute job is.
+    Database::run("DELETE FROM cron_runs WHERE job = 'test-job'");
+    for ($i = 4; $i >= 1; $i--) {
+        Database::run(
+            "INSERT INTO cron_runs (job, started_at, outcome)
+             VALUES ('test-job', NOW() - INTERVAL :m MINUTE, 'ok')",
+            ['m' => 60 + $i * 5],
+        );
+    }
+    check('a five-minute job quiet for an hour reads as late',
+        Heartbeat::status('test-job')['state'], 'late');
+
+    // Jitter is not lateness.
+    Database::run("DELETE FROM cron_runs WHERE job = 'test-job'");
+    foreach ([11, 6, 0] as $minutes) {
+        Database::run(
+            "INSERT INTO cron_runs (job, started_at, outcome)
+             VALUES ('test-job', NOW() - INTERVAL :m MINUTE, 'ok')",
+            ['m' => $minutes],
+        );
+    }
+    check('a run that has just happened is not late',
+        Heartbeat::status('test-job')['state'], 'ok');
+
+    // A locked run still counts as a heartbeat: the job woke, which is the
+    // thing being measured.
+    $locked = Heartbeat::start('test-job');
+    Heartbeat::finish($locked, 'locked');
+    check('a locked run is still a heartbeat',
+        (string) Database::first("SELECT outcome FROM cron_runs WHERE id = :i",
+            ['i' => (int) $locked])['outcome'], 'locked');
+
+    // Words, for putting in a sentence.
+    check('seconds read as less than a minute', Heartbeat::inWords(30), 'less than a minute');
+    check('300 seconds is 5 minutes', Heartbeat::inWords(300), '5 minutes');
+    check('3600 is an hour', Heartbeat::inWords(3600), '1 hour');
+    check('a day is a day', Heartbeat::inWords(86400), '1 day');
+    check('and nothing known says so', Heartbeat::inWords(null), 'an unknown time');
+
+    // Pruning keeps the table from growing for ever on shared hosting.
+    Database::run("DELETE FROM cron_runs WHERE job = 'test-job'");
+    for ($i = 0; $i < 12; $i++) {
+        Database::run("INSERT INTO cron_runs (job, outcome) VALUES ('test-job', 'ok')");
+    }
+    Heartbeat::prune('test-job');
+    ok('pruning leaves the recent runs alone',
+        (int) Database::first("SELECT COUNT(*) n FROM cron_runs WHERE job = 'test-job'")['n'] === 12);
+
+    Database::run("DELETE FROM cron_runs WHERE job = 'test-job'");
+}
+
+// Reading the runner must never be what breaks the page. The table is the
+// newest migration here, so the version without it is the common one.
+Heartbeat::forget();
+Database::run('CREATE TABLE IF NOT EXISTS cron_runs_probe LIKE cron_runs');
+try {
+    Database::run('DROP TABLE cron_runs');
+    Heartbeat::forget();
+    ok('without the table nothing is ready', !Heartbeat::ready());
+    check('and the state is unknown rather than a crash',
+        Heartbeat::status(Heartbeat::SEND_QUEUE)['state'], 'unknown');
+    check('the interval is unmeasurable', Heartbeat::interval(Heartbeat::SEND_QUEUE), null);
+    check('starting a run is a no-op', Heartbeat::start(Heartbeat::SEND_QUEUE), null);
+    Heartbeat::finish(null, 'ok');
+    Heartbeat::prune(Heartbeat::SEND_QUEUE);
+    ok('and finishing or pruning nothing does not throw', true);
+} finally {
+    Database::run('CREATE TABLE IF NOT EXISTS cron_runs LIKE cron_runs_probe');
+    Database::run('DROP TABLE cron_runs_probe');
+    Heartbeat::forget();
+}
+ok('the table is back afterwards', Heartbeat::ready());
 
 // Whatever this file did to the shared seed, leave it as it found it.
 EmailTemplates::forget();
