@@ -79,6 +79,28 @@ add($checks, 'Detected layout',
 
 // --- Files that must exist ------------------------------------------------
 $base = $layout === 'project-as-docroot' ? $here : dirname($here);
+
+/**
+ * Load App\ classes on demand, rather than naming each one by hand.
+ *
+ * This page used to require the handful of classes it touches, one line each.
+ * That works until one of those classes needs a class of its own: Heartbeat
+ * uses Database, Database was not on the list, and the page whose entire job is
+ * to work when the site does not became a 500 with no output at all. A hand
+ * list only ever covers what somebody remembered.
+ *
+ * Deliberately not app/bootstrap.php, which loads the config and dies if it is
+ * missing -- that is one of the things this page exists to report on.
+ */
+spl_autoload_register(static function (string $class) use ($base): void {
+    if (!str_starts_with($class, 'App\\')) {
+        return;
+    }
+    $file = $base . '/app/' . str_replace('\\', '/', substr($class, 4)) . '.php';
+    if (is_file($file)) {
+        require_once $file;
+    }
+});
 $required = [
     'app/bootstrap.php'                        => 'Application bootstrap',
     'app/Support/Router.php'                   => 'Router',
@@ -620,7 +642,7 @@ if ($mailFiles !== []) {
     // The one question no configuration check can answer, and the one that
     // decides whether anything ever leaves. Measured from the runner's own
     // rows, so it reports what happened rather than what was intended.
-    require_once $base . '/app/Support/Heartbeat.php';
+    try {
     if (!App\Support\Heartbeat::ready()) {
         add($checks, 'Send queue runner', 'todo',
             'Not tracked yet: migration 024 adds the cron_runs table the runner writes to. '
@@ -666,6 +688,13 @@ if ($mailFiles !== []) {
                 . $beat['last_sent'] . ' sent that run'
                 . ($beat['next_at'] === null ? '.' : '. Next expected ' . $beat['next_at'] . '.'));
         }
+    }
+    } catch (Throwable $e) {
+        // Never fatal. Every other row on this page is still worth reading,
+        // and "this one check could not run" is itself a useful answer.
+        add($checks, 'Send queue runner', 'fail',
+            'Could not be checked: ' . get_class($e) . ': ' . $e->getMessage()
+            . ' -- most likely app/Support/Heartbeat.php or a class it uses was not uploaded.');
     }
 
     $accountLive = App\Support\Mailer::transactionalIsLive();
