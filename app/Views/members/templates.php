@@ -3,7 +3,7 @@ use App\Support\Csrf;
 use App\Support\EmailTemplates;
 use App\Support\View;
 /**
- * @var array $account @var bool $ready @var array $sets
+ * @var array $account @var bool $ready @var bool $defaults @var array $sets
  * @var ?array $editing @var ?string $error
  */
 $editingId   = $editing === null ? 0 : (int) $editing['id'];
@@ -21,11 +21,24 @@ $isCopy      = $editing !== null && (int) $editing['is_system'] === 1;
 <?php if (!$ready): ?>
   <div class="notice" style="margin-bottom:1.5rem;border-left-color:var(--star);">
     <strong>Email templates are not switched on yet.</strong>
-    <p>The database has not been updated for this yet. Everything still sends in
-      the standard wording in the meantime &mdash; nothing is broken and nothing
-      is queued up waiting.</p>
+    <p>Requests still go out in the standard wording in the meantime &mdash;
+      nothing is broken and nothing is queued up waiting.</p>
   </div>
 <?php else: ?>
+
+<?php /* Writing templates and choosing one per send work without 021. Only
+         remembering a favourite needs it, so the page says which part is
+         missing rather than shutting the whole screen down -- which is what it
+         used to do, and it read as "no templates exist". */ ?>
+<?php if (!$defaults): ?>
+  <div class="notice" style="margin-bottom:1.5rem;border-left-color:var(--star);">
+    <strong>One thing missing: we cannot remember a favourite yet.</strong>
+    <p>You can write templates and pick one each time you send. Marking one as
+      your default needs a database update that has not been run on this site
+      yet &mdash; until it is, every request goes out in the standard wording
+      unless you choose another on the send form.</p>
+  </div>
+<?php endif; ?>
 
 <?php /* The rules first, because they are not ours and cannot be worked around
          by writing the email differently. A business that reads this after
@@ -128,11 +141,13 @@ $isCopy      = $editing !== null && (int) $editing['is_system'] === 1;
       </p>
     </fieldset>
 
-    <label class="checkline">
-      <input type="checkbox" name="make_default" value="1"
-             <?= $editing !== null && (int) ($editing['is_default'] ?? 0) === 1 ? 'checked' : '' ?>>
-      <span>Use this one by default</span>
-    </label>
+    <?php if ($defaults): ?>
+      <label class="checkline">
+        <input type="checkbox" name="make_default" value="1"
+               <?= $editing !== null && (int) ($editing['is_default'] ?? 0) === 1 ? 'checked' : '' ?>>
+        <span>Use this one by default</span>
+      </label>
+    <?php endif; ?>
 
     <div style="display:flex;gap:.6rem;flex-wrap:wrap;">
       <button class="btn btn--primary" type="submit">
@@ -150,9 +165,13 @@ $isCopy      = $editing !== null && (int) $editing['is_system'] === 1;
   <div class="card" style="margin-bottom:1.5rem;">
     <h2 style="font-size:1.05rem;margin:0 0 .3rem;"><?= View::e($set['label']) ?></h2>
     <p class="muted" style="margin:0 0 1.1rem;font-size:.9rem;">
-      <?= $kind === 'request'
-        ? 'Sent the moment you ask. The one marked default is what the send form starts on.'
-        : 'Sent once, three days after the request, and only if they have not been back.' ?>
+      <?php if ($kind === 'request'): ?>
+        <?= $defaults
+          ? 'Sent the moment you ask. The one marked default is what the send form starts on.'
+          : 'Sent the moment you ask. The send form starts on the standard wording and you can change it there.' ?>
+      <?php else: ?>
+        Sent once, three days after the request, and only if they have not been back.
+      <?php endif; ?>
     </p>
 
     <?php foreach ($set['rows'] as $row): ?>
@@ -165,7 +184,7 @@ $isCopy      = $editing !== null && (int) $editing['is_system'] === 1;
       <div class="tmpl<?= $isDefault ? ' tmpl--default' : '' ?>">
         <div class="tmpl__head">
           <strong><?= View::e((string) $row['name']) ?></strong>
-          <?php if ($isDefault): ?><span class="tmpl__tag">Default</span><?php endif; ?>
+          <?php if ($defaults && $isDefault): ?><span class="tmpl__tag">Default</span><?php endif; ?>
           <?php if ($system): ?><span class="tmpl__tag tmpl__tag--muted">Ours</span><?php endif; ?>
         </div>
         <p class="tmpl__subject"><?= View::e($preview['subject']) ?></p>
@@ -182,13 +201,13 @@ $isCopy      = $editing !== null && (int) $editing['is_system'] === 1;
             <?= $system ? 'Start from this' : 'Edit' ?>
           </a>
 
-          <?php if (!$isDefault && !$system): ?>
+          <?php if ($defaults && !$isDefault && !$system): ?>
             <form method="post" action="/members/templates/default" style="display:inline;">
               <?= Csrf::field() ?>
               <input type="hidden" name="id" value="<?= $id ?>">
               <button class="btn btn--sm" type="submit">Make default</button>
             </form>
-          <?php elseif (!$isDefault && $system): ?>
+          <?php elseif ($defaults && !$isDefault && $system): ?>
             <?php /* Choosing the stock wording is clearing the account's flag,
                      not setting one on a row shared with every other account. */ ?>
             <form method="post" action="/members/templates/default" style="display:inline;">

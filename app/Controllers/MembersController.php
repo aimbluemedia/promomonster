@@ -336,12 +336,16 @@ final class MembersController
         $editing = EmailTemplates::find($id, (int) ($_GET['edit'] ?? 0));
 
         echo View::members('members/templates', [
-            'title'   => 'Email templates · PromoMonster',
-            'account' => $account,
-            'ready'   => EmailTemplates::ready(),
-            'sets'    => $sets,
-            'editing' => $editing,
-            'error'   => $this->takeFlash('template_error'),
+            'title'    => 'Email templates · PromoMonster',
+            'account'  => $account,
+            'ready'    => EmailTemplates::ready(),
+            // Writing templates and picking one per send need nothing from 021.
+            // Remembering a favourite does, so the page hides those controls
+            // rather than offering a button that cannot work.
+            'defaults' => EmailTemplates::canRememberDefault(),
+            'sets'     => $sets,
+            'editing'  => $editing,
+            'error'    => $this->takeFlash('template_error'),
         ]);
     }
 

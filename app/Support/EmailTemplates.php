@@ -187,15 +187,26 @@ final class EmailTemplates
 
     private static ?bool $ready = null;
 
+    /** @var array<string,bool> Which of 021's columns the table actually has. */
+    private static array $columns = [];
+
     /** install() is worth attempting once per request, not once per lookup. */
     private static bool $installed = false;
 
     /**
-     * Has migration 021 been applied?
+     * Can templates be read and written at all?
      *
-     * Same reasoning as HostedReviews::ready(): the files go up by FTP and the
-     * migration is run by hand afterwards, so there is a window where the page
-     * exists and the column does not. A page that says so beats a 500.
+     * The floor is the templates table, which has been there since 009. It is
+     * deliberately NOT "has 021 been applied": this asked for the is_default
+     * column, and an account whose database had not had 021 run against it got
+     * an empty list and a notice saying the whole feature was switched off --
+     * when the thing it could not do was remember a favourite. Choosing the
+     * wording per send, which is most of the point, needs nothing from 021.
+     *
+     * The files go up by FTP and the migration is run by hand afterwards, so
+     * the window where the code is ahead of the schema is not an edge case
+     * here, it is the normal state for a day or two. What the code does in that
+     * window is a feature, not an error path.
      */
     public static function ready(): bool
     {
@@ -205,15 +216,55 @@ final class EmailTemplates
 
         try {
             $row = Database::first(
-                'SELECT COUNT(*) AS n FROM information_schema.COLUMNS
-                  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t AND COLUMN_NAME = :c',
-                ['t' => 'templates', 'c' => 'is_default'],
+                'SELECT COUNT(*) AS n FROM information_schema.TABLES
+                  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t',
+                ['t' => 'templates'],
             );
 
             return self::$ready = ((int) ($row['n'] ?? 0)) === 1;
         } catch (PDOException) {
             return self::$ready = false;
         }
+    }
+
+    /**
+     * Whether one of 021's columns is there.
+     *
+     * Asked rather than assumed, and cached, because every write path has to
+     * know: naming a column MySQL has never heard of is a 500, and a 500 on the
+     * page that was meant to tell you the feature is half-installed is the
+     * worst of both.
+     */
+    private static function has(string $column): bool
+    {
+        if (array_key_exists($column, self::$columns)) {
+            return self::$columns[$column];
+        }
+
+        try {
+            $row = Database::first(
+                'SELECT COUNT(*) AS n FROM information_schema.COLUMNS
+                  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t AND COLUMN_NAME = :c',
+                ['t' => 'templates', 'c' => $column],
+            );
+
+            return self::$columns[$column] = ((int) ($row['n'] ?? 0)) === 1;
+        } catch (PDOException) {
+            return self::$columns[$column] = false;
+        }
+    }
+
+    /**
+     * Whether an account can keep a favourite.
+     *
+     * The one thing 021 buys. Without it every account sends the wording we
+     * ship unless it picks something else on the form, which is a smaller
+     * product but a working one. The page says so in a line rather than
+     * shutting itself down.
+     */
+    public static function canRememberDefault(): bool
+    {
+        return self::ready() && self::has('is_default');
     }
 
     /**
@@ -332,6 +383,7 @@ final class EmailTemplates
     {
         self::$ready     = null;
         self::$installed = false;
+        self::$columns   = [];
     }
 
     // -- Reading ---------------------------------------------------------
@@ -370,7 +422,7 @@ final class EmailTemplates
             'SELECT * FROM templates
               WHERE channel = :channel AND kind = :kind
                 AND (account_id = :account OR (account_id IS NULL AND is_system = 1 AND vertical IS NULL))
-           ORDER BY is_system ASC, is_default DESC, id ASC',
+           ORDER BY is_system ASC, ' . (self::canRememberDefault() ? 'is_default DESC, ' : '') . 'id ASC',
             ['channel' => 'email', 'kind' => self::kind($kind), 'account' => $accountId],
         );
     }
@@ -416,12 +468,17 @@ final class EmailTemplates
             return self::shipped(self::kind($kind));
         }
 
-        $own = Database::first(
-            'SELECT * FROM templates
-              WHERE account_id = :account AND channel = :channel AND kind = :kind AND is_default = 1
-           ORDER BY id ASC LIMIT 1',
-            ['account' => $accountId, 'channel' => 'email', 'kind' => self::kind($kind)],
-        );
+        // Without the column there is no favourite to find, and asking for one
+        // is a 500. Everybody gets the shipped wording unless they pick
+        // something else on the send form.
+        $own = self::canRememberDefault()
+            ? Database::first(
+                'SELECT * FROM templates
+                  WHERE account_id = :account AND channel = :channel AND kind = :kind AND is_default = 1
+               ORDER BY id ASC LIMIT 1',
+                ['account' => $accountId, 'channel' => 'email', 'kind' => self::kind($kind)],
+            )
+            : null;
 
         return $own ?? self::shipped(self::kind($kind));
     }
@@ -513,17 +570,34 @@ final class EmailTemplates
 
         if ($existing !== null) {
             Database::run(
-                'UPDATE templates SET name = :name, subject = :subject, body = :body, updated_at = NOW()
-                  WHERE id = :id AND account_id = :account',
+                'UPDATE templates SET name = :name, subject = :subject, body = :body'
+                . (self::has('updated_at') ? ', updated_at = NOW()' : '')
+                . ' WHERE id = :id AND account_id = :account',
                 ['name' => $name, 'subject' => $subject, 'body' => $body,
                  'id' => (int) $existing['id'], 'account' => $accountId],
             );
             $id = (int) $existing['id'];
         } else {
+            // Built from what the table has. Both of the trailing columns come
+            // from 021, and a member on a database that has not had it run
+            // should still be able to write a template -- they just cannot mark
+            // one as their favourite yet.
+            $extraColumns = '';
+            $extraValues  = '';
+            if (self::canRememberDefault()) {
+                $extraColumns .= ', is_default';
+                $extraValues  .= ', 0';
+            }
+            if (self::has('updated_at')) {
+                $extraColumns .= ', updated_at';
+                $extraValues  .= ', NOW()';
+            }
+
             Database::run(
                 'INSERT INTO templates (account_id, vertical, channel, kind, name, subject, body,
-                                        is_system, is_default, updated_at)
-                 VALUES (:account, NULL, :channel, :kind, :name, :subject, :body, 0, 0, NOW())',
+                                        is_system' . $extraColumns . ')
+                 VALUES (:account, NULL, :channel, :kind, :name, :subject, :body, 0'
+                 . $extraValues . ')',
                 ['account' => $accountId, 'channel' => 'email', 'kind' => $kind,
                  'name' => $name, 'subject' => $subject, 'body' => $body],
             );
@@ -558,6 +632,13 @@ final class EmailTemplates
             return false;
         }
 
+        // Nowhere to record it yet. Returning false puts the page's own "that
+        // cannot be your default" message on screen instead of a 500 from a
+        // column MySQL has never heard of.
+        if (!self::canRememberDefault()) {
+            return false;
+        }
+
         Database::run(
             'UPDATE templates SET is_default = 0
               WHERE account_id = :account AND channel = :channel AND kind = :kind',
@@ -579,7 +660,9 @@ final class EmailTemplates
      */
     public static function useSystemDefault(int $accountId, string $kind): void
     {
-        if (!self::ready()) {
+        // Without the column it is already true: with no flag to read,
+        // defaultFor() returns the shipped wording for everybody.
+        if (!self::canRememberDefault()) {
             return;
         }
 
@@ -612,10 +695,12 @@ final class EmailTemplates
         // fallback is already right" and skips the hand-off below. The queued
         // requests then lose their wording to ON DELETE SET NULL and go out
         // with an empty subject and an empty body.
-        Database::run(
-            'UPDATE templates SET is_default = 0 WHERE id = :id AND account_id = :account',
-            ['id' => $id, 'account' => $accountId],
-        );
+        if (self::canRememberDefault()) {
+            Database::run(
+                'UPDATE templates SET is_default = 0 WHERE id = :id AND account_id = :account',
+                ['id' => $id, 'account' => $accountId],
+            );
+        }
 
         $fallback = self::defaultFor($accountId, (string) $row['kind']);
         if ($fallback !== null && (int) $fallback['id'] !== $id) {

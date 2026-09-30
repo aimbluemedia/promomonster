@@ -434,6 +434,93 @@ foreach ($list as $row) {
 }
 
 // =====================================================================
+// The page works before 021 has been run
+// =====================================================================
+// This is what "not seeing any templates" was. ready() asked for the is_default
+// column, forAccount() returned nothing when it was absent, and the screen said
+// the whole feature was off -- when the only thing it could not do was remember
+// a favourite. The files go up by FTP and the migration is run by hand after,
+// so the code being ahead of the schema is the normal state for a day, not an
+// edge case, and the suite only ever ran against a migrated database.
+//
+// Tested by taking 021's columns away for real, because what is under test is
+// what MySQL says about a column that is not there.
+// The columns go, not the table: review_requests has a foreign key to
+// templates.id, so dropping and renaming it round the test is refused. Taking
+// the two columns away is both closer to the real state and reversible without
+// touching the rows.
+seed();
+
+try {
+    Database::run('ALTER TABLE templates DROP COLUMN is_default');
+    Database::run('ALTER TABLE templates DROP COLUMN updated_at');
+    EmailTemplates::forget();
+
+    ok('the feature is still usable without 021', EmailTemplates::ready());
+    ok('but a favourite cannot be remembered', !EmailTemplates::canRememberDefault());
+
+    check('the shipped templates are still listed',
+        count(EmailTemplates::forAccount(1, 'request')), SHIPPED_REQUESTS);
+    check('and there is still something to fall back on',
+        (string) (EmailTemplates::defaultFor(1, 'request')['name'] ?? ''), 'Standard review request');
+
+    // Writing one has to work: it is the point of the page.
+    $pre = save(1, ['name' => 'Written before the migration']);
+    ok('a member can still write a template', $pre['ok']);
+    ok('and it appears on the list',
+        count(EmailTemplates::forAccount(1, 'request')) === SHIPPED_REQUESTS + 1);
+
+    // Editing it, which is the UPDATE that names updated_at.
+    $edited = save(1, ['id' => (int) $pre['id'], 'name' => 'Edited before the migration']);
+    ok('and edit it', $edited['ok']);
+    check('with the change saved',
+        (string) (EmailTemplates::find(1, (int) $pre['id'])['name'] ?? ''), 'Edited before the migration');
+
+    // Asking for a default is refused, not fatal.
+    ok('making it the default is refused rather than fatal',
+        !EmailTemplates::makeDefault(1, (int) $pre['id']));
+    EmailTemplates::useSystemDefault(1, 'request');
+    ok('and standing down to the shipped wording is a no-op that does not throw', true);
+
+    // save() with make_default must not throw either.
+    $flagged = save(1, ['name' => 'Wants to be default', 'make_default' => true]);
+    ok('saving with make_default still saves the template', $flagged['ok']);
+    check('it just does not become the default',
+        (string) (EmailTemplates::defaultFor(1, 'request')['name'] ?? ''), 'Standard review request');
+
+    // Sending still picks the right wording, chosen or not.
+    $location = Database::first('SELECT * FROM locations WHERE id = 1');
+    $contact  = Database::first('SELECT * FROM contacts WHERE id = 1');
+    $q = ReviewRequests::queue($location, $contact, null, (int) $pre['id']);
+    ok('a request queues on the template that was picked', $q['ok']);
+    check('and it is the picked one',
+        (int) Database::first('SELECT template_id FROM review_requests WHERE id = :i',
+            ['i' => (int) $q['id']])['template_id'], (int) $pre['id']);
+
+    // Deleting it runs the stand-down update that names is_default.
+    ok('and it can be deleted', EmailTemplates::delete(1, (int) $pre['id']));
+    ok('with the queued request handed to the fallback',
+        Database::first('SELECT template_id FROM review_requests WHERE id = :i',
+            ['i' => (int) $q['id']])['template_id'] !== null);
+} finally {
+    // Put 021 back however the assertions went, index included: dropping a
+    // column drops it out of the composite index it was part of, and leaving
+    // the suite's database a little different each run is how a test starts
+    // passing for the wrong reason.
+    Database::run('ALTER TABLE templates ADD COLUMN is_default TINYINT(1) NOT NULL DEFAULT 0 AFTER is_system');
+    Database::run('ALTER TABLE templates ADD COLUMN updated_at DATETIME NULL AFTER created_at');
+    Database::run('DROP INDEX templates_account_kind_index ON templates');
+    Database::run('CREATE INDEX templates_account_kind_index
+                     ON templates (account_id, channel, kind, is_default)');
+    EmailTemplates::forget();
+}
+
+ok('021 is back afterwards', EmailTemplates::canRememberDefault());
+seed();
+ok('and a default can be set again', save(1, ['name' => 'After', 'make_default' => true])['ok']);
+check('and it holds', (string) (EmailTemplates::defaultFor(1, 'request')['name'] ?? ''), 'After');
+
+// =====================================================================
 // The PHP copy and the migration must not drift
 // =====================================================================
 // Two copies of the same words is the cost of the repair above. A test that
