@@ -80,6 +80,12 @@ if (!EmailTemplates::ready()) {
 // this is here to test, because it is the state the live site was in.
 EmailTemplates::install();
 
+/** How many request templates the product ships with, counted rather than typed. */
+define('SHIPPED_REQUESTS', count(array_filter(
+    EmailTemplates::SYSTEM,
+    static fn (array $t): bool => $t['kind'] === 'request',
+)));
+
 /** Two accounts, so every ownership claim has somebody to steal from. */
 function seed(): void
 {
@@ -113,8 +119,8 @@ seed();
 $system = ReviewRequests::systemTemplate('request');
 check('a brand new account defaults to the system template',
     (int) (EmailTemplates::defaultFor(1, 'request')['id'] ?? 0), (int) $system['id']);
-ok('and the system template is the only one on offer',
-    count(EmailTemplates::forAccount(1, 'request')) === 1);
+check('and the shipped request templates are what is on offer',
+    count(EmailTemplates::forAccount(1, 'request')), SHIPPED_REQUESTS);
 check('the reminder has a default too',
     (int) (EmailTemplates::defaultFor(1, 'follow_up')['id'] ?? 0),
     (int) ReviewRequests::systemTemplate('follow_up')['id']);
@@ -125,7 +131,8 @@ check('the reminder has a default too',
 seed();
 $made = save(1);
 ok('a valid template saves', $made['ok']);
-ok('and now there are two to choose between', count(EmailTemplates::forAccount(1, 'request')) === 2);
+check('and it joins the shipped ones on the list',
+    count(EmailTemplates::forAccount(1, 'request')), SHIPPED_REQUESTS + 1);
 check('but it is not the default until asked',
     (int) (EmailTemplates::defaultFor(1, 'request')['id'] ?? 0), (int) $system['id']);
 
@@ -322,20 +329,31 @@ $rescued  = ReviewRequests::queue($location, $contact);
 ok('but queueing a request still works', $rescued['ok']);
 ok('because the template was put back', ReviewRequests::systemTemplate('request') !== null);
 
-$installed = Database::first(
-    "SELECT * FROM templates WHERE is_system = 1 AND channel = 'email' AND kind = 'request'");
-check('with the shipped subject', (string) $installed['subject'], EmailTemplates::SYSTEM['request']['subject']);
-check('and the shipped body', (string) $installed['body'], EmailTemplates::SYSTEM['request']['body']);
-check('owned by nobody, so every account sees it', $installed['account_id'], null);
-check('and flagged as ours', (int) $installed['is_system'], 1);
-check('but not as anybody\'s default', (int) $installed['is_default'], 0);
+// Every one of them, not just the first: a repair that puts one template back
+// and leaves the other three out is the bug this section exists for.
+foreach (EmailTemplates::SYSTEM as $shipped) {
+    $installed = Database::first(
+        "SELECT * FROM templates
+          WHERE is_system = 1 AND channel = 'email' AND kind = :kind AND name = :name",
+        ['kind' => $shipped['kind'], 'name' => $shipped['name']],
+    );
+    ok("'{$shipped['name']}' was installed", $installed !== null);
+    check("with its shipped subject", (string) ($installed['subject'] ?? ''), $shipped['subject']);
+    check("and its shipped body", (string) ($installed['body'] ?? ''), $shipped['body']);
+    // Not ?? here: account_id IS NULL on a shipped row, and ?? treats a null
+    // value as an absent key, so the fallback fired on the correct answer.
+    check("owned by nobody, so every account sees it",
+        $installed === null ? 'no row at all' : $installed['account_id'], null);
+    check("and flagged as ours", (int) ($installed['is_system'] ?? 0), 1);
+    check("but not as anybody's default", (int) ($installed['is_default'] ?? 1), 0);
+}
 
 // Running it twice must not leave two.
 EmailTemplates::forget();
 check('installing again adds nothing', EmailTemplates::install(), 0);
-check('so there is exactly one of each kind',
+check('so there is exactly one row per shipped template',
     (int) Database::first("SELECT COUNT(*) n FROM templates WHERE is_system = 1 AND channel = 'email'")['n'],
-    count(EmailTemplates::KINDS));
+    count(EmailTemplates::SYSTEM));
 
 // The reminder heals the same way.
 seed();
@@ -348,8 +366,72 @@ ok('the reminder is reinstalled too',
 seed();
 Database::run("DELETE FROM templates WHERE is_system = 1 AND channel = 'email'");
 EmailTemplates::forget();
-ok('the templates page still has something to show',
-    count(EmailTemplates::forAccount(1, 'request')) === 1);
+check('the templates page still has something to show',
+    count(EmailTemplates::forAccount(1, 'request')), SHIPPED_REQUESTS);
+
+// =====================================================================
+// A template added after 018 still reaches a database that ran 018
+// =====================================================================
+// This is the case the first version of the repair got wrong. It asked whether
+// a system row of the kind existed, and on any database that had run 018 the
+// answer was yes -- so a request template added later would never have been
+// installed on the one database that already worked. "Some template exists" is
+// not the same question as "the ones we ship do".
+seed();
+Database::run("DELETE FROM templates WHERE is_system = 1 AND channel = 'email'");
+
+// Exactly what 018 leaves behind, and nothing since.
+foreach (EmailTemplates::SYSTEM as $shipped) {
+    if (($shipped['migration'] ?? '') !== '018') {
+        continue;
+    }
+    Database::run(
+        'INSERT INTO templates (account_id, vertical, channel, kind, name, subject, body, is_system)
+         VALUES (NULL, NULL, :channel, :kind, :name, :subject, :body, 1)',
+        ['channel' => 'email', 'kind' => $shipped['kind'], 'name' => $shipped['name'],
+         'subject' => $shipped['subject'], 'body' => $shipped['body']],
+    );
+}
+check('a database at 018 has two system templates',
+    (int) Database::first("SELECT COUNT(*) n FROM templates WHERE is_system = 1 AND channel = 'email'")['n'], 2);
+
+EmailTemplates::forget();
+$list = EmailTemplates::forAccount(1, 'request');
+check('opening the page installs the ones added since', count($list), SHIPPED_REQUESTS);
+
+$names = array_column($list, 'name');
+foreach (EmailTemplates::SYSTEM as $shipped) {
+    if ($shipped['kind'] !== 'request') {
+        continue;
+    }
+    ok("'{$shipped['name']}' is on the list", in_array($shipped['name'], $names, true));
+}
+
+// And the one that was already the default stays the default -- a new template
+// arriving must not move a business off the wording it has been using.
+check('the standard request is still what a new account falls back to',
+    (string) (EmailTemplates::defaultFor(1, 'request')['name'] ?? ''), 'Standard review request');
+
+// Each one is sendable: the link is there and no field is left unmerged.
+foreach ($list as $row) {
+    $preview = EmailTemplates::preview($row);
+    ok("'{$row['name']}' previews with a link", str_contains($preview['body'], 'https://'));
+    ok("'{$row['name']}' leaves nothing in braces",
+        !str_contains($preview['body'], '{{') && !str_contains($preview['subject'], '{{'));
+    ok("'{$row['name']}' would pass the save rules",
+        str_contains((string) $row['body'], '{{review_url}}')
+        && EmailTemplates::unknownFields((string) $row['subject'] . (string) $row['body']) === []);
+    ok("'{$row['name']}' has a subject within the column",
+        mb_strlen((string) $row['subject']) <= EmailTemplates::MAX_SUBJECT);
+    ok("'{$row['name']}' has a body within the column",
+        mb_strlen((string) $row['body']) <= EmailTemplates::MAX_BODY);
+    // No incentive wording, which is the one thing that would make the shipped
+    // templates themselves a policy breach rather than a taste question.
+    foreach (['discount', 'voucher', 'coupon', 'free ', 'gift', 'prize', 'draw', 'raffle', '% off'] as $bribe) {
+        ok("'{$row['name']}' offers no {$bribe}",
+            !str_contains(mb_strtolower((string) $row['body']), $bribe));
+    }
+}
 
 // =====================================================================
 // The PHP copy and the migration must not drift
@@ -359,7 +441,15 @@ ok('the templates page still has something to show',
 // emails depending on which one ran first.
 $sql = (string) file_get_contents(dirname(__DIR__) . '/database/migrations/018_email_sending.sql');
 
-foreach (EmailTemplates::SYSTEM as $kind => $shipped) {
+foreach (EmailTemplates::SYSTEM as $shipped) {
+    // Only the two 018 seeds. The rest ship from PHP alone and deliberately
+    // have no migration to drift from -- adding one would mean a third copy of
+    // the same words.
+    if (($shipped['migration'] ?? '') !== '018') {
+        continue;
+    }
+    $kind = $shipped['kind'];
+
     // Each INSERT ... SELECT block, from the kind to its guard.
     $block = '';
     if (preg_match("/'email',\s*\n\s*'" . $kind . "',(.*?)WHERE NOT EXISTS/s", $sql, $m) === 1) {

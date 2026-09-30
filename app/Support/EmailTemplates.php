@@ -75,12 +75,33 @@ final class EmailTemplates
      * takes a minute, and with no incentive of any kind. Offering anything in
      * exchange for a review breaks Google's policy outright, so the wording we
      * ship has to make the compliant path the easy one.
+     *
+     * Three for the request itself, because one template is not a choice and a
+     * business asked to write its own from an empty box mostly does not. They
+     * differ by situation rather than by tone, which is the axis that changes
+     * whether a customer replies: the length somebody will read on a phone
+     * between jobs is not the length that suits a first visit, and a customer
+     * on their fourth job should not be greeted like a stranger.
+     *
+     * A list rather than a map keyed by kind, because there is now more than
+     * one of a kind. The natural key is (kind, name), which is what install()
+     * checks and what keeps 018's two rows from being inserted a second time --
+     * so the first two names here must stay exactly as 018 spells them.
+     *
+     * None of them use {{city}}. It is a real field and members may use it, but
+     * an account with no city set renders "people in  decide" with the gap
+     * still in it, and the wording we ship should not depend on a field that
+     * may be blank.
      */
     public const SYSTEM = [
-        'request' => [
-            'name'    => 'Standard review request',
-            'subject' => 'How did we do, {{first_name}}?',
-            'body'    => "Hi {{first_name}},\n"
+        [
+            // Seeded by 018 as well. The name is the key: changing it here
+            // would insert a second copy alongside the migration's row.
+            'kind'      => 'request',
+            'migration' => '018',
+            'name'      => 'Standard review request',
+            'subject'   => 'How did we do, {{first_name}}?',
+            'body'      => "Hi {{first_name}},\n"
                 . "\n"
                 . "Thanks for choosing {{business_name}}. It was good to work with you.\n"
                 . "\n"
@@ -94,10 +115,52 @@ final class EmailTemplates
                 . "Thanks,\n"
                 . '{{business_name}}',
         ],
-        'follow_up' => [
-            'name'    => 'Standard reminder',
-            'subject' => 'A quick reminder, {{first_name}}',
+        [
+            // For a customer who will read this on a phone, standing next to
+            // the work that was just finished. Four lines, one link, no
+            // preamble: the shortest thing that is still polite.
+            'kind'    => 'request',
+            'name'    => 'Short and direct',
+            'subject' => 'Quick favour, {{first_name}}?',
             'body'    => "Hi {{first_name}},\n"
+                . "\n"
+                . "Would you leave {{business_name}} a review? It takes a minute and it\n"
+                . "really does help us.\n"
+                . "\n"
+                . "{{review_url}}\n"
+                . "\n"
+                . "Thanks,\n"
+                . '{{business_name}}',
+        ],
+        [
+            // For somebody who has used the business before. Saying so is the
+            // whole point: a repeat customer who gets the same email as a
+            // stranger learns that nobody noticed they came back.
+            'kind'    => 'request',
+            'name'    => 'For a repeat customer',
+            'subject' => 'Thanks for coming back, {{first_name}}',
+            'body'    => "Hi {{first_name}},\n"
+                . "\n"
+                . "Thanks for having {{business_name}} out again. Customers who keep\n"
+                . "calling us are the reason we are still here.\n"
+                . "\n"
+                . "If you have a minute, would you put that in a review? It is what\n"
+                . "people read when they are deciding who to trust with their own job.\n"
+                . "\n"
+                . "{{review_url}}\n"
+                . "\n"
+                . "Say whatever you actually think -- honest is more use to us than\n"
+                . "glowing.\n"
+                . "\n"
+                . "Thanks,\n"
+                . '{{business_name}}',
+        ],
+        [
+            'kind'      => 'follow_up',
+            'migration' => '018',
+            'name'      => 'Standard reminder',
+            'subject'   => 'A quick reminder, {{first_name}}',
+            'body'      => "Hi {{first_name}},\n"
                 . "\n"
                 . "I sent you a note a few days ago about leaving {{business_name}} a\n"
                 . "review. If you have already done it, thank you, and please ignore this.\n"
@@ -160,28 +223,51 @@ final class EmailTemplates
      * is the part that did not happen. Cheap: one indexed count, and after the
      * first call in a request it does not ask again.
      *
-     * The insert is guarded the same way 018 guards it, so this and the
-     * migration cannot produce two copies whichever order they run in. A row
-     * an account has written is never touched -- only is_system rows with no
-     * account and no vertical are considered, and only when there are none.
+     * Matched on (kind, name), not on kind: there are three request templates
+     * now, so "a row of this kind already exists" would install the first one
+     * and silently skip the other two. The name is the natural key, which is
+     * also what stops 018's two rows being inserted a second time -- their
+     * names here are spelled exactly as the migration spells them, and the
+     * drift test holds that true.
+     *
+     * A row an account has written is never touched: only is_system rows with
+     * no account and no vertical are considered. Renaming a shipped template is
+     * therefore not a rename -- it is a new template, and the old one stays
+     * where it is. That is the right way round: somebody may have made it their
+     * default.
      *
      * Returns how many rows it added, for the test and for diagnose.php.
      */
     public static function install(): int
     {
+        // One read of what is already there, rather than a count per template.
+        // This runs on a page load, so four queries to decide to do nothing is
+        // four more than it needs.
+        try {
+            $rows = Database::all(
+                'SELECT kind, name FROM templates
+                  WHERE is_system = 1 AND channel = :channel AND vertical IS NULL',
+                ['channel' => 'email'],
+            );
+        } catch (PDOException) {
+            // No templates table at all, which is 009 missing and a bigger
+            // problem than this method can fix. The caller's own "not
+            // installed" message is the right answer, so say nothing here.
+            return 0;
+        }
+
+        $have = [];
+        foreach ($rows as $row) {
+            $have[self::key((string) $row['kind'], (string) $row['name'])] = true;
+        }
+
         $added = 0;
+        foreach (self::SYSTEM as $shipped) {
+            if (isset($have[self::key($shipped['kind'], $shipped['name'])])) {
+                continue;
+            }
 
-        foreach (self::SYSTEM as $kind => $shipped) {
             try {
-                $have = Database::first(
-                    'SELECT COUNT(*) AS n FROM templates
-                      WHERE is_system = 1 AND channel = :channel AND kind = :kind AND vertical IS NULL',
-                    ['channel' => 'email', 'kind' => $kind],
-                );
-                if (((int) ($have['n'] ?? 0)) > 0) {
-                    continue;
-                }
-
                 // account_id NULL and is_system 1 is what makes it everybody's.
                 // is_default stays 0: a system row is shared, so flagging it
                 // would flag it for every account on the server. defaultFor()
@@ -189,19 +275,41 @@ final class EmailTemplates
                 Database::run(
                     'INSERT INTO templates (account_id, vertical, channel, kind, name, subject, body, is_system)
                      VALUES (NULL, NULL, :channel, :kind, :name, :subject, :body, 1)',
-                    ['channel' => 'email', 'kind' => $kind, 'name' => $shipped['name'],
+                    ['channel' => 'email', 'kind' => $shipped['kind'], 'name' => $shipped['name'],
                      'subject' => $shipped['subject'], 'body' => $shipped['body']],
                 );
                 $added++;
             } catch (PDOException) {
-                // No templates table at all, which is 009 missing and a bigger
-                // problem than this method can fix. The caller's own "not
-                // installed" message is the right answer, so say nothing here.
                 return $added;
             }
         }
 
         return $added;
+    }
+
+    /** (kind, name) as one string. A NUL cannot occur in either. */
+    private static function key(string $kind, string $name): string
+    {
+        return $kind . "\0" . $name;
+    }
+
+    /**
+     * Make sure the shipped templates are in, at most once per request.
+     *
+     * Unconditional rather than only-when-something-is-missing, which is what
+     * this did at first and was wrong: it asked whether a row of the kind
+     * existed, and on any database that had run 018 the answer was yes, so the
+     * two request templates added after 018 would never have been installed at
+     * all. Whether SOME template exists is not the same question as whether the
+     * ones we ship do.
+     */
+    private static function ensure(): void
+    {
+        if (self::$installed) {
+            return;
+        }
+        self::$installed = true;
+        self::install();
     }
 
     /**
@@ -214,16 +322,7 @@ final class EmailTemplates
      */
     private static function shipped(string $kind): ?array
     {
-        $row = ReviewRequests::systemTemplate($kind);
-        if ($row !== null) {
-            return $row;
-        }
-
-        if (self::$installed) {
-            return null;
-        }
-        self::$installed = true;
-        self::install();
+        self::ensure();
 
         return ReviewRequests::systemTemplate($kind);
     }
@@ -240,10 +339,16 @@ final class EmailTemplates
     /**
      * Every template this account may send, of one kind.
      *
-     * Their own first, then the system one, because the list is also the order
+     * Their own first, then the shipped ones, because the list is also the order
      * the send form offers them in and a member's own wording is the more
-     * likely choice. The system row is always last and always present: it is
-     * the floor the account falls back to and cannot delete itself below.
+     * likely choice. The shipped rows are always last and always present: they
+     * are the floor the account falls back to and cannot delete itself below.
+     *
+     * Within each group, oldest first. That matters for the shipped ones: the
+     * lowest id is what systemTemplate() returns, and therefore what an account
+     * with no default of its own actually sends -- so sorting by name put the
+     * template in use third of three, a list whose first entry is not the one
+     * that goes out if you press Send.
      *
      * @return list<array<string,mixed>>
      */
@@ -254,17 +359,18 @@ final class EmailTemplates
         }
 
         // "Always present" is a claim this has to make true rather than assume.
-        // Asking for it installs it if it has gone missing, so the page and the
-        // send form cannot show an empty list on a database that never ran the
-        // seed -- which is the state that made asking a customer for a review
-        // impossible until somebody ran SQL by hand.
-        self::shipped(self::kind($kind));
+        // Installing here is what stops the page and the send form showing an
+        // empty list on a database that never ran the seed -- the state that
+        // made asking a customer for a review impossible until somebody ran SQL
+        // by hand -- and what puts newly shipped templates in front of an
+        // account that already had the older ones.
+        self::ensure();
 
         return Database::all(
             'SELECT * FROM templates
               WHERE channel = :channel AND kind = :kind
                 AND (account_id = :account OR (account_id IS NULL AND is_system = 1 AND vertical IS NULL))
-           ORDER BY is_system ASC, is_default DESC, name ASC',
+           ORDER BY is_system ASC, is_default DESC, id ASC',
             ['channel' => 'email', 'kind' => self::kind($kind), 'account' => $accountId],
         );
     }
