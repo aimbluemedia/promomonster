@@ -42,41 +42,105 @@ final class ReviewRequests
         'google'       => 'Google',
     ];
 
-    /** @var bool|null Whether migration 023 has been applied. */
-    private static ?bool $hasDestination = null;
-
     /**
-     * Whether the row can say where it points.
+     * Columns review_requests has gained since 009, and what to read instead
+     * when the migration that adds one has not been run yet.
      *
-     * Asked rather than assumed, for the reason the templates page had to learn
-     * twice: the files go up by FTP and the migration is run by hand afterwards,
-     * so a day or two where the code is ahead of the schema is normal. Without
-     * the column every request behaves as a Google one, which is what every row
-     * written before it was is.
+     * A list rather than a method per column, because a method per column is
+     * how this broke: destination was guarded, attempts was not, and naming
+     * attempts in a SELECT on a database still at 017 is a 500 on a page that
+     * only wanted to read. The files go up by FTP and the migration is run by
+     * hand afterwards, so a day or two where the code is ahead of the schema is
+     * the normal state, not an edge case -- and every column added from here on
+     * is covered by adding one line here.
+     *
+     * The stand-in is what that column would have said for a row written before
+     * it existed: no attempts recorded, and Google, which is where every old
+     * request pointed.
      */
-    public static function hasDestination(): bool
+    private const OPTIONAL = [
+        'attempts'    => ['sql' => '0',        'migration' => '018'],
+        'destination' => ['sql' => "'google'", 'migration' => '023'],
+    ];
+
+    /** @var list<string>|null Every column the table actually has, asked once. */
+    private static ?array $columns = null;
+
+    /** @return list<string> */
+    private static function columns(): array
     {
-        if (self::$hasDestination !== null) {
-            return self::$hasDestination;
+        if (self::$columns !== null) {
+            return self::$columns;
         }
 
         try {
-            $row = Database::first(
-                'SELECT COUNT(*) AS n FROM information_schema.COLUMNS
-                  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t AND COLUMN_NAME = :c',
-                ['t' => 'review_requests', 'c' => 'destination'],
+            $rows = Database::all(
+                'SELECT COLUMN_NAME AS c FROM information_schema.COLUMNS
+                  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t',
+                ['t' => 'review_requests'],
             );
 
-            return self::$hasDestination = ((int) ($row['n'] ?? 0)) === 1;
+            return self::$columns = array_map(
+                static fn (array $r): string => (string) $r['c'],
+                $rows,
+            );
         } catch (PDOException) {
-            return self::$hasDestination = false;
+            return self::$columns = [];
         }
     }
 
-    /** For the tests, which take the column away and put it back. */
+    public static function hasColumn(string $name): bool
+    {
+        return in_array($name, self::columns(), true);
+    }
+
+    /**
+     * `r.name`, or a literal wearing its name when the column is not there.
+     *
+     * Written for a SELECT list, so the rows come back with the key the caller
+     * expects either way and nothing downstream has to know which happened.
+     */
+    private static function read(string $name): string
+    {
+        return self::hasColumn($name)
+            ? 'r.' . $name
+            : (self::OPTIONAL[$name]['sql'] ?? 'NULL') . ' AS ' . $name;
+    }
+
+    public static function hasDestination(): bool
+    {
+        return self::hasColumn('destination');
+    }
+
+    /**
+     * Which migrations the sender needs and has not got.
+     *
+     * Reading a request is made to work without them, above. Sending one is
+     * not, and cannot sensibly be: without sent_subject and sent_body there is
+     * nowhere to record what went out. Better to say so on the page than to let
+     * somebody queue requests that can never leave.
+     *
+     * @return list<string> migration numbers, or [] when nothing is missing
+     */
+    public static function missingForSending(): array
+    {
+        $needed = ['attempts' => '018', 'sent_subject' => '018', 'sent_body' => '018',
+                   'provider_ref' => '018'];
+
+        $missing = [];
+        foreach ($needed as $column => $migration) {
+            if (!self::hasColumn($column) && !in_array($migration, $missing, true)) {
+                $missing[] = $migration;
+            }
+        }
+
+        return $missing;
+    }
+
+    /** For the tests, which take a column away and put it back. */
     public static function forgetDestination(): void
     {
-        self::$hasDestination = null;
+        self::$columns = null;
     }
 
     /** Anything that is not one of the two is Google, which is what every old row is. */
@@ -326,10 +390,11 @@ final class ReviewRequests
         // for twice -- seven hours adrift on this host.
         return Database::all(
             'SELECT r.id, r.status, r.sent_at, r.created_at, r.first_clicked_at,
-                    r.scheduled_for, r.is_follow_up, r.failure_reason, r.attempts,
+                    r.scheduled_for, r.is_follow_up, r.failure_reason,
+                    ' . self::read('attempts') . ',
                     CASE WHEN r.scheduled_for IS NULL OR r.scheduled_for <= NOW()
-                         THEN 1 ELSE 0 END AS is_due, '
-            . (self::hasDestination() ? 'r.destination' : '\'google\' AS destination') . ',
+                         THEN 1 ELSE 0 END AS is_due,
+                    ' . self::read('destination') . ',
                     c.first_name, c.last_name, c.email,
                     l.name AS location_name,
                     t.name AS template_name
@@ -515,7 +580,7 @@ final class ReviewRequests
     {
         $row = Database::first(
             'SELECT r.id, r.status, r.first_clicked_at, '
-            . (self::hasDestination() ? 'r.destination' : '\'google\' AS destination') . ',
+            . self::read('destination') . ',
                     l.google_review_url, l.name AS location_name,
                     a.id AS account_id, a.name AS account_name, a.public_slug
                FROM review_requests r

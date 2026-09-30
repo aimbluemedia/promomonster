@@ -539,6 +539,11 @@ final class MembersController
             'replyTo'     => $this->replyToAddress($location),
             'stuck'       => $this->queueLooksStuck($id),
             'sending'     => Mailer::isLive(),
+            // Migrations the sender needs and has not got. Reading a request is
+            // made to work without them; sending one cannot be, so the page
+            // says so rather than letting somebody queue requests that will
+            // never leave.
+            'blocked'     => ReviewRequests::missingForSending(),
             'available'   => $available,
             // The wording to offer. One entry means there is nothing to choose
             // between, and the picker is not drawn.

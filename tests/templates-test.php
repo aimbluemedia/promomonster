@@ -795,6 +795,78 @@ if ($burst === null) {
         SendLimit::check(1, $plan)['next_at'], $before);
 }
 
+// =====================================================================
+// Reading a request never depends on a migration being run
+// =====================================================================
+// A live 500 on the Review requests page: the list named r.attempts, which 018
+// adds, on a database still short of it. destination was guarded and attempts
+// was not, which is the flaw in guarding columns one at a time -- so the guard
+// is now a list and this walks every entry in it.
+seed();
+$context = array_merge(Database::first('SELECT * FROM locations WHERE id = 1'),
+    ['account_id' => 1, 'account_name' => 'Acme Pools']);
+ReviewRequests::queue($context, Database::first('SELECT * FROM contacts WHERE id = 1'),
+    null, null, 'google');
+
+$optional = ['attempts' => '018', 'destination' => '023'];
+foreach ($optional as $column => $migration) {
+    $type = (string) Database::first(
+        'SELECT COLUMN_TYPE AS t FROM information_schema.COLUMNS
+          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t AND COLUMN_NAME = :c',
+        ['t' => 'review_requests', 'c' => $column],
+    )['t'];
+    $default = $column === 'attempts' ? 'NOT NULL DEFAULT 0' : "NOT NULL DEFAULT 'google'";
+
+    try {
+        Database::run("ALTER TABLE review_requests DROP COLUMN {$column}");
+        ReviewRequests::forgetDestination();
+
+        ok("without {$column} the column really is gone", !ReviewRequests::hasColumn($column));
+
+        // The whole read path, which is what the page does.
+        $rows = [];
+        $threw = null;
+        try {
+            $rows = ReviewRequests::recent(1, null, 100);
+        } catch (Throwable $e) {
+            $threw = $e->getMessage();
+        }
+        check("the list does not fail without {$column} (from {$migration})", $threw, null);
+        check("and still returns the row", count($rows), 1);
+        ok("with a stand-in value for {$column}", array_key_exists($column, $rows[0]));
+
+        // And the click path, which runs for a customer with no session.
+        $token = (string) Database::first('SELECT click_token FROM review_requests LIMIT 1')['click_token'];
+        $clicked = null;
+        try {
+            $clicked = ReviewRequests::click($token);
+        } catch (Throwable $e) {
+            $clicked = 'THREW: ' . $e->getMessage();
+        }
+        check("the click still resolves without {$column}", $clicked, 'https://g.page/r/ACME');
+    } finally {
+        Database::run("ALTER TABLE review_requests ADD COLUMN {$column} {$type} {$default}");
+        ReviewRequests::forgetDestination();
+    }
+    ok("{$column} is back afterwards", ReviewRequests::hasColumn($column));
+}
+
+// Sending is a different question and is allowed to need its migration -- but
+// the page has to say so, or somebody queues requests that can never leave.
+check('with everything applied, nothing blocks sending',
+    ReviewRequests::missingForSending(), []);
+
+try {
+    Database::run('ALTER TABLE review_requests DROP COLUMN sent_subject');
+    ReviewRequests::forgetDestination();
+    check('a missing 018 column is reported against its migration',
+        ReviewRequests::missingForSending(), ['018']);
+} finally {
+    Database::run('ALTER TABLE review_requests ADD COLUMN sent_subject VARCHAR(255) NULL');
+    ReviewRequests::forgetDestination();
+}
+check('and is clear again once it is back', ReviewRequests::missingForSending(), []);
+
 // Whatever this file did to the shared seed, leave it as it found it.
 EmailTemplates::forget();
 EmailTemplates::install();

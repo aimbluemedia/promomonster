@@ -4,10 +4,15 @@ use App\Support\Icon;
 use App\Support\View;
 /**
  * @var array $account @var ?array $location @var array $limit @var string $replyTo
- * @var int $stuck @var bool $sending @var array $available @var array $templates
- * @var ?int $templateChosen @var array $requests
+ * @var int $stuck @var bool $sending @var array $blocked @var array $available
+ * @var array $templates @var ?int $templateChosen @var array $requests
  */
 $business = trim((string) ($location['name'] ?? ($account['name'] ?? 'your business')));
+
+// Defaulted rather than assumed. A view that fatals because a caller passed
+// nine of ten variables is a 500 on the page whose whole job this week has been
+// to stop being one.
+$blocked = $blocked ?? [];
 
 // Which card starts selected. PromoMonster, because it is the one that works
 // for every account on day one -- a Google listing has to exist and be claimed
@@ -52,6 +57,21 @@ $canSendAnything = $chosen !== null;
 
 <?php /* The same two notices the Google page used to carry, because they are
          about sending and this is now the screen that sends. */ ?>
+<?php /* The database is behind the code in a way sending cannot survive.
+         Worth its own notice above the others: with this true, every request
+         added below is queued and can never leave, and the other notices would
+         have somebody chasing the mail settings instead. */ ?>
+<?php if ($blocked !== []): ?>
+  <div class="notice" style="margin-bottom:1.5rem;border-left-color:var(--star);">
+    <strong>The database is missing an update that sending needs.</strong>
+    <p>You can still add requests and they are recorded safely, but nothing will
+      go out until migration <?= View::e(implode(' and ', $blocked)) ?> has been
+      run. Open <code>/diagnose.php</code> and look at the
+      <strong>Required columns</strong> row &mdash; it names exactly what is
+      missing.</p>
+  </div>
+<?php endif; ?>
+
 <?php if ($stuck > 0): ?>
   <div class="notice" style="margin-bottom:1.5rem;border-left-color:var(--star);">
     <strong><?= (int) $stuck ?> <?= $stuck === 1 ? 'request has' : 'requests have' ?> been waiting more than fifteen minutes.</strong>
