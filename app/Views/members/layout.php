@@ -38,14 +38,18 @@ unset($_SESSION['members_flash']);
       </div>
     </div>
     <nav class="admin-nav">
+      <?php /* Order is what a member does, not what the app is made of, so the
+               two screens they open daily sit at the front. "Requests" was the
+               nav's own name for a page whose heading has always read "Review
+               requests" -- one label for one screen. */ ?>
       <?php foreach ([
-        '/members'          => 'Dashboard',
-        '/members/reviews'  => 'Google reviews',
+        '/members'                      => 'Dashboard',
+        '/members/requests'             => 'Review requests',
+        '/members/reviews'              => 'Google reviews',
         '/members/promomonster-reviews' => 'PromoMonster reviews',
-        '/members/requests' => 'Requests',
-        '/members/templates' => 'Email templates',
-        '/members/playbook' => 'Your playbook',
-        '/members/settings' => 'Settings',
+        '/members/templates'            => 'Email templates',
+        '/members/playbook'             => 'Your playbook',
+        '/members/settings'             => 'Settings',
       ] as $href => $label): ?>
         <a href="<?= $href ?>"<?= $path === $href ? ' aria-current="page"' : '' ?>><?= View::e($label) ?></a>
       <?php endforeach; ?>
