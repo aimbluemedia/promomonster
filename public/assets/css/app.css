@@ -1240,3 +1240,7 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
   white-space:nowrap; }
 .dest-tag--promomonster{ color:var(--brand); }
 .dest-tag--google{ color:var(--muted); }
+
+/* The three numbers above a request list. */
+.req-tally{ margin:0 0 .75rem; color:var(--muted); font-size:.88rem; }
+.req-tally strong{ color:var(--ink); font-variant-numeric:tabular-nums; }

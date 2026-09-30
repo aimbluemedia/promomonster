@@ -32,7 +32,7 @@ final class SendLimit
 {
     /**
      * @return array{
-     *     allowed:bool, reason:?string,
+     *     allowed:bool, reason:?string, next_at:?string,
      *     month_used:int, month_limit:?int, month_left:?int,
      *     burst_used:int, burst_limit:?int, burst_left:?int, burst_days:?int
      * }
@@ -52,19 +52,26 @@ final class SendLimit
         $burstLeft = $burstLimit === null ? null : max(0, $burstLimit - $burstUsed);
 
         $reason = null;
+        $nextAt = null;
         if ($monthLimit !== null && $monthUsed >= $monthLimit) {
             $reason = sprintf(
                 'That is this month\'s %d on the %s plan. The count resets on the 1st.',
                 $monthLimit,
                 Plans::name($plan),
             );
+            $nextAt = self::sqlTime("DATE_FORMAT(NOW() + INTERVAL 1 MONTH, '%Y-%m-01 00:00:00')");
         } elseif ($burstLimit !== null && $burstDays !== null && $burstUsed >= $burstLimit) {
             $reason = self::burstReason($burstLimit, $burstDays);
+            $nextAt = self::burstFreesUpAt($accountId, $burstLimit, $burstDays);
         }
 
         return [
             'allowed'     => $reason === null,
             'reason'      => $reason,
+            // When the next one may be sent. "You cannot send" without "and
+            // here is when you can" is the half of the message that turns a
+            // working rate limit into a page that looks broken.
+            'next_at'     => $nextAt,
             'month_used'  => $monthUsed,
             'month_limit' => $monthLimit,
             'month_left'  => $monthLeft,
@@ -129,6 +136,41 @@ final class SendLimit
         $row = Database::first('SELECT ' . $expression . ' AS t');
 
         return (string) ($row['t'] ?? date('Y-m-d H:i:s'));
+    }
+
+    /**
+     * The moment the burst window has room again.
+     *
+     * The window holds the last $limit sends. Room appears when the OLDEST of
+     * them falls out of it, which is that row's created_at plus the window --
+     * not "now plus the window", which is what a guess would say and would be
+     * wrong by up to a whole window.
+     *
+     * Computed by the database, on the database's clock, because created_at is
+     * written by the database. The same discipline as monthStart(): this host
+     * has PHP seven hours off MySQL, which would put the answer most of a day
+     * out and have the page promise a time that had already passed.
+     */
+    private static function burstFreesUpAt(int $accountId, int $limit, int $days): ?string
+    {
+        // $limit and $days come from the plan catalogue, not from a request,
+        // and LIMIT takes no placeholder.
+        $row = Database::first(
+            'SELECT MIN(t.created_at) + INTERVAL ' . (int) $days . ' DAY AS next_at
+               FROM (SELECT r.created_at
+                       FROM review_requests r
+                       JOIN locations l ON l.id = r.location_id
+                      WHERE l.account_id = :account
+                        AND r.is_follow_up = 0
+                        AND r.status NOT IN (\'failed\', \'cancelled\')
+                   ORDER BY r.created_at DESC
+                      LIMIT ' . max(1, $limit) . ') t',
+            ['account' => $accountId],
+        );
+
+        $next = (string) ($row['next_at'] ?? '');
+
+        return $next === '' ? null : $next;
     }
 
     private static function burstReason(int $limit, int $days): string

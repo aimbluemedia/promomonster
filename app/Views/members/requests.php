@@ -126,7 +126,35 @@ $canSendAnything = $chosen !== null;
       your own review page &mdash; either one on its own is enough to start.
     </div>
   <?php elseif (!$limit['allowed']): ?>
-    <div class="alert" role="status" style="margin-top:1.5rem;"><?= View::e((string) $limit['reason']) ?></div>
+    <?php /* The pace limit used to replace the form with a red box and stop
+             there. It said what had happened and not the only thing anybody
+             wants at that moment, which is when they can send the next one --
+             so a working rate limit read as a page that had broken. */ ?>
+    <div class="notice" style="margin-top:1.5rem;border-left-color:var(--star);">
+      <strong>Not right now.</strong>
+      <p><?= View::e((string) $limit['reason']) ?></p>
+      <?php if (!empty($limit['next_at'])): ?>
+        <?php
+          $freeAt = strtotime((string) $limit['next_at']);
+          $sameYear = $freeAt !== false && date('Y') === date('Y', $freeAt);
+        ?>
+        <p style="margin-top:.5rem;">
+          <strong>You can send the next one
+            <?= $freeAt === false
+                ? 'shortly'
+                : View::e(date($sameYear ? 'l j M, H:i' : 'j M Y, H:i', $freeAt)) ?>.</strong>
+          Anything already queued below is unaffected and still goes out.
+        </p>
+      <?php endif; ?>
+      <p style="margin-top:.5rem;font-size:.9rem;">
+        The cap is on new asks, not on reminders &mdash; the one follow-up for a
+        request you have already sent never counts against it.
+        <?php if (($limit['month_limit'] ?? null) !== null): ?>
+          You have used <?= (int) $limit['month_used'] ?> of
+          <?= (int) $limit['month_limit'] ?> this month.
+        <?php endif; ?>
+      </p>
+    </div>
   <?php else: ?>
     <div class="card" style="margin-top:1.5rem;">
       <h2 style="font-size:1.05rem;margin:0;">Ask a customer</h2>

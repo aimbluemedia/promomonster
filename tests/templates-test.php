@@ -37,6 +37,7 @@ use App\Support\Config;
 use App\Support\Database;
 use App\Support\EmailTemplates;
 use App\Support\HostedReviews;
+use App\Support\SendLimit;
 use App\Support\ReviewRequests;
 
 date_default_timezone_set('America/Phoenix');
@@ -715,6 +716,84 @@ try {
     ReviewRequests::forgetDestination();
 }
 ok('023 is back afterwards', ReviewRequests::hasDestination());
+
+// =====================================================================
+// A queued request says when it goes out
+// =====================================================================
+// "queued" on its own was the complaint from a real screen: it names the state
+// and not the thing anybody wants, which is when it leaves.
+seed();
+$context = array_merge(Database::first('SELECT * FROM locations WHERE id = 1'),
+    ['account_id' => 1, 'account_name' => 'Acme Pools']);
+$contact = Database::first('SELECT * FROM contacts WHERE id = 1');
+$now     = ReviewRequests::queue($context, $contact, null, null, 'google');
+
+$row = ReviewRequests::recent(1, null)[0];
+ok('a request queued now carries a schedule', $row['scheduled_for'] !== null);
+check('and is due immediately', (int) $row['is_due'], 1);
+ok('and names the wording it will use', (string) $row['template_name'] !== '');
+
+// The reminder is three days out, so it must NOT read as due now.
+$followUpId = ReviewRequests::queueFollowUp((int) $now['id']);
+$rows = ReviewRequests::recent(1, null);
+$followUp = null;
+foreach ($rows as $r) {
+    if ((int) $r['id'] === (int) $followUpId) {
+        $followUp = $r;
+    }
+}
+ok('the reminder is in the list', $followUp !== null);
+check('and is not due yet', (int) ($followUp['is_due'] ?? 1), 0);
+ok('with a date in the future', strtotime((string) $followUp['scheduled_for']) > time());
+
+// is_due is decided by the database, against a column the database wrote.
+// Comparing it in PHP is the timezone bug this project has paid for twice.
+$byDatabase = Database::first(
+    'SELECT CASE WHEN scheduled_for <= NOW() THEN 1 ELSE 0 END AS d
+       FROM review_requests WHERE id = :i', ['i' => (int) $followUpId]);
+check('and the two agree, because only one clock is asked',
+    (int) $followUp['is_due'], (int) $byDatabase['d']);
+
+// =====================================================================
+// The pace limit says when sending resumes
+// =====================================================================
+// A limit that says "no" without saying "until when" reads as a broken page.
+seed();
+$context = array_merge(Database::first('SELECT * FROM locations WHERE id = 1'),
+    ['account_id' => 1, 'account_name' => 'Acme Pools']);
+$contact = Database::first('SELECT * FROM contacts WHERE id = 1');
+
+$plan  = (string) Database::first('SELECT plan FROM accounts WHERE id = 1')['plan'];
+$burst = SendLimit::check(1, $plan)['burst_limit'];
+
+if ($burst === null) {
+    ok('this plan has no burst cap, so there is nothing to time', true);
+} else {
+    for ($i = 0; $i < $burst; $i++) {
+        ReviewRequests::queue($context, $contact, null, null, 'google');
+    }
+    $limit = SendLimit::check(1, $plan);
+    ok('the burst cap is reached', !$limit['allowed']);
+    ok('and it says why', ($limit['reason'] ?? '') !== '');
+    ok('and says when the next one may go', $limit['next_at'] !== null);
+    ok('which is in the future', strtotime((string) $limit['next_at']) > time());
+
+    // It is the OLDEST send in the window that frees the slot, not now plus
+    // the window -- a guess would be wrong by up to a whole window.
+    $oldest = (string) Database::first(
+        'SELECT MIN(created_at) AS t FROM review_requests WHERE is_follow_up = 0')['t'];
+    $days   = (int) $limit['burst_days'];
+    $expected = (string) Database::first(
+        'SELECT :t + INTERVAL ' . $days . ' DAY AS t', ['t' => $oldest])['t'];
+    check('and it is the oldest send plus the window',
+        (string) $limit['next_at'], $expected);
+
+    // A reminder must not push that time out: it is not a new ask.
+    $before = SendLimit::check(1, $plan)['next_at'];
+    ReviewRequests::queueFollowUp((int) Database::first('SELECT id FROM review_requests LIMIT 1')['id']);
+    check('a reminder does not delay the next ask',
+        SendLimit::check(1, $plan)['next_at'], $before);
+}
 
 // Whatever this file did to the shared seed, leave it as it found it.
 EmailTemplates::forget();

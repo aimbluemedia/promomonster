@@ -319,15 +319,24 @@ final class ReviewRequests
             return [];
         }
 
+        // scheduled_for and "is it due yet" are both answered by the database,
+        // on the database's clock. A queued row is only useful on screen if it
+        // can say when it goes out, and comparing a MySQL-written datetime
+        // against PHP's idea of now is the bug this project has already paid
+        // for twice -- seven hours adrift on this host.
         return Database::all(
             'SELECT r.id, r.status, r.sent_at, r.created_at, r.first_clicked_at,
-                    r.is_follow_up, r.failure_reason, '
+                    r.scheduled_for, r.is_follow_up, r.failure_reason, r.attempts,
+                    CASE WHEN r.scheduled_for IS NULL OR r.scheduled_for <= NOW()
+                         THEN 1 ELSE 0 END AS is_due, '
             . (self::hasDestination() ? 'r.destination' : '\'google\' AS destination') . ',
                     c.first_name, c.last_name, c.email,
-                    l.name AS location_name
+                    l.name AS location_name,
+                    t.name AS template_name
                FROM review_requests r
                JOIN contacts  c ON c.id = r.contact_id
                JOIN locations l ON l.id = r.location_id
+          LEFT JOIN templates t ON t.id = r.template_id
               WHERE l.account_id = :account' . $filter . '
            ORDER BY r.created_at DESC
               LIMIT ' . max(1, min(200, $limit)),
