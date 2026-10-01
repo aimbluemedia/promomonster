@@ -189,10 +189,73 @@ final class Mailer
         };
     }
 
-    /** The address every review request is sent from. */
+    /**
+     * The address every review request is sent from.
+     *
+     * On the SMTP driver with nothing configured, this is the authenticated
+     * mailbox rather than a hard-coded address on a domain that may have no
+     * DKIM published for it. Smtp already puts the mailbox in MAIL FROM, so
+     * using it here as well is the one combination certain to be aligned -- and
+     * an unset setting should default to the thing that works, not to a
+     * placeholder that silently lands in spam.
+     *
+     * An address that WAS configured is used as configured. Quietly overriding
+     * somebody's sending address would be worse than the problem.
+     */
     public static function from(): string
     {
-        return (string) Config::get('mail.from', 'reviews@promomonster.com');
+        $configured = trim((string) Config::get('mail.from', ''));
+        if ($configured !== '') {
+            return $configured;
+        }
+
+        if (self::driver() === 'smtp') {
+            $mailbox = trim((string) Config::get('mail.smtp.username', ''));
+            if ($mailbox !== '') {
+                return $mailbox;
+            }
+        }
+
+        return 'reviews@promomonster.com';
+    }
+
+    /**
+     * Why the two lanes behave differently, when they do.
+     *
+     * A real afternoon: the password reset arrived and the review request did
+     * not, from the same mailbox, over the same connection, seconds apart. The
+     * transport was never the difference -- the visible From was. Account email
+     * went out as the mailbox, which is aligned; review requests went out as a
+     * subdomain with nothing published for it, so DMARC had nothing to check
+     * and Gmail filed it accordingly.
+     *
+     * Returns null when there is nothing to say, so a caller can print it or
+     * skip it without deciding anything itself.
+     */
+    public static function laneMismatch(): ?string
+    {
+        if (self::driver() !== 'smtp' && self::transactionalDriver() !== 'smtp') {
+            return null;
+        }
+
+        $mailbox = self::domainOf(trim((string) Config::get('mail.smtp.username', '')));
+        $bulk    = self::domainOf(self::from());
+        $account = self::domainOf(self::transactionalFrom());
+
+        if ($mailbox === '' || $bulk === '' || $bulk === $mailbox) {
+            return null;
+        }
+        if (str_ends_with($bulk, '.' . $mailbox) || str_ends_with($mailbox, '.' . $bulk)) {
+            return null;
+        }
+
+        return 'Account email goes out as ' . self::transactionalFrom()
+            . ($account === $mailbox ? ' (the mailbox itself, so it is aligned)' : '')
+            . ', but review requests go out as ' . self::from()
+            . ', which is on a different domain to the mailbox (' . $mailbox . '). '
+            . 'The envelope is always the mailbox, so the mail is accepted and then '
+            . 'filtered -- which is exactly how one lane arrives and the other does not. '
+            . 'Set mail.from to an address on ' . $mailbox . '.';
     }
 
     /**

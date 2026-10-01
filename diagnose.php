@@ -638,6 +638,21 @@ if ($mailFiles !== []) {
     require_once $base . '/app/Support/Smtp.php';
     App\Support\Config::load(is_array($config) ? $config : []);
 
+    // --- Why does one lane arrive and the other not? --------------------
+    // The specific afternoon this exists for: the password reset arrived and
+    // the review request did not, from the same mailbox over the same
+    // connection. Everything a configuration check looks at was identical,
+    // because the difference was the visible From address and nothing else.
+    $mismatch = App\Support\Mailer::laneMismatch();
+    if ($mismatch !== null) {
+        add($checks, 'The two From addresses', 'fail', $mismatch);
+    } else {
+        add($checks, 'The two From addresses', 'pass',
+            'Account email sends as ' . App\Support\Mailer::transactionalFrom()
+            . ' and review requests as ' . App\Support\Mailer::from()
+            . '. Nothing here would make one arrive and the other not.');
+    }
+
     // --- Is the scheduled job running? ---------------------------------
     // The one question no configuration check can answer, and the one that
     // decides whether anything ever leaves. Measured from the runner's own

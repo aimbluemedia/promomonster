@@ -294,6 +294,56 @@ Config::load(['mail' => ['driver' => 'smtp', 'token' => '', 'smtp' => $mailbox,
 ok('the comparison ignores case', !str_contains(Mailer::status(), 'NOTE: mail.from'));
 
 // =====================================================================
+// Why one lane arrives and the other does not
+// =====================================================================
+// The password reset arrived and the review request did not, from the same
+// mailbox over the same connection, seconds apart. Every configuration check
+// looked identical because the difference was the visible From and nothing
+// else: the account lane sent as the mailbox, which is aligned, and the bulk
+// lane as a subdomain with nothing published for it.
+$box = ['host' => 'smtp.example.com', 'username' => 'logins@example.com', 'password' => 's3cret'];
+
+Config::load(['mail' => ['driver' => 'smtp', 'smtp' => $box,
+    'from' => 'reviews@notify.somewhere-else.test',
+    'transactional_from' => 'logins@example.com', 'transactional_driver' => 'smtp']]);
+$why = Mailer::laneMismatch();
+ok('a bulk From on another domain is reported', $why !== null);
+ok('and it names the address that is wrong', str_contains((string) $why, 'reviews@notify.somewhere-else.test'));
+ok('and the domain it should be on', str_contains((string) $why, 'example.com'));
+ok('and says the mail is accepted and then filtered', str_contains((string) $why, 'filtered'));
+
+// Same domain: nothing to report.
+Config::load(['mail' => ['driver' => 'smtp', 'smtp' => $box,
+    'from' => 'reviews@example.com',
+    'transactional_from' => 'logins@example.com', 'transactional_driver' => 'smtp']]);
+check('the same domain is not a mismatch', Mailer::laneMismatch(), null);
+
+// A subdomain is aligned under DMARC relaxed, which is the whole point of
+// using one -- so it must not be reported as a problem.
+Config::load(['mail' => ['driver' => 'smtp', 'smtp' => $box,
+    'from' => 'reviews@notify.example.com',
+    'transactional_from' => 'logins@example.com', 'transactional_driver' => 'smtp']]);
+check('nor is a subdomain of the mailbox', Mailer::laneMismatch(), null);
+
+// Postmark on both lanes: this check has nothing to say.
+Config::load(['mail' => ['driver' => 'postmark', 'token' => 'a-token',
+    'from' => 'reviews@notify.promomonster.com']]);
+check('and it stays quiet when no mailbox is involved', Mailer::laneMismatch(), null);
+
+// -- An unset From defaults to something that can actually send -----------
+// 'reviews@promomonster.com' was the hard-coded default, on a domain that may
+// have no DKIM published. On the SMTP driver the mailbox is the one address
+// certain to be aligned, because Smtp already puts it in MAIL FROM.
+Config::load(['mail' => ['driver' => 'smtp', 'smtp' => $box]]);
+check('an unset From falls back to the mailbox', Mailer::from(), 'logins@example.com');
+
+Config::load(['mail' => ['driver' => 'smtp', 'smtp' => $box, 'from' => 'chosen@example.com']]);
+check('but a configured one is left alone', Mailer::from(), 'chosen@example.com');
+
+Config::load(['mail' => ['driver' => 'postmark', 'token' => 'a-token']]);
+check('and off SMTP the old default still stands', Mailer::from(), 'reviews@promomonster.com');
+
+// =====================================================================
 // send() — the null driver, so nothing leaves and nothing is written
 // =====================================================================
 Config::load([
