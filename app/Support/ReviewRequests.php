@@ -37,6 +37,16 @@ final class ReviewRequests
      * on the business's own site and in the widget, and is the only option for
      * a business whose Google listing is not set up yet.
      */
+    /**
+     * How long to leave somebody alone before a reminder may be sent.
+     *
+     * A day. Not because the product knows better than the business, but
+     * because the customer has not had time to see the first one yet, and two
+     * emails in an afternoon is how a young sending domain gets reported. The
+     * playbook still recommends three days; this is only the floor.
+     */
+    public const REMIND_AFTER_HOURS = 24;
+
     public const DESTINATIONS = [
         'promomonster' => 'PromoMonster',
         'google'       => 'Google',
@@ -233,44 +243,84 @@ final class ReviewRequests
     }
 
     /**
-     * Queue the one reminder, three days out.
+     * The one reminder, sent when the member decides to send it.
      *
-     * Deliberately not counted against the plan allowance — see SendLimit. It
-     * is the second half of one ask.
+     * This replaces a row scheduled three days out and drained by a cron job.
+     * The schedule was the right idea and the wrong mechanism: the job is
+     * created by hand in a control panel, and a reminder nobody drains is not a
+     * reminder, it is a row that says "queued" for ever.
+     *
+     * Deciding by hand is also better than the timer was. The member can see,
+     * on the list, which requests went out and were never opened -- and that is
+     * the only information the timer was ever standing in for. They choose who
+     * to chase and in what words, which a fixed three-day rule could not.
+     *
+     * Four things it will not do, and each has somebody it protects:
+     *
+     *   - a second reminder. One follow-up is the product's promise to the
+     *     recipient, and it is the line between a reminder and being pestered
+     *   - a reminder to somebody who already clicked. They did the thing
+     *   - a reminder to somebody who opted out, checked here and again inside
+     *     send()
+     *   - a reminder on the same day as the first. The customer has not had
+     *     time to see the first one, and two emails in an afternoon is how a
+     *     sending domain gets reported
+     *
+     * Not counted against the plan allowance, as before: it is the second half
+     * of one ask, not a second ask.
+     *
+     * @return array{ok:bool, id:?int, error:?string}
      */
-    public static function queueFollowUp(int $parentId): ?int
+    public static function remind(int $accountId, int $parentId, ?int $templateId = null): array
     {
+        // Ownership first. A request id arrives on a form, and without this an
+        // id typed into the box would send mail to another business's customer
+        // over that business's name.
         $parent = Database::first(
-            'SELECT * FROM review_requests WHERE id = :id',
-            ['id' => $parentId],
+            'SELECT r.*, c.email AS contact_email, c.email_opted_out,
+                    l.account_id,
+                    TIMESTAMPDIFF(HOUR, r.sent_at, NOW()) AS hours_since_sent,
+                    EXISTS(SELECT 1 FROM review_requests f
+                            WHERE f.parent_request_id = r.id) AS has_reminder
+               FROM review_requests r
+               JOIN contacts  c ON c.id = r.contact_id
+               JOIN locations l ON l.id = r.location_id
+              WHERE r.id = :id AND l.account_id = :account',
+            ['id' => $parentId, 'account' => $accountId],
         );
 
-        if ($parent === null || (int) $parent['is_follow_up'] === 1) {
-            return null;
+        if ($parent === null) {
+            return self::no('That request could not be found.');
+        }
+        if ((int) $parent['is_follow_up'] === 1) {
+            return self::no('That is already a reminder. One is as far as we go.');
+        }
+        if ((int) $parent['has_reminder'] === 1) {
+            return self::no('A reminder has already gone to them. One is as far as we go.');
+        }
+        if ($parent['sent_at'] === null) {
+            return self::no('That one has not gone out yet, so there is nothing to remind them about.');
+        }
+        if ($parent['first_clicked_at'] !== null) {
+            return self::no('They already opened the link, so there is nothing to chase.');
+        }
+        if ((int) $parent['email_opted_out'] === 1 || self::isSuppressed((string) $parent['contact_email'])) {
+            return self::no('That customer has opted out. We will not email them again.');
+        }
+        if ((int) $parent['hours_since_sent'] < self::REMIND_AFTER_HOURS) {
+            return self::no(sprintf(
+                'The first one went less than %d hours ago. Give them a day to see it.',
+                self::REMIND_AFTER_HOURS,
+            ));
         }
 
-        // One reminder means one. If a row already points at this parent, the
-        // job is done — a retry of the sender must not add a second.
-        $existing = Database::first(
-            'SELECT id FROM review_requests WHERE parent_request_id = :id LIMIT 1',
-            ['id' => $parentId],
-        );
-        if ($existing !== null) {
-            return null;
-        }
-
-        // The account's own reminder wording, if they have written one. The
-        // reminder and the request are one ask in two parts, so a business that
-        // rewrote the first and got the stock wording for the second would read
-        // to the customer as two different people.
-        $owner = Database::first(
-            'SELECT account_id FROM locations WHERE id = :id',
-            ['id' => (int) $parent['location_id']],
-        );
-
-        $template = EmailTemplates::defaultFor((int) ($owner['account_id'] ?? 0), 'follow_up');
+        // Which wording. Their own reminder template if they picked one,
+        // otherwise their default -- the request and the reminder are one ask
+        // in two parts, and a business that rewrote the first and got the stock
+        // wording for the second would read as two different people.
+        $template = EmailTemplates::resolve($accountId, $templateId, 'follow_up');
         if ($template === null) {
-            return null;
+            return self::no('No reminder template is installed.');
         }
 
         // The reminder inherits where the first one pointed. It is the second
@@ -285,7 +335,7 @@ final class ReviewRequests
              . ($withDestination ? ', destination' : '') . ')
              VALUES
                 (:location, :contact, :template, \'email\', \'scheduled\',
-                 :asked_by, 1, :parent, NOW() + INTERVAL ' . (int) self::FOLLOW_UP_DAYS . ' DAY, :token'
+                 :asked_by, 1, :parent, NOW(), :token'
              . ($withDestination ? ', :destination' : '') . ')',
             array_merge([
                 'location' => (int) $parent['location_id'],
@@ -299,7 +349,76 @@ final class ReviewRequests
                 : []),
         );
 
-        return (int) Database::connection()->lastInsertId();
+        // scheduled_for is NOW(), not three days out. The caller sends it in
+        // this request; the date was only ever there for a runner to wait on.
+        $id = (int) Database::connection()->lastInsertId();
+        self::event($id, 'queued', null, []);
+
+        return ['ok' => true, 'id' => $id, 'error' => null];
+    }
+
+    /**
+     * Whether this row, as recent() returns it, can be reminded about.
+     *
+     * The predicate the list draws its button from. It is the same set of
+     * conditions remind() enforces, asked of a row that is already loaded --
+     * the list shows thirty of these and thirty more queries to decide whether
+     * to draw a button would be thirty queries. remind() checks again anyway,
+     * because what a page drew a minute ago is not permission.
+     *
+     * @param array<string,mixed> $row
+     */
+    public static function canRemind(array $row): bool
+    {
+        return (int) ($row['is_follow_up'] ?? 0) === 0
+            && (int) ($row['has_reminder'] ?? 0) === 0
+            && ($row['sent_at'] ?? null) !== null
+            && ($row['first_clicked_at'] ?? null) === null
+            && (int) ($row['email_opted_out'] ?? 0) === 0
+            && (int) ($row['hours_since_sent'] ?? 0) >= self::REMIND_AFTER_HOURS;
+    }
+
+    /**
+     * Try a request again that did not get away.
+     *
+     * The other thing the runner used to do. A send can fail for a reason that
+     * has since gone -- a provider having a bad minute, a mailbox over quota,
+     * the SMTP password not yet filled in -- and without a runner there has to
+     * be a way to say "go on then".
+     *
+     * Only for a request that has not been sent. A sent one would be a second
+     * email to somebody who already has the first.
+     *
+     * @return array{ok:bool, id:?int, error:?string}
+     */
+    public static function retry(int $accountId, int $id): array
+    {
+        $row = Database::first(
+            'SELECT r.id, r.status, r.sent_at
+               FROM review_requests r
+               JOIN locations l ON l.id = r.location_id
+              WHERE r.id = :id AND l.account_id = :account',
+            ['id' => $id, 'account' => $accountId],
+        );
+
+        if ($row === null) {
+            return self::no('That request could not be found.');
+        }
+        if ($row['sent_at'] !== null) {
+            return self::no('That one has already gone out.');
+        }
+
+        // Back to queued and the attempt counter cleared, so a row that had
+        // used up its retries is genuinely tried again rather than skipped by
+        // the same ceiling that stopped it.
+        Database::run(
+            'UPDATE review_requests
+                SET status = \'queued\', attempts = 0, failure_reason = NULL, scheduled_for = NOW()
+              WHERE id = :id',
+            ['id' => (int) $row['id']],
+        );
+
+        return ['ok' => true, 'id' => (int) $row['id'], 'error' => null];
     }
 
     /**
@@ -395,9 +514,14 @@ final class ReviewRequests
                     CASE WHEN r.scheduled_for IS NULL OR r.scheduled_for <= NOW()
                          THEN 1 ELSE 0 END AS is_due,
                     ' . self::read('destination') . ',
-                    c.first_name, c.last_name, c.email,
+                    c.first_name, c.last_name, c.email, c.email_opted_out,
                     l.name AS location_name,
-                    t.name AS template_name
+                    t.name AS template_name,
+                    -- What the list needs to decide whether a reminder is on
+                    -- offer, answered here rather than by a query per row.
+                    TIMESTAMPDIFF(HOUR, r.sent_at, NOW()) AS hours_since_sent,
+                    EXISTS(SELECT 1 FROM review_requests f
+                            WHERE f.parent_request_id = r.id) AS has_reminder
                FROM review_requests r
                JOIN contacts  c ON c.id = r.contact_id
                JOIN locations l ON l.id = r.location_id
@@ -584,12 +708,15 @@ final class ReviewRequests
             ['id' => (int) $row['contact_id']],
         );
 
-        // The reminder is scheduled once the first one is actually away, not
-        // when it was queued — otherwise a request stuck in the queue for two
-        // days gets a reminder almost on top of it.
-        if ((int) $row['is_follow_up'] === 0) {
-            self::queueFollowUp($id);
-        }
+        // No reminder is scheduled here any more. One used to be queued three
+        // days out, which needed something to come along three days later and
+        // send it -- and the only thing that could was a cron job created by
+        // hand in a control panel. A scheduled row nothing drains is worse
+        // than no row: it sits at "queued" for ever and reads as a product
+        // that has broken.
+        //
+        // The reminder is now the member's decision, from the list, once they
+        // can see the first one was not opened. See remind().
 
         return ['ok' => true, 'error' => null];
     }

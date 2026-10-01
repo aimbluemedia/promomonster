@@ -686,11 +686,13 @@ $context = array_merge(Database::first('SELECT * FROM locations WHERE id = 1'),
     ['account_id' => 1, 'account_name' => 'Acme Pools']);
 $first = ReviewRequests::queue($context, Database::first('SELECT * FROM contacts WHERE id = 1'),
     null, null, 'promomonster');
-$followUpId = ReviewRequests::queueFollowUp((int) $first['id']);
-ok('a reminder is scheduled', $followUpId !== null);
+Database::run('UPDATE review_requests SET status = \'sent\', sent_at = NOW() - INTERVAL 2 DAY
+                WHERE id = :i', ['i' => (int) $first['id']]);
+$reminder = ReviewRequests::remind(1, (int) $first['id']);
+ok('a reminder can be sent', $reminder['ok']);
 check('and inherits the destination',
     (string) Database::first('SELECT destination FROM review_requests WHERE id = :i',
-        ['i' => (int) $followUpId])['destination'], 'promomonster');
+        ['i' => (int) $reminder['id']])['destination'], 'promomonster');
 
 // -- The three lists show the right rows -----------------------------------
 seed();
@@ -759,26 +761,41 @@ ok('a request queued now carries a schedule', $row['scheduled_for'] !== null);
 check('and is due immediately', (int) $row['is_due'], 1);
 ok('and names the wording it will use', (string) $row['template_name'] !== '');
 
-// The reminder is three days out, so it must NOT read as due now.
-$followUpId = ReviewRequests::queueFollowUp((int) $now['id']);
-$rows = ReviewRequests::recent(1, null);
+// A reminder is no longer a row dated three days out waiting for a runner. It
+// is sent when the member presses the button, so it is due the moment it
+// exists -- and the list has to say so.
+Database::run("UPDATE review_requests SET status = 'sent', sent_at = NOW() - INTERVAL 2 DAY
+                WHERE id = :i", ['i' => (int) $now['id']]);
+$reminder = ReviewRequests::remind(1, (int) $now['id']);
+ok('the reminder is created', $reminder['ok']);
+
 $followUp = null;
-foreach ($rows as $r) {
-    if ((int) $r['id'] === (int) $followUpId) {
+foreach (ReviewRequests::recent(1, null) as $r) {
+    if ((int) $r['id'] === (int) $reminder['id']) {
         $followUp = $r;
     }
 }
 ok('the reminder is in the list', $followUp !== null);
-check('and is not due yet', (int) ($followUp['is_due'] ?? 1), 0);
-ok('with a date in the future', strtotime((string) $followUp['scheduled_for']) > time());
+check('and is due now', (int) ($followUp['is_due'] ?? 0), 1);
+check('marked as a reminder', (int) ($followUp['is_follow_up'] ?? 0), 1);
 
 // is_due is decided by the database, against a column the database wrote.
 // Comparing it in PHP is the timezone bug this project has paid for twice.
 $byDatabase = Database::first(
     'SELECT CASE WHEN scheduled_for <= NOW() THEN 1 ELSE 0 END AS d
-       FROM review_requests WHERE id = :i', ['i' => (int) $followUpId]);
+       FROM review_requests WHERE id = :i', ['i' => (int) $reminder['id']]);
 check('and the two agree, because only one clock is asked',
     (int) $followUp['is_due'], (int) $byDatabase['d']);
+
+// What the list uses to decide whether to draw the button, on the parent row.
+$parentRow = null;
+foreach (ReviewRequests::recent(1, null) as $r) {
+    if ((int) $r['id'] === (int) $now['id']) {
+        $parentRow = $r;
+    }
+}
+check('the parent now shows it has been reminded', (int) ($parentRow['has_reminder'] ?? 0), 1);
+ok('so no second reminder is offered', !ReviewRequests::canRemind($parentRow ?? []));
 
 // =====================================================================
 // The pace limit says when sending resumes
@@ -816,7 +833,10 @@ if ($burst === null) {
 
     // A reminder must not push that time out: it is not a new ask.
     $before = SendLimit::check(1, $plan)['next_at'];
-    ReviewRequests::queueFollowUp((int) Database::first('SELECT id FROM review_requests LIMIT 1')['id']);
+    $parent = (int) Database::first('SELECT id FROM review_requests LIMIT 1')['id'];
+    Database::run('UPDATE review_requests SET status = \'sent\', sent_at = NOW() - INTERVAL 2 DAY
+                    WHERE id = :i', ['i' => $parent]);
+    ReviewRequests::remind(1, $parent);
     check('a reminder does not delay the next ask',
         SendLimit::check(1, $plan)['next_at'], $before);
 }
@@ -1111,6 +1131,98 @@ try {
 check('the request is still queued afterwards',
     (string) Database::first('SELECT status FROM review_requests WHERE id = :i',
         ['i' => (int) $q3['id']])['status'], 'queued');
+
+// =====================================================================
+// Chasing somebody who never opened it, and trying again
+// =====================================================================
+// The two jobs the runner had left. Both are now buttons on a row, which means
+// the product needs no scheduled job at all -- and the condition that decides
+// whether to draw the button IS the information the three-day timer was ever
+// standing in for.
+seed();
+$context = array_merge(Database::first('SELECT * FROM locations WHERE id = 1'),
+    ['account_id' => 1, 'account_name' => 'Acme Pools']);
+$contact = Database::first('SELECT * FROM contacts WHERE id = 1');
+$sent = ReviewRequests::queue($context, $contact, null, null, 'google');
+
+// Nothing to chase until it has gone out.
+$row = ReviewRequests::recent(1, null)[0];
+ok('an unsent request offers no reminder', !ReviewRequests::canRemind($row));
+
+Database::run("UPDATE review_requests SET status = 'sent', sent_at = NOW() WHERE id = :i",
+    ['i' => (int) $sent['id']]);
+$row = ReviewRequests::recent(1, null)[0];
+ok('nor does one sent an hour ago', !ReviewRequests::canRemind($row));
+
+Database::run("UPDATE review_requests SET sent_at = NOW() - INTERVAL 2 DAY WHERE id = :i",
+    ['i' => (int) $sent['id']]);
+$row = ReviewRequests::recent(1, null)[0];
+ok('but one sent two days ago and never opened does', ReviewRequests::canRemind($row));
+check('and the list carries the hours it used to decide',
+    (int) $row['hours_since_sent'] >= 24, true);
+
+// canRemind and remind must agree. A button the page draws and the action then
+// refuses is worse than no button.
+$made = ReviewRequests::remind(1, (int) $sent['id']);
+ok('and remind() agrees with the button', $made['ok']);
+check('the reminder uses the follow-up wording',
+    (string) Database::first('SELECT t.kind FROM review_requests r
+                                JOIN templates t ON t.id = r.template_id
+                               WHERE r.id = :i', ['i' => (int) $made['id']])['kind'], 'follow_up');
+
+// A member may choose different wording for the chase.
+seed();
+$own = EmailTemplates::save(1, [
+    'kind' => 'follow_up', 'name' => 'My chaser', 'subject' => 'Still there, {{first_name}}?',
+    'body' => "One more nudge: {{review_url}}",
+]);
+$sent2 = ReviewRequests::queue($context, Database::first('SELECT * FROM contacts WHERE id = 1'),
+    null, null, 'google');
+Database::run("UPDATE review_requests SET status = 'sent', sent_at = NOW() - INTERVAL 2 DAY WHERE id = :i",
+    ['i' => (int) $sent2['id']]);
+$chosen = ReviewRequests::remind(1, (int) $sent2['id'], (int) $own['id']);
+ok('a chosen reminder template is used', $chosen['ok']);
+check('and it is the one picked',
+    (int) Database::first('SELECT template_id FROM review_requests WHERE id = :i',
+        ['i' => (int) $chosen['id']])['template_id'], (int) $own['id']);
+
+// An opted-out customer is never chased, whatever the button said.
+seed();
+$opted = ReviewRequests::queue($context, Database::first('SELECT * FROM contacts WHERE id = 1'),
+    null, null, 'google');
+Database::run("UPDATE review_requests SET status = 'sent', sent_at = NOW() - INTERVAL 2 DAY WHERE id = :i",
+    ['i' => (int) $opted['id']]);
+Database::run('UPDATE contacts SET email_opted_out = 1 WHERE id = 1');
+$refused = ReviewRequests::remind(1, (int) $opted['id']);
+ok('an opted-out customer is not chased', !$refused['ok']);
+ok('and the list does not offer it either',
+    !ReviewRequests::canRemind(ReviewRequests::recent(1, null)[0]));
+Database::run('UPDATE contacts SET email_opted_out = 0 WHERE id = 1');
+
+// -- Try again ------------------------------------------------------------
+seed();
+$stuckRow = ReviewRequests::queue($context, Database::first('SELECT * FROM contacts WHERE id = 1'),
+    null, null, 'google');
+Database::run("UPDATE review_requests
+                  SET status = 'failed', attempts = 5, failure_reason = 'Mailbox full'
+                WHERE id = :i", ['i' => (int) $stuckRow['id']]);
+
+$again = ReviewRequests::retry(1, (int) $stuckRow['id']);
+ok('a failed request can be tried again', $again['ok']);
+$after = Database::first('SELECT status, attempts, failure_reason FROM review_requests WHERE id = :i',
+    ['i' => (int) $stuckRow['id']]);
+check('it goes back to queued', (string) $after['status'], 'queued');
+check('with the attempt count cleared, so the ceiling does not skip it',
+    (int) $after['attempts'], 0);
+check('and the old reason wiped', $after['failure_reason'], null);
+
+// Something already sent must not be sent twice.
+Database::run("UPDATE review_requests SET status = 'sent', sent_at = NOW() WHERE id = :i",
+    ['i' => (int) $stuckRow['id']]);
+$twice = ReviewRequests::retry(1, (int) $stuckRow['id']);
+ok('a sent request cannot be retried', !$twice['ok']);
+ok("and another account cannot retry this one",
+    !ReviewRequests::retry(99, (int) $stuckRow['id'])['ok']);
 
 // Whatever this file did to the shared seed, leave it as it found it.
 EmailTemplates::forget();

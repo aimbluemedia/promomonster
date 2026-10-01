@@ -259,35 +259,39 @@ check('stores the subject too', $row['sent_subject'], 'How did we do, Dana?');
 ok('stamped the contact', contact()['last_requested_at'] !== null);
 
 // --- The one reminder -------------------------------------------------
-$followUps = Database::all(
-    'SELECT * FROM review_requests WHERE parent_request_id = :id',
-    ['id' => $id],
-);
-check('schedules exactly one reminder', count($followUps), 1);
-check('marked as a follow-up', (int) $followUps[0]['is_follow_up'], 1);
-check('and is scheduled, not queued', $followUps[0]['status'], 'scheduled');
+// Sending no longer schedules anything. It used to queue a reminder three days
+// out, and the only thing that could have sent it was a cron job created by
+// hand in a control panel -- so the promise of a follow-up was conditional on a
+// step most installs never took. The member now sends it from the list, once
+// they can see the first one went unopened.
+check('sending schedules nothing by itself', count(Database::all(
+    'SELECT id FROM review_requests WHERE parent_request_id = :id', ['id' => $id])), 0);
 
-// Measured BY the database, not by PHP reading a database string.
-//
-// strtotime() parses that value in PHP's timezone, but the database wrote it in
-// its own -- so this assertion used to measure the skew between the two rather
-// than the gap it was meant to check, and failed by exactly seven hours the
-// moment the suite stopped running on UTC. The same mistake as the bug it is
-// standing guard over.
-$gapHours = (int) (Database::first(
-    'SELECT TIMESTAMPDIFF(HOUR, NOW(), scheduled_for) AS h FROM review_requests WHERE id = :id',
-    ['id' => (int) $followUps[0]['id']],
-)['h'] ?? 0);
-ok('three days out', $gapHours >= 71 && $gapHours <= 72);
-ok('not due yet', ReviewRequests::due(10) === []);
-
-// Sending the same row twice must not produce a second reminder. This is the
-// bug that turns "we never send a third message" into a lie.
+// Nor does sending the same row twice, which is the bug that would turn "we
+// never send a third message" into a lie.
 ReviewRequests::send($due[0]);
-check('a re-send does not add a second reminder', count(Database::all(
-    'SELECT id FROM review_requests WHERE parent_request_id = :id',
-    ['id' => $id],
-)), 1);
+check('and a re-send still schedules nothing', count(Database::all(
+    'SELECT id FROM review_requests WHERE parent_request_id = :id', ['id' => $id])), 0);
+
+// The member chases it. The first one went out above, so backdate it past the
+// day the product makes them wait.
+Database::run('UPDATE review_requests SET sent_at = NOW() - INTERVAL 2 DAY WHERE id = :id',
+    ['id' => $id]);
+$made = ReviewRequests::remind(1, $id);
+ok('a reminder can be sent by hand', $made['ok']);
+
+$followUps = Database::all(
+    'SELECT * FROM review_requests WHERE parent_request_id = :id', ['id' => $id]);
+check('which produces exactly one', count($followUps), 1);
+check('marked as a follow-up', (int) $followUps[0]['is_follow_up'], 1);
+
+// Due now, not three days out: there is nothing left to wait for it.
+$dueNow = (int) Database::first(
+    'SELECT scheduled_for <= NOW() AS d FROM review_requests WHERE id = :id',
+    ['id' => (int) $followUps[0]['id']])['d'];
+check('and due immediately', $dueNow, 1);
+
+check('a second reminder is refused', ReviewRequests::remind(1, $id)['ok'], false);
 
 // The reminder wording is the reminder's, not the request's.
 $reminder = Database::first(
@@ -333,10 +337,13 @@ check('an unknown token goes nowhere', ReviewRequests::click('not-a-token'), nul
 seed();
 $liveId = (int) ReviewRequests::queue(location(), contact(), null)['id'];
 ReviewRequests::send(ReviewRequests::due(10)[0]);
-$pendingReminder = (int) Database::first(
-    'SELECT id FROM review_requests WHERE parent_request_id = :id',
-    ['id' => $liveId],
-)['id'];
+
+// Something still waiting, for the opt-out to cancel. This used to be the
+// reminder that sending scheduled automatically; nothing schedules now, so the
+// waiting row is the ordinary case instead -- a request that did not get away
+// and is sitting there for somebody to try again.
+$pending = (int) ReviewRequests::queue(location(), contact(), null)['id'];
+check('it is waiting to begin with', request($pending)['status'], 'queued');
 
 $unsubToken = Tokens::unsubscribe(1);
 check('the token resolves to the contact', Tokens::readUnsubscribe($unsubToken), 1);
@@ -347,7 +354,7 @@ ReviewRequests::suppress('dana@example.test', 'unsubscribe');
 ok('the address is suppressed', ReviewRequests::isSuppressed('dana@example.test'));
 ok('case does not matter', ReviewRequests::isSuppressed('DANA@Example.Test'));
 check('the contact is flagged', (int) contact()['email_opted_out'], 1);
-check('the pending reminder is cancelled', request($pendingReminder)['status'], 'cancelled');
+check('anything still waiting is cancelled', request($pending)['status'], 'cancelled');
 check('the already-sent one is left alone', request($liveId)['status'], 'sent');
 
 ok('the address is not stored in the clear', Database::first(
@@ -466,28 +473,58 @@ ok('with the reason on the row', (string) $stuck['failure_reason'] !== '');
 ok('and stops being picked up', ReviewRequests::due(10) === []);
 
 // =====================================================================
-// A follow-up is scheduled on the database's clock
+// A reminder goes when the member sends it, not on a timer
 // =====================================================================
+// This used to assert a row scheduled three days out. Nothing drained that row
+// but a cron job created by hand in a control panel, so in practice it was not
+// a reminder, it was a row that said "queued" for ever. remind() replaces it:
+// the member presses a button on a request that went out and was not opened.
 seed();
 $first = (int) ReviewRequests::queue(location(), contact(), null)['id'];
-Database::run("UPDATE review_requests SET status = 'sent', sent_at = NOW() WHERE id = {$first}");
-$followId = ReviewRequests::queueFollowUp($first);
 
-ok('the reminder was queued', $followId !== null);
+// Sent, but only just: too soon to chase somebody who has not had time to look.
+Database::run("UPDATE review_requests SET status = 'sent', sent_at = NOW() WHERE id = {$first}");
+$tooSoon = ReviewRequests::remind(1, $first);
+ok('a reminder on the same day is refused', !$tooSoon['ok']);
+ok('and says to give them a day', str_contains((string) $tooSoon['error'], 'day'));
+
+// A day later it is allowed, and goes now rather than at some future date.
+Database::run("UPDATE review_requests SET sent_at = NOW() - INTERVAL 2 DAY WHERE id = {$first}");
+$made = ReviewRequests::remind(1, $first);
+ok('a day later the reminder is allowed', $made['ok']);
 
 $row = Database::first(
-    'SELECT created_at, scheduled_for,
-            scheduled_for > NOW() AS in_the_future,
-            TIMESTAMPDIFF(HOUR, created_at, scheduled_for) AS hours
+    'SELECT is_follow_up, parent_request_id, scheduled_for <= NOW() AS due_now
        FROM review_requests WHERE id = :id',
-    ['id' => $followId],
-) ?? [];
+    ['id' => (int) $made['id']],
+);
+check('it is marked as the follow-up', (int) $row['is_follow_up'], 1);
+check('and points at the request it chases', (int) $row['parent_request_id'], $first);
+check('it is due immediately, not in three days', (int) $row['due_now'], 1);
 
-// Seven hours of skew would make this due immediately -- a reminder sent the
-// same day as the request, to somebody who has not had time to respond.
-ok('it is scheduled in the future, not the past', (int) ($row['in_the_future'] ?? 0) === 1);
-check('exactly three days after it was created', (int) ($row['hours'] ?? 0), 72);
-ok('so it is not due yet', ReviewRequests::due(10) === []);
+// One reminder means one.
+$again = ReviewRequests::remind(1, $first);
+ok('a second reminder is refused', !$again['ok']);
+ok('and says one has already gone', str_contains((string) $again['error'], 'already'));
+
+// Somebody who clicked is not chased.
+seed();
+$clicked = (int) ReviewRequests::queue(location(), contact(), null)['id'];
+Database::run("UPDATE review_requests
+                  SET status = 'sent', sent_at = NOW() - INTERVAL 2 DAY, first_clicked_at = NOW()
+                WHERE id = {$clicked}");
+ok('somebody who opened the link is not chased', !ReviewRequests::remind(1, $clicked)['ok']);
+
+// Nor is one that never went out.
+seed();
+$unsent = (int) ReviewRequests::queue(location(), contact(), null)['id'];
+ok('a request that never sent cannot be reminded about', !ReviewRequests::remind(1, $unsent)['ok']);
+
+// And not another account's customer.
+seed();
+$mine = (int) ReviewRequests::queue(location(), contact(), null)['id'];
+Database::run("UPDATE review_requests SET status = 'sent', sent_at = NOW() - INTERVAL 2 DAY WHERE id = {$mine}");
+ok("another account cannot remind this account's customer", !ReviewRequests::remind(99, $mine)['ok']);
 
 echo "\n{$passed} passed, {$failed} failed\n";
 exit($failed === 0 ? 0 : 1);

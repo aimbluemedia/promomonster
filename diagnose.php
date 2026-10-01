@@ -661,11 +661,12 @@ if ($mailFiles !== []) {
             // and names the problem outright.
             $logDirOk = is_dir($base . '/storage/logs') && is_writable($base . '/storage/logs');
 
-            add($checks, 'Send queue runner', 'fail',
-                'HAS NEVER RUN. A request now sends on the click, so this is not what stands '
-                . 'between pressing Send and an email arriving -- it is the reminder three days '
-                . 'later, and the retry for anything that failed first time. Both are off until '
-                . 'it runs. In hPanel: Advanced -> Cron Jobs, '
+            add($checks, 'Send queue runner', 'info',
+                'Has never run, which is fine: nothing requires it. A request sends on the '
+                . 'click, the reminder is a button on the row once the first one has gone '
+                . 'unopened for a day, and a failed send has a Try again. The job only earns '
+                . 'its keep at volume, when sending inside the request would make somebody '
+                . 'wait. If you want it anyway, in hPanel: Advanced -> Cron Jobs, '
                 . 'every 5 minutes, with this as the command: '
                 . '/usr/bin/php ' . $base . '/bin/send-due.php >> '
                 . $base . '/storage/logs/cron.log 2>&1'
@@ -680,8 +681,8 @@ if ($mailFiles !== []) {
                       . 'so the >> redirect will fail and you will get no log to read. '
                       . 'Create it and make it writable first.'));
         } elseif ($beat['state'] === 'late') {
-            add($checks, 'Send queue runner', 'fail',
-                'STOPPED. Last run ' . $beat['last_at'] . ' (' . $ago . ' ago)'
+            add($checks, 'Send queue runner', 'todo',
+                'Stopped, which nothing depends on any more. Last run ' . $beat['last_at'] . ' (' . $ago . ' ago)'
                 . ($beat['every_seconds'] === null ? '' : ', having run about every ' . $every)
                 . '. Check the cron job still exists in hPanel.');
         } else {

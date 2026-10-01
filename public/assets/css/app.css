@@ -1262,3 +1262,19 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
   0%,100%{ box-shadow:0 0 0 3px rgba(22,163,74,.18); }
   50%    { box-shadow:0 0 0 5px rgba(22,163,74,.08); }
 }
+
+/* --- Acting on a sent request ------------------------------------------- */
+.req-act{ white-space:nowrap; vertical-align:middle; }
+/* The reminder opens in place rather than on its own screen: the row is the
+   context, and losing it to pick wording would be the wrong trade. */
+.req-remind{ display:inline-block; position:relative; }
+.req-remind summary{ list-style:none; cursor:pointer; }
+.req-remind summary::-webkit-details-marker{ display:none; }
+.req-remind__form{ position:absolute; right:0; z-index:5; width:15rem;
+  margin-top:.4rem; padding:.85rem; display:grid; gap:.5rem;
+  background:var(--surface); border:1px solid var(--line); border-radius:10px;
+  box-shadow:0 10px 28px rgba(16,24,40,.14); }
+.req-remind__form .form__note{ font-size:.76rem; line-height:1.45; }
+@media (max-width:620px){
+  .req-remind__form{ position:static; width:auto; box-shadow:none; }
+}

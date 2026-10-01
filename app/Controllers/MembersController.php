@@ -324,6 +324,53 @@ final class MembersController
         ]);
     }
 
+    /**
+     * Send the one reminder, because the member decided to.
+     *
+     * There is no scheduled job behind this. The list shows which requests went
+     * out and were never opened, which is the only thing a three-day timer was
+     * ever standing in for, and the member picks who to chase and in what
+     * words.
+     */
+    public function remindRequest(): void
+    {
+        $this->guard();
+        $account = Auth::account() ?? [];
+
+        $id         = (int) ($_POST['id'] ?? 0);
+        $templateId = (int) ($_POST['template_id'] ?? 0);
+
+        $made = ReviewRequests::remind((int) $account['id'], $id, $templateId > 0 ? $templateId : null);
+        if (!$made['ok']) {
+            $this->back((string) $made['error']);
+        }
+
+        Audit::log('request.reminded', 'review_request', (int) $made['id']);
+
+        $now = ReviewRequests::sendNow((int) $made['id']);
+        $this->back($now['sent']
+            ? 'Reminder sent. That is the last one they will get from us.'
+            : 'Reminder queued. It could not go out just now: '
+              . ($now['error'] ?? 'no reason given') . '.');
+    }
+
+    /** Try again, for a request that never got away. */
+    public function retryRequest(): void
+    {
+        $this->guard();
+        $account = Auth::account() ?? [];
+
+        $again = ReviewRequests::retry((int) $account['id'], (int) ($_POST['id'] ?? 0));
+        if (!$again['ok']) {
+            $this->back((string) $again['error']);
+        }
+
+        $now = ReviewRequests::sendNow((int) $again['id']);
+        $this->back($now['sent']
+            ? 'Sent this time.'
+            : 'Still could not send: ' . ($now['error'] ?? 'no reason given') . '.');
+    }
+
     // =====================================================================
     // Email templates
     // =====================================================================
@@ -573,6 +620,9 @@ final class MembersController
             // The wording to offer. One entry means there is nothing to choose
             // between, and the picker is not drawn.
             'templates'      => EmailTemplates::forAccount($id, 'request'),
+            // The wording offered when chasing somebody who did not open the
+            // first one. A different kind of message, so a different list.
+            'reminders'      => EmailTemplates::forAccount($id, 'follow_up'),
             'templateChosen' => (function () use ($id): ?int {
                 $row = EmailTemplates::defaultFor($id, 'request');
 

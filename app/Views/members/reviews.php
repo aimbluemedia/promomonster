@@ -29,16 +29,17 @@ $business  = trim((string) ($location['name'] ?? ($account['name'] ?? 'your busi
   <?php endif; ?>
 </div>
 
-<?php /* The most likely reason Send appears to do nothing is that the cron job
-         was never set up, and from in here that looks identical to everything
-         working. Say so rather than let somebody conclude the product is
-         broken. */ ?>
+<?php /* A request now sends on the click, so one still waiting is one that did
+         not get away -- not one waiting its turn. The old wording blamed a
+         scheduled job that no longer has anything to do with it, and pointed
+         at a fix that would not have fixed it. */ ?>
 <?php if ($stuck > 0): ?>
   <div class="notice" style="margin-bottom:1.5rem;border-left-color:var(--star);">
-    <strong><?= (int) $stuck ?> <?= $stuck === 1 ? 'request has' : 'requests have' ?> been waiting more than fifteen minutes.</strong>
-    <p>Nothing has picked them up, which usually means the scheduled job on the
-      server is not running yet. Nothing is lost &mdash; they will all go out as
-      soon as it is. Drop us a line if you are not sure.</p>
+    <strong><?= (int) $stuck ?> <?= $stuck === 1 ? 'request has' : 'requests have' ?> not gone out.</strong>
+    <p>Something stopped them at the time &mdash; usually the mail settings.
+      Nothing is lost: open
+      <a href="/members/requests">Review requests</a>, where each one says what
+      went wrong and has a <strong>Try again</strong>.</p>
   </div>
 <?php elseif (!$sending): ?>
   <div class="notice" style="margin-bottom:1.5rem;">

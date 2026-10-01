@@ -74,69 +74,13 @@ $canSendAnything = $chosen !== null;
   </div>
 <?php endif; ?>
 
-<?php /* ---- The thing that actually sends ------------------------------- */ ?>
-<?php /* "Queued" used to mean "waiting for a process we cannot see, on a
-         schedule we were told about once". The runner now writes a row every
-         time it wakes, so this is measured: when it last ran, and when the gap
-         between its own runs says it will run again. A cron job that was never
-         created and one that is about to fire are no longer the same picture. */ ?>
-<?php
-  $runState = (string) ($runner['state'] ?? 'unknown');
-  $runWhen  = static function (?string $at): string {
-      $stamp = $at === null ? false : strtotime($at);
-
-      return $stamp === false ? '' : date('j M, H:i', $stamp);
-  };
-?>
-<?php if ($runState === 'never'): ?>
-  <?php /* Reworded once the request itself started sending on the click. The
-           scheduled job is no longer what stands between pressing Send and an
-           email arriving -- it is what sends the reminder three days later, and
-           what retries anything that could not go out first time. Saying
-           "nothing leaves until this runs" when the thing somebody just did
-           does leave would be the page lying to them. */ ?>
-  <div class="notice" style="margin-bottom:1.5rem;">
-    <strong>Reminders are not set up yet.</strong>
-    <p>Requests go out the moment you press Send. The one reminder three days
-      later needs a scheduled job on the server, and it has never run &mdash; so
-      reminders are not going out, and anything that failed first time is not
-      being retried. In hPanel: <strong>Advanced &rarr; Cron Jobs</strong>,
-      every 5 minutes, running <code>bin/send-due.php</code>. This box changes
-      the moment it does.</p>
-  </div>
-<?php elseif ($runState === 'late'): ?>
-  <div class="notice" style="margin-bottom:1.5rem;border-left-color:var(--star);">
-    <strong>The scheduled job has stopped.</strong>
-    <p>Requests still send when you press Send, but reminders and retries have
-      stopped. Last run was <?= View::e($runWhen($runner['last_at'])) ?>,
-      <?= View::e(App\Support\Heartbeat::inWords($runner['ago_seconds'])) ?> ago<?php
-        if (($runner['every_seconds'] ?? null) !== null): ?>, and it had been
-      running about every
-      <?= View::e(App\Support\Heartbeat::inWords($runner['every_seconds'])) ?><?php
-        endif; ?>. Nothing is lost &mdash; it all catches up when it starts
-      again. Check the cron job in hPanel.</p>
-  </div>
-<?php elseif ($runState === 'ok'): ?>
-  <p class="runner runner--ok">
-    <span class="runner__dot"></span>
-    Sender ran <strong><?= View::e($runWhen($runner['last_at'])) ?></strong>
-    (<?= View::e(App\Support\Heartbeat::inWords($runner['ago_seconds'])) ?> ago)<?php
-      if (($runner['next_at'] ?? null) !== null): ?>,
-    runs again <strong><?= View::e($runWhen($runner['next_at'])) ?></strong><?php
-      if (($runner['due_seconds'] ?? null) !== null && (int) $runner['due_seconds'] > 0): ?>
-      &mdash; about <?= View::e(App\Support\Heartbeat::inWords($runner['due_seconds'])) ?> from now<?php
-      endif; ?><?php endif; ?>.
-  </p>
-<?php elseif ($stuck > 0): ?>
-  <?php /* No heartbeat table yet, so fall back to the old evidence: things
-           have been sitting in the queue longer than anything should. */ ?>
-  <div class="notice" style="margin-bottom:1.5rem;border-left-color:var(--star);">
-    <strong><?= (int) $stuck ?> <?= $stuck === 1 ? 'request has' : 'requests have' ?> been waiting more than fifteen minutes.</strong>
-    <p>Nothing has picked them up, which usually means the scheduled job on the
-      server is not running yet. Nothing is lost &mdash; they will all go out as
-      soon as it is.</p>
-  </div>
-<?php endif; ?>
+<?php /* There was a block here reporting whether the scheduled job had run,
+         and warning when it had not. Nothing waits on a scheduled job any
+         more: a request sends on the click, and the reminder is a button on
+         the row below rather than a row queued three days out. A warning about
+         a job the product no longer needs is one more thing to explain and
+         then ignore, so it is gone. bin/send-due.php still works for anyone
+         who wants it at volume; nothing requires it. */ ?>
 
 <?php if (!$sending): ?>
   <div class="notice" style="margin-bottom:1.5rem;">
@@ -303,7 +247,9 @@ $canSendAnything = $chosen !== null;
 <?php /* ---- What has been sent ------------------------------------------ */ ?>
 <h2 style="font-size:1.05rem;margin:2rem 0 .9rem;">Everything you have sent</h2>
 <?= View::render('members/_requests', [
-    'rows'      => $requests,
-    'empty'     => 'Nothing sent yet. Your first one goes above.',
-    'showWhere' => true,
+    'rows'        => $requests,
+    'empty'       => 'Nothing sent yet. Your first one goes above.',
+    'showWhere'   => true,
+    'showActions' => true,
+    'reminders'   => $reminders ?? [],
 ]) ?>

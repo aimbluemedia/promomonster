@@ -170,6 +170,8 @@ $router->get('/members/settings', static fn () => (new MembersController())->set
 $router->post('/members/plan',   static fn () => (new MembersController())->requestPlan());
 $router->post('/members/review-link', static fn () => (new MembersController())->saveReviewLink());
 $router->post('/members/ask',         static fn () => (new MembersController())->ask());
+$router->post('/members/remind',      static fn () => (new MembersController())->remindRequest());
+$router->post('/members/retry',       static fn () => (new MembersController())->retryRequest());
 
 // The wording the review requests go out in.
 $router->get('/members/templates',         static fn () => (new MembersController())->templates());

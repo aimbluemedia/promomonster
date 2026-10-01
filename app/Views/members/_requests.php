@@ -1,4 +1,4 @@
-<?php use App\Support\ReviewRequests; use App\Support\View; ?>
+<?php use App\Support\Csrf; use App\Support\ReviewRequests; use App\Support\View; ?>
 <?php
 /**
  * The sent-requests table, shared by the three screens that show it.
@@ -16,8 +16,12 @@
  * @var list<array<string,mixed>> $rows
  * @var string $empty       what to say when there is nothing
  * @var bool   $showWhere   whether the destination column earns its place
+ * @var bool   $showActions whether this screen can act on a row
+ * @var list<array<string,mixed>> $reminders  follow-up wording to offer
  */
-$showWhere = $showWhere ?? false;
+$showWhere   = $showWhere ?? false;
+$showActions = $showActions ?? false;
+$reminders   = $reminders ?? [];
 
 /** A datetime from the database, in words a person reads. */
 $when = static function (?string $value): string {
@@ -53,7 +57,7 @@ foreach ($rows as $r) {
            Opened out of sent is the one that says whether the wording works. */ ?>
   <p class="req-tally">
     <?php if ($counts['waiting'] > 0): ?>
-      <strong><?= $counts['waiting'] ?></strong> waiting to go out &middot;
+      <strong><?= $counts['waiting'] ?></strong> not sent yet &middot;
     <?php endif; ?>
     <strong><?= $counts['sent'] ?></strong> sent &middot;
     <strong><?= $counts['opened'] ?></strong> opened the link
@@ -73,6 +77,7 @@ foreach ($rows as $r) {
           <th>Status</th>
           <th>When</th>
           <th>Opened the link</th>
+          <?php if ($showActions): ?><th></th><?php endif; ?>
         </tr>
       </thead>
       <tbody>
@@ -123,11 +128,15 @@ foreach ($rows as $r) {
                      is and not the thing anybody wants, which is when it goes. */ ?>
             <td>
               <?php if ($waiting && $due): ?>
-                <strong>Due now</strong>
-                <div class="muted" style="font-size:.78rem;">goes out on the next send run</div>
+                <?php /* It no longer "goes out on the next send run": there is
+                         no run. A request sends on the click, so a row still
+                         waiting is one that did not get away, and the honest
+                         thing is to say so and offer the button. */ ?>
+                <strong>Not sent</strong>
+                <div class="muted" style="font-size:.78rem;">try again when you are ready</div>
               <?php elseif ($waiting): ?>
                 <strong><?= View::e($when((string) $r['scheduled_for'])) ?></strong>
-                <div class="muted" style="font-size:.78rem;">scheduled</div>
+                <div class="muted" style="font-size:.78rem;">waiting</div>
               <?php elseif (!empty($r['sent_at'])): ?>
                 <?= View::e($when((string) $r['sent_at'])) ?>
                 <div class="muted" style="font-size:.78rem;">sent</div>
@@ -140,6 +149,61 @@ foreach ($rows as $r) {
             <td><?= !empty($r['first_clicked_at'])
                   ? View::e($when((string) $r['first_clicked_at']))
                   : '<span class="muted">&mdash;</span>' ?></td>
+
+            <?php /* The reminder used to be a row scheduled three days out and
+                     sent by a cron job. It is now a button that appears exactly
+                     when it is worth pressing: sent, not opened, a day gone by,
+                     and no reminder sent yet. The condition IS the information
+                     the timer was standing in for. */ ?>
+            <?php if ($showActions): ?>
+              <td class="req-act">
+                <?php if (ReviewRequests::canRemind($r)): ?>
+                  <details class="req-remind">
+                    <summary class="btn btn--sm">Send a reminder</summary>
+                    <form method="post" action="/members/remind" class="req-remind__form">
+                      <?= Csrf::field() ?>
+                      <input type="hidden" name="id" value="<?= (int) $r['id'] ?>">
+                      <?php if (count($reminders) > 1): ?>
+                        <label class="sr-only" for="rt<?= (int) $r['id'] ?>">Which wording</label>
+                        <select class="field" id="rt<?= (int) $r['id'] ?>" name="template_id">
+                          <?php foreach ($reminders as $t): ?>
+                            <option value="<?= (int) $t['id'] ?>"><?= View::e((string) $t['name']) ?></option>
+                          <?php endforeach; ?>
+                        </select>
+                      <?php endif; ?>
+                      <button class="btn btn--sm btn--primary" type="submit">Send it</button>
+                      <p class="form__note">
+                        Goes now, in different words. This is the only reminder
+                        they will get.
+                      </p>
+                    </form>
+                  </details>
+
+                <?php elseif ((int) ($r['has_reminder'] ?? 0) === 1): ?>
+                  <span class="muted" style="font-size:.8rem;">reminded</span>
+
+                <?php elseif (empty($r['sent_at']) && !in_array((string) $r['status'], ['cancelled'], true)): ?>
+                  <form method="post" action="/members/retry" style="display:inline;">
+                    <?= Csrf::field() ?>
+                    <input type="hidden" name="id" value="<?= (int) $r['id'] ?>">
+                    <button class="btn btn--sm" type="submit">Try again</button>
+                  </form>
+
+                <?php elseif (!empty($r['first_clicked_at'])): ?>
+                  <span class="muted" style="font-size:.8rem;">opened it</span>
+
+                <?php elseif ((int) ($r['email_opted_out'] ?? 0) === 1): ?>
+                  <span class="muted" style="font-size:.8rem;">opted out</span>
+
+                <?php elseif ((int) ($r['is_follow_up'] ?? 0) === 0 && !empty($r['sent_at'])): ?>
+                  <?php /* Sent, unopened, but too recently to chase. Saying so
+                           beats an absent button nobody can explain. */ ?>
+                  <span class="muted" style="font-size:.8rem;">
+                    chase after <?= (int) ReviewRequests::REMIND_AFTER_HOURS ?>h
+                  </span>
+                <?php endif; ?>
+              </td>
+            <?php endif; ?>
           </tr>
         <?php endforeach; ?>
       </tbody>
