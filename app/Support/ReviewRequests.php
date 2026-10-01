@@ -69,8 +69,11 @@ final class ReviewRequests
      * request pointed.
      */
     private const OPTIONAL = [
-        'attempts'    => ['sql' => '0',        'migration' => '018'],
-        'destination' => ['sql' => "'google'", 'migration' => '023'],
+        'attempts'     => ['sql' => '0',        'migration' => '018'],
+        'sent_subject' => ['sql' => 'NULL',     'migration' => '018'],
+        'sent_body'    => ['sql' => 'NULL',     'migration' => '018'],
+        'provider_ref' => ['sql' => 'NULL',     'migration' => '018'],
+        'destination'  => ['sql' => "'google'", 'migration' => '023'],
     ];
 
     /** @var list<string>|null Every column the table actually has, asked once. */
@@ -527,7 +530,17 @@ final class ReviewRequests
                     -- rather than silently discarded. (No apostrophes in here:
                     -- this comment lives inside a single-quoted PHP string.)
                     (SELECT COUNT(*) FROM message_events e
-                      WHERE e.request_id = r.id AND e.type = \'clicked\') AS fetches
+                      WHERE e.request_id = r.id AND e.type = \'clicked\') AS fetches,
+                    -- What actually went out, and how. "sent" means a mail
+                    -- server accepted it, which is not the same as a person
+                    -- receiving it -- so when somebody says it never arrived,
+                    -- this is the difference between a guess and evidence.
+                    ' . self::read('sent_subject') . ',
+                    ' . self::read('provider_ref') . ',
+                    ' . self::read('sent_body') . ',
+                    (SELECT e.detail FROM message_events e
+                      WHERE e.request_id = r.id AND e.type = \'sent\'
+                   ORDER BY e.id DESC LIMIT 1) AS sent_detail
                FROM review_requests r
                JOIN contacts  c ON c.id = r.contact_id
                JOIN locations l ON l.id = r.location_id

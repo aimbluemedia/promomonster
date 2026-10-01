@@ -94,6 +94,39 @@ foreach ($rows as $r) {
               <?php if ((int) ($r['is_follow_up'] ?? 0) === 1): ?>
                 <div class="muted" style="font-size:.78rem;">reminder</div>
               <?php endif; ?>
+
+              <?php /* "Sent" means a mail server accepted it. That is not the
+                       same as somebody receiving it, and when the two disagree
+                       the only way to find out why is to look at what actually
+                       left: which provider took it, what reference it gave
+                       back, and the exact words. Guessing at this costs an
+                       evening; reading it costs a click. */ ?>
+              <?php if (!empty($r['sent_at']) && !empty($r['sent_subject'])): ?>
+                <?php $via = json_decode((string) ($r['sent_detail'] ?? ''), true); ?>
+                <details class="sent-proof">
+                  <summary>What we sent</summary>
+                  <div class="sent-proof__body">
+                    <dl>
+                      <dt>To</dt><dd><?= View::e((string) $r['email']) ?></dd>
+                      <dt>Subject</dt><dd><?= View::e((string) $r['sent_subject']) ?></dd>
+                      <dt>Sent via</dt>
+                      <dd><?= View::e((string) ($via['driver'] ?? 'unknown')) ?></dd>
+                      <?php if (!empty($r['provider_ref'])): ?>
+                        <dt>Their reference</dt>
+                        <dd><code><?= View::e((string) $r['provider_ref']) ?></code></dd>
+                      <?php endif; ?>
+                    </dl>
+                    <?php if (!empty($r['sent_body'])): ?>
+                      <pre><?= View::e((string) $r['sent_body']) ?></pre>
+                    <?php endif; ?>
+                    <p class="form__note">
+                      The mail server accepted this. If it did not arrive, it was
+                      filtered or rejected after that &mdash; check the spam
+                      folder first, then the sending domain&rsquo;s SPF and DKIM.
+                    </p>
+                  </div>
+                </details>
+              <?php endif; ?>
             </td>
 
             <?php if ($showWhere): ?>

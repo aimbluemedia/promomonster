@@ -1278,3 +1278,21 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
 @media (max-width:620px){
   .req-remind__form{ position:static; width:auto; box-shadow:none; }
 }
+
+/* --- What actually went out --------------------------------------------- */
+/* "Sent" means a server accepted it. When somebody says it never arrived, this
+   is the difference between a guess and evidence. */
+.sent-proof{ margin-top:.4rem; }
+.sent-proof summary{ cursor:pointer; color:var(--brand); font-size:.78rem; font-weight:600; }
+.sent-proof__body{ margin-top:.5rem; padding:.75rem .85rem; max-width:34rem;
+  background:var(--wash); border:1px solid var(--line); border-radius:9px; }
+.sent-proof dl{ display:grid; grid-template-columns:auto 1fr; gap:.2rem .7rem;
+  margin:0 0 .6rem; font-size:.8rem; }
+.sent-proof dt{ color:var(--muted); }
+.sent-proof dd{ margin:0; color:var(--ink); word-break:break-word; }
+.sent-proof pre{ margin:0 0 .5rem; padding:.6rem .7rem; background:var(--surface);
+  border:1px solid var(--line); border-radius:7px; color:var(--body);
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.76rem;
+  line-height:1.6; white-space:pre-wrap; word-break:break-word;
+  max-height:18rem; overflow:auto; }
+.sent-proof .form__note{ font-size:.76rem; line-height:1.5; }
