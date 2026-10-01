@@ -1,5 +1,6 @@
 <?php
 use App\Support\Csrf;
+use App\Support\EmailTemplates;
 use App\Support\Icon;
 use App\Support\View;
 /**
@@ -205,24 +206,58 @@ $canSendAnything = $chosen !== null;
                placeholder="dana@example.com" autocomplete="off">
       </div>
 
-      <?php /* Only drawn once there is a choice to make. With one template the
-               select is a control that cannot be operated, which is worse than
-               no control: it implies a decision exists and then refuses it. */ ?>
-      <?php if (count($templates) > 1): ?>
-        <div style="margin-top:1rem;">
-          <label for="template_id">Which wording</label>
-          <select class="field" id="template_id" name="template_id">
-            <?php foreach ($templates as $t): ?>
-              <option value="<?= (int) $t['id'] ?>"<?= $templateChosen === (int) $t['id'] ? ' selected' : '' ?>>
-                <?= View::e((string) $t['name']) ?><?= $templateChosen === (int) $t['id'] ? ' (default)' : '' ?>
-              </option>
-            <?php endforeach; ?>
-          </select>
+      <?php /* ---- Which wording -------------------------------------- */ ?>
+      <?php /* Cards rather than a dropdown. A select hides the one thing worth
+               knowing before pressing Send -- what the customer is actually
+               going to read -- behind a control that shows only a name. Here
+               each option carries its own subject line, opens to the whole
+               message, and links to where it is edited.
+
+               Drawn even when there is only one, because then it is not a
+               control at all, it is a preview, and seeing the words before they
+               go is worth more than the row it costs. */ ?>
+      <?php if ($templates !== []): ?>
+        <fieldset class="pick" style="margin-top:1.25rem;">
+          <legend class="pick__legend">Which wording</legend>
+
+          <?php foreach ($templates as $t): ?>
+            <?php
+              $tid     = (int) $t['id'];
+              $chosen  = $templateChosen === $tid;
+              $preview = EmailTemplates::preview($t);
+            ?>
+            <div class="pick__card<?= $chosen ? ' is-on' : '' ?>">
+              <?php /* Only the choosing part is inside the label. A details
+                       summary or a link nested in a label would toggle the
+                       radio as well as doing its own job, so reading the
+                       message would silently change the selection. */ ?>
+              <label class="pick__choose">
+                <input type="radio" name="template_id" value="<?= $tid ?>"
+                       <?= $chosen ? 'checked' : '' ?>>
+                <span class="pick__body">
+                  <span class="pick__name">
+                    <?= View::e((string) $t['name']) ?>
+                    <?php if ($chosen): ?><span class="pick__tag">default</span><?php endif; ?>
+                  </span>
+                  <span class="pick__subject"><?= View::e($preview['subject']) ?></span>
+                </span>
+              </label>
+
+              <div class="pick__tools">
+                <details class="pick__peek">
+                  <summary>Read it</summary>
+                  <pre><?= View::e($preview['body']) ?></pre>
+                </details>
+                <a class="pick__edit" href="/members/templates?edit=<?= $tid ?>">Edit</a>
+              </div>
+            </div>
+          <?php endforeach; ?>
+
           <p class="form__note">
-            Change the wording, or write another, on
+            Shown with a sample customer. Write another on
             <a href="/members/templates">Email templates</a>.
           </p>
-        </div>
+        </fieldset>
       <?php endif; ?>
 
       <button class="btn btn--primary btn--xl" type="submit" style="justify-self:start;">
