@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Support\ClickSource;
 use App\Support\Config;
 use App\Support\Database;
 use App\Support\ReviewRequests;
@@ -33,7 +34,11 @@ final class MailController
      */
     public function click(string $token): void
     {
-        $url = ReviewRequests::click($token);
+        // Whether this looks like a person, decided from the request itself.
+        // A scanner still gets its redirect -- blocking it would achieve
+        // nothing and would break any mail system that checks before
+        // delivering -- it just does not count as somebody opening the link.
+        $url = ReviewRequests::click($token, ClickSource::reason());
 
         if ($url === null) {
             http_response_code(404);

@@ -146,9 +146,25 @@ foreach ($rows as $r) {
               <?php endif; ?>
             </td>
 
-            <td><?= !empty($r['first_clicked_at'])
-                  ? View::e($when((string) $r['first_clicked_at']))
-                  : '<span class="muted">&mdash;</span>' ?></td>
+            <td>
+              <?php if (!empty($r['first_clicked_at'])): ?>
+                <?= View::e($when((string) $r['first_clicked_at'])) ?>
+              <?php else: ?>
+                <span class="muted">&mdash;</span>
+                <?php /* A fetch that was not a person. Shown rather than
+                         dropped: it is the difference between an email nobody
+                         touched and one a mail scanner opened on the way in,
+                         and only one of those says anything about the
+                         customer. */ ?>
+                <?php if ((int) ($r['fetches'] ?? 0) > 0): ?>
+                  <div class="muted" style="font-size:.76rem;">
+                    <?= (int) $r['fetches'] ?>
+                    machine <?= (int) $r['fetches'] === 1 ? 'fetch' : 'fetches' ?>,
+                    not opened
+                  </div>
+                <?php endif; ?>
+              <?php endif; ?>
+            </td>
 
             <?php /* The reminder used to be a row scheduled three days out and
                      sent by a cron job. It is now a button that appears exactly

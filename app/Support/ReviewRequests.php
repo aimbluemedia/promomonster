@@ -521,7 +521,13 @@ final class ReviewRequests
                     -- offer, answered here rather than by a query per row.
                     TIMESTAMPDIFF(HOUR, r.sent_at, NOW()) AS hours_since_sent,
                     EXISTS(SELECT 1 FROM review_requests f
-                            WHERE f.parent_request_id = r.id) AS has_reminder
+                            WHERE f.parent_request_id = r.id) AS has_reminder,
+                    -- Every fetch of the tracked link, human or not. Shown
+                    -- beside an unopened row so a machine visit is visible
+                    -- rather than silently discarded. (No apostrophes in here:
+                    -- this comment lives inside a single-quoted PHP string.)
+                    (SELECT COUNT(*) FROM message_events e
+                      WHERE e.request_id = r.id AND e.type = \'clicked\') AS fetches
                FROM review_requests r
                JOIN contacts  c ON c.id = r.contact_id
                JOIN locations l ON l.id = r.location_id
@@ -781,11 +787,12 @@ final class ReviewRequests
      * customer who opens the email twice, must not overwrite when they first
      * showed interest.
      */
-    public static function click(string $token): ?string
+    public static function click(string $token, ?string $automated = null): ?string
     {
         $row = Database::first(
             'SELECT r.id, r.status, r.first_clicked_at, '
             . self::read('destination') . ',
+                    TIMESTAMPDIFF(SECOND, r.sent_at, NOW()) AS since_sent,
                     l.google_review_url, l.name AS location_name,
                     a.id AS account_id, a.name AS account_name, a.public_slug
                FROM review_requests r
@@ -799,14 +806,39 @@ final class ReviewRequests
             return null;
         }
 
-        Database::run(
-            'UPDATE review_requests
-                SET first_clicked_at = COALESCE(first_clicked_at, NOW()),
-                    status = CASE WHEN status IN (\'sent\', \'delivered\') THEN \'clicked\' ELSE status END
-              WHERE id = :id',
-            ['id' => (int) $row['id']],
-        );
-        self::event((int) $row['id'], 'clicked', null, []);
+        // Too soon to be a person, measured by the database against a column
+        // the database wrote. A scanner fetches within seconds of delivery,
+        // often before the message reaches the inbox; a person has to receive
+        // it, open it, read it and find the link.
+        //
+        // Checked after the caller's own verdict, so a fetch that already looks
+        // automated keeps the more specific reason.
+        $since = $row['since_sent'];
+        if ($automated === null && $since !== null && (int) $since < ClickSource::SETTLE_SECONDS) {
+            $automated = 'it arrived ' . (int) $since . 's after sending';
+        }
+
+        // Every fetch is recorded, whoever made it. The honest number is worth
+        // having -- a request fetched six times by a scanner and never by a
+        // person is a different story from one nobody touched -- and the member
+        // sees it on the list as a machine fetch rather than as an open.
+        self::event((int) $row['id'], 'clicked', null, array_filter([
+            'automated' => $automated !== null,
+            'why'       => $automated,
+        ], static fn (mixed $v): bool => $v !== null));
+
+        // Only a person counts as having opened it. first_clicked_at is what
+        // the reminder button reads, and a scanner setting it takes away the
+        // business's ability to chase the one customer who never saw the email.
+        if ($automated === null) {
+            Database::run(
+                'UPDATE review_requests
+                    SET first_clicked_at = COALESCE(first_clicked_at, NOW()),
+                        status = CASE WHEN status IN (\'sent\', \'delivered\') THEN \'clicked\' ELSE status END
+                  WHERE id = :id',
+                ['id' => (int) $row['id']],
+            );
+        }
 
         // Built here, from our own configuration and this account's own row.
         // A null means the destination has gone away since the send -- the
