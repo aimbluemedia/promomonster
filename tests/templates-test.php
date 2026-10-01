@@ -68,6 +68,31 @@ function check(string $what, mixed $got, mixed $want): void
 }
 function ok(string $what, bool $got): void { check($what, $got, true); }
 
+/**
+ * Reload the suite's config with a different mail block.
+ *
+ * Config::load replaces everything it is given, and there is no all() to merge
+ * against -- so the db credentials have to come along or the next query fails
+ * against a connection that no longer exists.
+ *
+ * @param array<string,mixed> $mail
+ */
+function withMail(array $mail): void
+{
+    App\Support\Config::load([
+        'app_name' => 'PromoMonster',
+        'app_url'  => 'https://promomonster.test',
+        'app_key'  => 'integration-test-key-0123456789abcdef',
+        'db' => [
+            'host' => getenv('PM_TEST_DB_HOST') ?: '', 'port' => (int) (getenv('PM_TEST_DB_PORT') ?: 3306),
+            'database' => getenv('PM_TEST_DB_NAME') ?: '', 'username' => getenv('PM_TEST_DB_USER') ?: 'root',
+            'password' => getenv('PM_TEST_DB_PASS') ?: '', 'charset' => 'utf8mb4',
+        ],
+        'mail' => $mail,
+    ]);
+}
+
+
 try {
     Database::connection();
 } catch (Throwable $e) {
@@ -992,6 +1017,100 @@ try {
     Heartbeat::forget();
 }
 ok('the table is back afterwards', Heartbeat::ready());
+
+// =====================================================================
+// Pressing Send sends
+// =====================================================================
+// The queue was built first and the runner was meant to drain it within five
+// minutes. The cron job is created by hand in a control panel, so "within five
+// minutes" was in practice "never" -- and a request that sends on the click
+// needs no scheduled job at all. The queue stays for the reminder and for
+// retries, which nothing else can do.
+seed();
+$context = array_merge(Database::first('SELECT * FROM locations WHERE id = 1'),
+    ['account_id' => 1, 'account_name' => 'Acme Pools']);
+$contact = Database::first('SELECT * FROM contacts WHERE id = 1');
+
+// row() has to give send() exactly what due() gives it. A second query that
+// drifted by one alias would send an email with an empty business name.
+$queued = ReviewRequests::queue($context, $contact, null, null, 'google');
+$byId   = ReviewRequests::row((int) $queued['id']);
+$byDue  = ReviewRequests::due(1)[0];
+ok('row() finds the request', $byId !== null);
+check('and returns the same keys due() does',
+    array_diff(array_keys($byDue), array_keys($byId ?? [])), []);
+check('with the business name among them', $byId['location_name'], 'Acme Pools');
+
+// What sendNow() adds over send() is the gating and the delegation; send()
+// itself is covered end to end by the sending suite, against a real local SMTP
+// server. So this proves it got PAST the gates and into send(), which the
+// attempt counter records before the driver is even called.
+//
+// A mailbox pointed at a host that does not answer: live by configuration,
+// which is the question sendNow asks, and certain to fail at the socket, which
+// keeps the test off the network.
+withMail(['driver' => 'smtp', 'from' => 'reviews@example.test',
+          'smtp' => ['host' => 'smtp.invalid.test', 'port' => 587,
+                     'username' => 'reviews@example.test', 'password' => 'x']]);
+check('attempts starts at nought', (int) Database::first(
+    'SELECT attempts FROM review_requests WHERE id = :i', ['i' => (int) $queued['id']])['attempts'], 0);
+
+$now = ReviewRequests::sendNow((int) $queued['id']);
+check('it reached send(), which counts the attempt before dialling', (int) Database::first(
+    'SELECT attempts FROM review_requests WHERE id = :i', ['i' => (int) $queued['id']])['attempts'], 1);
+ok('the unreachable host means it did not send', !$now['sent']);
+ok('and the reason is reported rather than thrown', ($now['error'] ?? '') !== '');
+check('the request stays queued for the runner to retry',
+    (string) Database::first('SELECT status FROM review_requests WHERE id = :i',
+        ['i' => (int) $queued['id']])['status'], 'queued');
+ok('with the reason recorded on the row',
+    Database::first('SELECT failure_reason FROM review_requests WHERE id = :i',
+        ['i' => (int) $queued['id']])['failure_reason'] !== null);
+ok('and no reminder scheduled, because nothing was sent', (int) Database::first(
+    'SELECT COUNT(*) n FROM review_requests WHERE is_follow_up = 1')['n'] === 0);
+
+// With no live driver it must not fail in front of anybody: the request stays
+// queued and the runner gets it later.
+seed();
+withMail(['driver' => 'log', 'token' => '']);
+$q2 = ReviewRequests::queue(
+    array_merge(Database::first('SELECT * FROM locations WHERE id = 1'),
+        ['account_id' => 1, 'account_name' => 'Acme Pools']),
+    Database::first('SELECT * FROM contacts WHERE id = 1'), null, null, 'google');
+$off = ReviewRequests::sendNow((int) $q2['id']);
+ok('with sending switched off it does not send', !$off['sent']);
+ok('and says why', str_contains((string) $off['error'], 'not switched on'));
+check('while the request stays queued for the runner',
+    (string) Database::first('SELECT status FROM review_requests WHERE id = :i',
+        ['i' => (int) $q2['id']])['status'], 'queued');
+
+// An id that is not there is an answer, not an exception.
+$missing = ReviewRequests::sendNow(99999999);
+ok('an unknown id does not throw', !$missing['sent']);
+
+withMail(['driver' => 'null', 'token' => '']);
+
+// And without 018 there is nowhere to record a send, so it stays queued rather
+// than half-sending and losing the record of what went out.
+seed();
+$q3 = ReviewRequests::queue(
+    array_merge(Database::first('SELECT * FROM locations WHERE id = 1'),
+        ['account_id' => 1, 'account_name' => 'Acme Pools']),
+    Database::first('SELECT * FROM contacts WHERE id = 1'), null, null, 'google');
+try {
+    Database::run('ALTER TABLE review_requests DROP COLUMN sent_subject');
+    ReviewRequests::forgetDestination();
+    $blocked = ReviewRequests::sendNow((int) $q3['id']);
+    ok('without 018 it does not try to send', !$blocked['sent']);
+    ok('and says the database is not ready',
+        str_contains((string) $blocked['error'], 'not ready'));
+} finally {
+    Database::run('ALTER TABLE review_requests ADD COLUMN sent_subject VARCHAR(255) NULL');
+    ReviewRequests::forgetDestination();
+}
+check('the request is still queued afterwards',
+    (string) Database::first('SELECT status FROM review_requests WHERE id = :i',
+        ['i' => (int) $q3['id']])['status'], 'queued');
 
 // Whatever this file did to the shared seed, leave it as it found it.
 EmailTemplates::forget();

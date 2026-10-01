@@ -89,23 +89,32 @@ $canSendAnything = $chosen !== null;
   };
 ?>
 <?php if ($runState === 'never'): ?>
-  <div class="notice" style="margin-bottom:1.5rem;border-left-color:var(--star);">
-    <strong>The sender has never run.</strong>
-    <p>Requests are recorded safely, but nothing leaves until the scheduled job
-      on the server runs for the first time. In hPanel: <strong>Advanced &rarr;
-      Cron Jobs</strong>, every 5 minutes, running
-      <code>bin/send-due.php</code>. This box will change the moment it does.</p>
+  <?php /* Reworded once the request itself started sending on the click. The
+           scheduled job is no longer what stands between pressing Send and an
+           email arriving -- it is what sends the reminder three days later, and
+           what retries anything that could not go out first time. Saying
+           "nothing leaves until this runs" when the thing somebody just did
+           does leave would be the page lying to them. */ ?>
+  <div class="notice" style="margin-bottom:1.5rem;">
+    <strong>Reminders are not set up yet.</strong>
+    <p>Requests go out the moment you press Send. The one reminder three days
+      later needs a scheduled job on the server, and it has never run &mdash; so
+      reminders are not going out, and anything that failed first time is not
+      being retried. In hPanel: <strong>Advanced &rarr; Cron Jobs</strong>,
+      every 5 minutes, running <code>bin/send-due.php</code>. This box changes
+      the moment it does.</p>
   </div>
 <?php elseif ($runState === 'late'): ?>
   <div class="notice" style="margin-bottom:1.5rem;border-left-color:var(--star);">
-    <strong>The sender has stopped.</strong>
-    <p>Last run was <?= View::e($runWhen($runner['last_at'])) ?>,
+    <strong>The scheduled job has stopped.</strong>
+    <p>Requests still send when you press Send, but reminders and retries have
+      stopped. Last run was <?= View::e($runWhen($runner['last_at'])) ?>,
       <?= View::e(App\Support\Heartbeat::inWords($runner['ago_seconds'])) ?> ago<?php
         if (($runner['every_seconds'] ?? null) !== null): ?>, and it had been
       running about every
       <?= View::e(App\Support\Heartbeat::inWords($runner['every_seconds'])) ?><?php
-        endif; ?>. Nothing is lost &mdash; everything queued goes out when it
-      starts again. Check the cron job in hPanel.</p>
+        endif; ?>. Nothing is lost &mdash; it all catches up when it starts
+      again. Check the cron job in hPanel.</p>
   </div>
 <?php elseif ($runState === 'ok'): ?>
   <p class="runner runner--ok">
@@ -275,6 +284,11 @@ $canSendAnything = $chosen !== null;
       <button class="btn btn--primary btn--xl" type="submit" style="justify-self:start;">
         Send the request
       </button>
+
+      <p class="form__note">
+        It goes out straight away &mdash; you will see whether it sent on the
+        next screen.
+      </p>
 
       <p class="form__note" style="margin-top:.75rem;">
         Goes out as <strong><?= View::e($business) ?></strong>, with replies coming

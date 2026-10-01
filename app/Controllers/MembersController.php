@@ -190,11 +190,32 @@ final class MembersController
         }
 
         Audit::log('request.queued', 'review_request', (int) $queued['id']);
+
+        // Pressing Send sends. One message to one address is an ordinary form
+        // submit, and waiting five minutes for a scheduled job to notice -- or
+        // for ever, if that job was never created -- is not what anybody means
+        // by this button. The row is committed first, so a failure here is a
+        // slower send rather than a lost one.
+        $now = ReviewRequests::sendNow((int) $queued['id']);
+
+        if ($now['sent']) {
+            $this->back(sprintf(
+                'Sent to %s, pointing at %s. We will remind them once in %d days, then stop.',
+                $first,
+                ReviewRequests::DESTINATIONS[$destination],
+                ReviewRequests::FOLLOW_UP_DAYS,
+            ));
+        }
+
+        // Not an error. The request is recorded and will go out; say which of
+        // the two reasons it is waiting, because they need different fixes.
         $this->back(sprintf(
-            'On its way to %s, pointing at %s. We will remind them once in %d days, then stop.',
+            'Queued for %s, pointing at %s. %s',
             $first,
             ReviewRequests::DESTINATIONS[$destination],
-            ReviewRequests::FOLLOW_UP_DAYS,
+            $now['error'] === null
+                ? 'It will go out shortly.'
+                : 'It could not go out just now: ' . $now['error'],
         ));
     }
 

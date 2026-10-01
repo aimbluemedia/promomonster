@@ -662,7 +662,10 @@ if ($mailFiles !== []) {
             $logDirOk = is_dir($base . '/storage/logs') && is_writable($base . '/storage/logs');
 
             add($checks, 'Send queue runner', 'fail',
-                'HAS NEVER RUN, so nothing queued will ever send. In hPanel: Advanced -> Cron Jobs, '
+                'HAS NEVER RUN. A request now sends on the click, so this is not what stands '
+                . 'between pressing Send and an email arriving -- it is the reminder three days '
+                . 'later, and the retry for anything that failed first time. Both are off until '
+                . 'it runs. In hPanel: Advanced -> Cron Jobs, '
                 . 'every 5 minutes, with this as the command: '
                 . '/usr/bin/php ' . $base . '/bin/send-due.php >> '
                 . $base . '/storage/logs/cron.log 2>&1'

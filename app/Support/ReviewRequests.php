@@ -414,14 +414,14 @@ final class ReviewRequests
     // =====================================================================
 
     /**
-     * Requests that are due, oldest first.
+     * Everything send() reads about a request. One definition, two callers.
      *
-     * @return array<int,array<string,mixed>>
+     * r.* rather than a column list on purpose: send() and compose() between
+     * them touch most of the table, and this is the one query where naming
+     * columns individually would let a migration break sending by omission
+     * rather than visibly.
      */
-    public static function due(int $limit = 25): array
-    {
-        return Database::all(
-            'SELECT r.*,
+    private const SENDABLE = 'SELECT r.*,
                     c.email AS contact_email, c.first_name, c.last_name, c.email_opted_out,
                     l.name AS location_name, l.google_review_url, l.reply_to_email,
                     l.address_line1, l.city, l.region, l.postal_code,
@@ -431,7 +431,17 @@ final class ReviewRequests
                JOIN contacts  c ON c.id = r.contact_id
                JOIN locations l ON l.id = r.location_id
                JOIN accounts  a ON a.id = l.account_id
-          LEFT JOIN templates t ON t.id = r.template_id
+          LEFT JOIN templates t ON t.id = r.template_id';
+
+    /**
+     * Requests that are due, oldest first.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    public static function due(int $limit = 25): array
+    {
+        return Database::all(
+            self::SENDABLE . '
               WHERE r.status IN (\'queued\', \'scheduled\')
                 AND r.scheduled_for <= NOW()
                 AND r.attempts < :max
@@ -439,6 +449,74 @@ final class ReviewRequests
               LIMIT ' . max(1, min(200, $limit)),
             ['max' => self::MAX_ATTEMPTS],
         );
+    }
+
+    /**
+     * Everything send() needs about one request, by id.
+     *
+     * The same shape due() returns, from the same SELECT, because send() reads
+     * a dozen keys off the row and a second query that drifted by one alias
+     * would send an email with an empty business name in the greeting. That
+     * has happened here once already.
+     *
+     * @return array<string,mixed>|null
+     */
+    public static function row(int $id): ?array
+    {
+        return Database::first(self::SENDABLE . ' WHERE r.id = :id LIMIT 1', ['id' => $id]);
+    }
+
+    /**
+     * Send one request now, in the request that created it.
+     *
+     * Pressing Send should send. The queue came first and the runner was meant
+     * to drain it within five minutes, which is fine in principle and was not
+     * fine in practice: the cron job is created by hand in a control panel, it
+     * is entirely possible to believe you did it, and until it exists every
+     * request sits at "queued" for ever while the product looks broken.
+     *
+     * One message to one address is a second or two of SMTP -- an ordinary form
+     * submit, not a batch. The pacing the runner does between sends is for
+     * batches and has nothing to do here: the gap between two requests is
+     * however long it takes somebody to type the next customer's name.
+     *
+     * The row is written before this is attempted, so a send that fails or
+     * times out leaves an ordinary queued request for the runner to pick up.
+     * Nothing is lost by trying, which is the property that makes trying safe.
+     *
+     * Best effort by construction: it returns why not rather than throwing, and
+     * the caller reports a failure as "queued" rather than as an error, because
+     * from the member's side that is exactly what it is.
+     *
+     * @return array{sent:bool, error:?string}
+     */
+    public static function sendNow(int $id): array
+    {
+        // Sending needs the columns 018 adds -- there is nowhere to record what
+        // went out without them -- and a driver that delivers. Either missing
+        // means leave it queued rather than fail in front of somebody.
+        if (self::missingForSending() !== []) {
+            return ['sent' => false, 'error' => 'The database is not ready to record a send yet.'];
+        }
+        if (!Mailer::isLive()) {
+            return ['sent' => false, 'error' => 'Email sending is not switched on yet.'];
+        }
+
+        try {
+            $row = self::row($id);
+            if ($row === null) {
+                return ['sent' => false, 'error' => 'That request could not be found.'];
+            }
+
+            $result = self::send($row);
+
+            return ['sent' => (bool) $result['ok'], 'error' => $result['error']];
+        } catch (Throwable $e) {
+            // A timeout, a provider having a bad minute, a fatal in the mailer.
+            // The row is queued already and the runner will try again, so this
+            // is a slower send rather than a lost one.
+            return ['sent' => false, 'error' => $e->getMessage()];
+        }
     }
 
     /**
