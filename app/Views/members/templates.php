@@ -26,34 +26,13 @@ $isCopy      = $editing !== null && (int) $editing['is_system'] === 1;
   </div>
 <?php else: ?>
 
-<?php /* Writing templates and choosing one per send work without 021. Only
-         remembering a favourite needs it, so the page says which part is
-         missing rather than shutting the whole screen down -- which is what it
-         used to do, and it read as "no templates exist". */ ?>
-<?php if (!$defaults): ?>
-  <div class="notice" style="margin-bottom:1.5rem;border-left-color:var(--star);">
-    <strong>One thing missing: we cannot remember a favourite yet.</strong>
-    <p>You can write templates and pick one each time you send. Marking one as
-      your default needs a database update that has not been run on this site
-      yet &mdash; until it is, every request goes out in the standard wording
-      unless you choose another on the send form.</p>
-  </div>
-<?php endif; ?>
+<?php /* Two notices stood here and were removed on request: one explaining
+         that 021 had not been run, so a favourite could not be remembered, and
+         one setting out the rules on incentives and review gating.
 
-<?php /* The rules first, because they are not ours and cannot be worked around
-         by writing the email differently. A business that reads this after
-         writing a template that breaks them has wasted the effort. */ ?>
-<div class="notice" style="margin-bottom:1.5rem;">
-  <strong>Two things to keep on the right side of.</strong>
-  <p style="margin:.45rem 0 0;">
-    Do not offer anything in return for a review &mdash; no discount, no entry
-    into a draw, nothing. Google removes reviews collected that way and it
-    breaks US law besides. And ask <em>everybody</em>, not just the customers
-    you expect to be pleased: picking who gets asked is review gating, which
-    the FTC banned outright in 2024. Honest wording, sent to everyone, is also
-    the version that works.
-  </p>
-</div>
+         $defaults still decides whether the default controls are drawn, so the
+         page does not offer a button that cannot work -- it just no longer
+         explains itself at the top of the screen. */ ?>
 
 <?php /* ---- The form ------------------------------------------------------ */ ?>
 <div class="card" style="margin-bottom:1.5rem;">
