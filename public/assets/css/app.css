@@ -1335,3 +1335,33 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
   line-height:1.65; white-space:pre-wrap; word-break:break-word; }
 .pick__edit{ color:var(--brand); font-size:.8rem; font-weight:600; }
 @media (max-width:620px){ .pick__tools{ padding-left:1rem; } }
+
+/* --- The playbook: how to ask, and where ---------------------------------- */
+.dos{ list-style:none; margin:0; padding:0; display:grid; gap:.9rem; max-width:46rem; }
+.dos__item{ display:flex; gap:.9rem; align-items:flex-start;
+  background:var(--surface); border:1px solid var(--line); border-radius:11px;
+  padding:1rem 1.15rem; }
+.dos__n{ flex-shrink:0; width:1.65rem; height:1.65rem; border-radius:50%;
+  display:inline-flex; align-items:center; justify-content:center;
+  background:var(--wash); border:1px solid var(--line); color:var(--brand);
+  font-size:.82rem; font-weight:800; font-variant-numeric:tabular-nums; }
+.dos__do{ display:block; color:var(--ink); line-height:1.4; }
+.dos__why{ margin:.3rem 0 0; color:var(--muted); font-size:.9rem; line-height:1.6; }
+
+.where{ max-width:46rem; background:var(--surface); border:1px solid var(--line);
+  border-radius:11px; margin-bottom:.6rem; }
+.where[open]{ border-color:var(--brand); }
+.where__head{ display:flex; align-items:center; gap:.6rem; cursor:pointer;
+  padding:.85rem 1.15rem; font-weight:700; color:var(--ink); }
+.where__name{ flex:1; }
+.where__count{ flex-shrink:0; min-width:1.6rem; text-align:center;
+  background:var(--wash); border:1px solid var(--line); border-radius:99px;
+  padding:.05rem .45rem; color:var(--muted); font-size:.76rem; font-weight:700;
+  font-variant-numeric:tabular-nums; }
+.where__note{ margin:0 1.15rem .75rem; padding-top:.1rem; color:var(--muted);
+  font-size:.86rem; line-height:1.55; }
+.where__list{ display:grid; gap:.1rem .9rem; margin:0; padding:0 1.15rem 1rem; }
+@media (min-width:640px){ .where__list{ grid-template-columns:13rem 1fr; } }
+.where__list dt{ font-weight:600; color:var(--ink); font-size:.88rem; }
+.where__list dd{ margin:0 0 .55rem; color:var(--muted); font-size:.86rem; line-height:1.5; }
+@media (min-width:640px){ .where__list dd{ margin-bottom:.25rem; } }
