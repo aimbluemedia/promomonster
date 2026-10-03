@@ -180,6 +180,35 @@ You should no longer see a bare 500. The error page carries a **reference** like
 `11AC64C3`. Open `/diagnose.php` — it lists the most recent errors with that
 reference, the message, and the file and line.
 
+#### Unless EVERY page 500s, including `/diagnose.php`
+
+Then the error is in `app/config.php`, and nothing else is worth checking first.
+
+A syntax error in a file that every request `require`s is a PHP **compile**
+error, not an exception. No `try`/`catch` anywhere in the codebase can survive
+it, the error page never gets the chance to render a reference, and
+`diagnose.php` dies with everything else. One stray character in that file takes
+the whole site down, which no other file can do.
+
+Upload **`config-check.php`** and open `https://promomonster.com/config-check.php`.
+It reads `config.php` as text rather than running it, so it answers while
+everything else is down, and it names the line PHP gave up on. It also catches
+the three things that cause this in practice: a block pasted *after* the final
+`];` instead of before it, a missing comma on the line above a new entry, and
+markdown ``` ``` ``` backticks copied in along with a block.
+
+It **never prints a value** — only key names, types and lengths — because it
+sits on a public URL with no login in front of it and that file holds the
+database password, `app_key` and the Stripe secret key. PHP's own error messages
+quote the offending token, so a config truncated mid-value would otherwise
+expose the start of a secret; the message is filtered for exactly that.
+
+**Delete `config-check.php` from the server** once the site is back, like
+`diagnose.php` and the other tools here.
+
+The fastest fix is usually not a fix at all: put the previous `config.php` back
+and the site returns immediately. Then re-apply the edit one entry at a time.
+
 The full detail is written to `storage/logs/error.log` (denied to the web by its
 own `.htaccess`). Make sure the `storage/` folder uploaded and is writable —
 if it is not, errors fall back to the host's PHP error log instead.
