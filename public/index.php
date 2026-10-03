@@ -64,6 +64,7 @@ require dirname(__DIR__) . '/app/bootstrap.php';
 
 use App\Controllers\SuperadminController;
 use App\Controllers\AuthController;
+use App\Controllers\BillingController;
 use App\Controllers\CompareController;
 use App\Controllers\LeadController;
 use App\Controllers\MailController;
@@ -101,6 +102,11 @@ $router->getToken('/r', static fn (string $t) => $mail->click($t));
 $router->getToken('/u', static fn (string $t) => $mail->unsubscribeForm($t));
 $router->postToken('/u', static fn (string $t) => $mail->unsubscribe($t));
 $router->postToken('/webhooks/email', static fn (string $s) => $mail->webhook($s));
+
+// Stripe posting a subscription event. No secret in the path and no CSRF
+// token: the Stripe-Signature header is the authorisation, and only Stripe can
+// produce one. See BillingController::webhook().
+$router->post('/webhooks/stripe', static fn () => (new BillingController())->webhook());
 
 // Public one-time AI comparison. Spends money per submission, so the guards
 // live in the controller rather than here.
@@ -168,6 +174,12 @@ $router->get('/members/requests', static fn () => (new MembersController())->req
 $router->get('/members/playbook', static fn () => (new MembersController())->playbook());
 $router->get('/members/settings', static fn () => (new MembersController())->settings());
 $router->post('/members/plan',   static fn () => (new MembersController())->requestPlan());
+
+// Paying for a plan. /members/plan above still exists and still works: it is
+// the fallback for when Stripe is not configured, and the only route to Free.
+$router->post('/members/billing/start',  static fn () => (new BillingController())->start());
+$router->post('/members/billing/manage', static fn () => (new BillingController())->manage());
+$router->get('/members/billing/return',  static fn () => (new BillingController())->finish());
 $router->post('/members/review-link', static fn () => (new MembersController())->saveReviewLink());
 $router->post('/members/ask',         static fn () => (new MembersController())->ask());
 $router->post('/members/remind',      static fn () => (new MembersController())->remindRequest());

@@ -138,6 +138,63 @@ return [
         'webhook_secret' => '',
     ],
 
+    // Taking money. Leave secret_key empty and the whole thing stays switched
+    // off: the settings page goes back to recording a plan REQUEST, superadmin
+    // keeps its upgrade queue, and nothing in the product breaks. Billing only
+    // ever writes accounts.plan -- what a plan allows is decided by Plans and
+    // SendLimit, exactly as it is today -- so Stripe can be turned off again
+    // tomorrow and every account keeps working on whatever it was last on.
+    //
+    // There is no SDK and no Composer here: app/Support/Billing.php talks to
+    // four Stripe endpoints over cURL. Nothing to install.
+    //
+    // secret_key      From Developers -> API keys. The SECRET key (sk_live_...,
+    //                 or sk_test_... while you are trying it), not the
+    //                 publishable one. This is a password for your money:
+    //                 config.php is gitignored and must stay that way.
+    //
+    //                 A test key is detected and said out loud on the settings
+    //                 page and in diagnose.php, because that mistake is silent
+    //                 in both directions -- a live key in testing takes real
+    //                 money, and a test key in production takes none.
+    //
+    // webhook_secret  From Developers -> Webhooks, after you add an endpoint
+    //                 pointing at https://promomonster.com/webhooks/stripe
+    //                 (whsec_...). Subscribe it to at least:
+    //                   checkout.session.completed
+    //                   customer.subscription.updated
+    //                   customer.subscription.deleted
+    //                   invoice.payment_failed
+    //
+    //                 Leave it empty and a first payment is still picked up --
+    //                 the return from checkout does that -- but a cancellation
+    //                 or a failed renewal is picked up by nothing, and you go
+    //                 on serving somebody who stopped paying in March.
+    //
+    //                 There is no shared secret in the URL, unlike the email
+    //                 webhook above: Stripe signs the body, and the signature
+    //                 is the authorisation.
+    //
+    // prices          The PRICE id of each plan (price_...), from the product
+    //                 in Stripe. Not the product id (prod_...), which will not
+    //                 work. Make each one a RECURRING monthly price at the
+    //                 figure in Plans: $19 for Pro, $49 for Premium.
+    //
+    //                 A plan with no Price here cannot be bought and falls
+    //                 back to being a request, so Pro can go live on its own
+    //                 while Premium is still arranged by hand. A Price that is
+    //                 not listed here is a subscription we cannot name: if one
+    //                 arrives on a webhook it is recorded and the plan is left
+    //                 exactly as it was, rather than guessed at.
+    'stripe' => [
+        'secret_key'     => '',
+        'webhook_secret' => '',
+        'prices' => [
+            'pro'     => '',
+            'premium' => '',
+        ],
+    ],
+
     // Powers the review comparison (superadmin audits and the public /compare
     // page). Without a key those are disabled; nothing else depends on it.
     'anthropic' => [

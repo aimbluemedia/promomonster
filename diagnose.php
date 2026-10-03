@@ -724,6 +724,53 @@ if ($mailFiles !== []) {
             ? 'shows the form and will send a link.'
             : 'shows "Email sending is not switched on yet" and will not send a link.'));
 
+    // --- Card payments ----------------------------------------------------
+    //
+    // Deliberately 'todo' rather than 'fail' when it is off. Nothing is broken
+    // by having no Stripe keys: the settings page goes back to recording a plan
+    // request and superadmin keeps its upgrade queue, which is exactly how this
+    // worked before. It is a thing not yet switched on, not a thing wrong.
+    //
+    // The 025 columns are checked here rather than in "Required columns"
+    // above, because that row promises a 500 and these do not cause one --
+    // Billing guards every write, so a database without them shows a settings
+    // page that says so and offers the request button instead.
+    try {
+        $billingLive = App\Support\Billing::live();
+        $billingWhy  = App\Support\Billing::status();
+
+        // 'pass' only when money could actually arrive. A test key is live by
+        // every other measure and takes nothing, so a green row next to one is
+        // the most expensive kind of wrong this page can be. Same for a
+        // missing webhook: the first payment works and the cancellation never
+        // comes, which looks fine until the first chargeback.
+        $billingReady = $billingLive
+            && !App\Support\Billing::testMode()
+            && App\Support\Billing::webhookSecret() !== '';
+
+        add($checks, 'Card payments', $billingReady ? 'pass' : 'todo',
+            $billingWhy
+            . '  ||  So /members/settings '
+            . ($billingLive
+                ? 'offers a real Subscribe button that sends them to Stripe.'
+                : 'offers "Request Pro", which records the request for you to set up by hand.')
+            . ($billingLive && App\Support\Billing::testMode()
+                ? '  ||  WARNING: this is a TEST key. Nobody can pay you through it. '
+                  . 'Swap it for the sk_live_ key when you are ready to take money.'
+                : '')
+            . (App\Support\Billing::key() !== '' && App\Support\Billing::webhookSecret() === ''
+                ? '  ||  Add it at Developers -> Webhooks in Stripe, pointing at '
+                  . rtrim((string) ($config['app_url'] ?? ''), '/') . '/webhooks/stripe, '
+                  . 'subscribed to checkout.session.completed, customer.subscription.updated, '
+                  . 'customer.subscription.deleted and invoice.payment_failed. Then put the '
+                  . 'whsec_ value in config.php as stripe.webhook_secret.'
+                : ''));
+    } catch (Throwable $e) {
+        add($checks, 'Card payments', 'fail',
+            'Could not be checked: ' . get_class($e) . ': ' . $e->getMessage()
+            . ' -- most likely app/Support/Billing.php was not uploaded.');
+    }
+
     // Has anybody actually asked for one?
     //
     // Every other row here is about configuration. None of them can tell the

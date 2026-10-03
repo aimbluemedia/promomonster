@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 use App\Support\Audit;
 use App\Support\Auth;
+use App\Support\Billing;
 use App\Support\Config;
 use App\Support\Csrf;
 use App\Support\Database;
@@ -726,6 +727,20 @@ final class MembersController
 
         if ($wanted === $current && ($account['requested_plan'] ?? null) === null) {
             $this->flashBack('You are already on ' . Plans::name($current) . '.');
+        }
+
+        // A card Stripe is still charging. Writing plan = 'free' here would put
+        // the business on the Free allowance with $19 a month still leaving
+        // their account, and they would have pressed the button that did it.
+        // Cancelling has to happen at Stripe; the plan then comes back to Free
+        // on the subscription event.
+        if ($wanted === Plans::FREE && Billing::hasLiveSubscription($account)) {
+            $this->flashBack(
+                'Your subscription is live with Stripe, so cancelling it there is what stops the '
+                . 'charge -- doing it here would drop your plan and keep billing you. Press '
+                . '"Manage billing" and cancel on that page; your plan moves to Free as soon as '
+                . 'Stripe confirms it.'
+            );
         }
 
         if ($wanted === Plans::FREE) {
