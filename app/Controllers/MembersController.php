@@ -14,6 +14,7 @@ use App\Support\EmailTemplates;
 use App\Support\Heartbeat;
 use App\Support\HostedReviews;
 use App\Support\Mailer;
+use App\Support\Onboarding;
 use App\Support\Plans;
 use App\Support\ReviewLink;
 use App\Support\ReviewRequests;
@@ -54,11 +55,33 @@ final class MembersController
              'a3' => (int) $account['id'], 'a4' => (int) $account['id']],
         ) ?? [];
 
+        // What the member still has to do. Gathered here, decided in
+        // Onboarding, drawn in the view -- so the interesting part (which step
+        // is next, what a plan hides) is testable without a database.
+        //
+        // Reviews are counted from BOTH tables. Somebody whose first review
+        // landed on their own page would otherwise still be told to go and
+        // collect one, which is the checklist calling them a liar.
+        $hosted = HostedReviews::ready()
+            ? (int) (HostedReviews::summary((int) $account['id'])['count'] ?? 0)
+            : 0;
+
+        $steps = Onboarding::steps([
+            'plan'             => (string) ($account['plan'] ?? Plans::FREE),
+            'hasPage'          => HostedReviews::ready()
+                && HostedReviews::slug((int) $account['id'], (string) ($account['name'] ?? '')) !== null,
+            'hasGoogleLink'    => trim((string) ($locations[0]['google_review_url'] ?? '')) !== '',
+            'requestsSent'     => (int) ($stats['requests'] ?? 0),
+            'reviewsCollected' => (int) ($stats['reviews'] ?? 0) + $hosted,
+        ]);
+
         echo View::members('members/overview', [
             'title'     => 'Dashboard · PromoMonster',
             'account'   => $account,
             'locations' => $locations,
             'stats'     => $stats,
+            'steps'     => $steps,
+            'progress'  => Onboarding::progress($steps),
         ]);
     }
 

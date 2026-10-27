@@ -1,7 +1,18 @@
-<?php use App\Support\View; /** @var array $account @var array $locations @var array $stats */ ?>
+<?php use App\Support\View; /** @var array $account @var array $locations @var array $stats
+ *  @var array $steps @var array $progress */ ?>
 <?php /* The plan cards used to be rendered here. They are in the layout now,
          under the nav on every page, so the dashboard would have shown them
          twice. */ ?>
+<?php /* ---- Get started ---------------------------------------------- */ ?>
+<?php /* Above the figures. Four numbers reading zero is a diagnosis without a
+         prescription -- this is the prescription, and it stops being the first
+         thing on the page by going quiet once it is finished, not by being
+         dismissed. */ ?>
+<?= View::render('members/_getting-started', [
+    'steps'    => $steps,
+    'progress' => $progress,
+]) ?>
+
 <div class="admin-title">
   <h1>Dashboard</h1>
   <span class="pill-status st-new"><?= View::e(ucfirst((string) ($account['plan'] ?? 'trial'))) ?></span>
