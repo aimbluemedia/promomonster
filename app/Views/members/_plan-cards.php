@@ -62,6 +62,23 @@ $onLadder = in_array($current, Plans::SELECTABLE, true);
             </li>
           <?php endforeach; ?>
         </ul>
+
+        <?php /* What comes with every plan, listed on every plan. The same two
+                 lines on Free as on Premium is the point: somebody weighing
+                 the tiers should see they get these either way, rather than
+                 wondering whether the cheap one leaves them out. */ ?>
+        <?php $extra = Plans::includes((string) $key); ?>
+        <p class="plan-card__heading plan-card__heading--extra">
+          <?= View::e($extra['heading']) ?>
+        </p>
+        <ul class="plan-card__list">
+          <?php foreach ($extra['items'] as $item): ?>
+            <li class="yes">
+              <span aria-hidden="true">&#10003;</span>
+              <span><strong><?= View::e($item) ?></strong></span>
+            </li>
+          <?php endforeach; ?>
+        </ul>
       </details>
 
       <div class="plan-card__act">

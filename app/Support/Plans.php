@@ -180,6 +180,39 @@ final class Plans
     }
 
     /**
+     * The directory listings every plan carries.
+     *
+     * Not metered and not gated, so they are not in GRANTS: they are the same
+     * on Free as on Premium, which is the point of listing them -- somebody
+     * deciding between tiers should be able to see what they get either way.
+     *
+     * @var list<string>
+     */
+    public const BUNDLED = [
+        'SearchMonster Directory',
+        'MonsterList Directory',
+    ];
+
+    /**
+     * The second block at the bottom of a plan card: a heading naming the
+     * plan, and what comes with it whichever one you are on.
+     *
+     * Takes the plan key even though every plan currently gets the same list.
+     * That is deliberate: when one tier eventually carries a directory another
+     * does not, the difference belongs here next to GRANTS, not typed into the
+     * markup where nothing tests it.
+     *
+     * @return array{heading:string, items:list<string>}
+     */
+    public static function includes(string $key): array
+    {
+        return [
+            'heading' => 'Includes ' . self::name($key) . ' Plan',
+            'items'   => self::BUNDLED,
+        ];
+    }
+
+    /**
      * The plan card, as lines with a yes or a no against each.
      *
      * Built from LIMITS and GRANTS, never typed out. The whole reason this is

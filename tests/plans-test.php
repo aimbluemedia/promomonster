@@ -334,5 +334,44 @@ foreach (Plans::ABILITIES as $ability) {
     }
 }
 
+// =====================================================================
+// What comes with every plan
+// =====================================================================
+//
+// The directories are not metered and not gated, so they are not in GRANTS.
+// They are still a promise on a card, which is the only reason they need
+// pinning: a plan quietly losing one is a thing somebody chose us for.
+
+check('two directories are bundled', count(Plans::BUNDLED), 2);
+check('SearchMonster is one',  in_array('SearchMonster Directory', Plans::BUNDLED, true), true);
+check('MonsterList is the other', in_array('MonsterList Directory', Plans::BUNDLED, true), true);
+
+foreach ([Plans::FREE, Plans::PRO, Plans::PREMIUM, Plans::PARTNER] as $plan) {
+    $block = Plans::includes($plan);
+
+    // The heading names the plan it is on, so three cards side by side do not
+    // all read "Includes Free Plan".
+    check("{$plan}: the heading names the plan",
+        $block['heading'], 'Includes ' . Plans::name($plan) . ' Plan');
+
+    // Every plan carries the lot. The whole point of listing them on Free is
+    // that somebody weighing the tiers can see they are not an upsell.
+    check("{$plan}: carries every directory", $block['items'], Plans::BUNDLED);
+
+    foreach ($block['items'] as $item) {
+        ok("{$plan}: \"{$item}\" has words", trim($item) !== '');
+    }
+}
+
+// A directory must never collide with a gated line, or the same words would
+// appear once with a tick and once with a cross on one card.
+foreach ([Plans::FREE, Plans::PRO, Plans::PREMIUM] as $plan) {
+    $onCard = array_column(Plans::card($plan), 'text');
+    foreach (Plans::BUNDLED as $item) {
+        ok("{$plan}: \"{$item}\" is not also a gated line",
+            !in_array($item, $onCard, true));
+    }
+}
+
 echo "\n{$passed} passed, {$failed} failed\n";
 exit($failed === 0 ? 0 : 1);

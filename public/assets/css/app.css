@@ -1399,6 +1399,10 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
 
 .plan-card__heading{ margin:.6rem 0 .35rem; font-size:.78rem; font-weight:700;
   text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+/* The bundled block is a second list, so it needs a rule above it or the two
+   read as one run of ticks. */
+.plan-card__heading--extra{ margin-top:.8rem; padding-top:.7rem;
+  border-top:1px solid var(--line); }
 
 .plan-card__list{ list-style:none; margin:0; padding:0; display:grid; gap:.35rem; }
 .plan-card__list li{ display:grid; grid-template-columns:1.1rem 1fr; gap:.45rem;
