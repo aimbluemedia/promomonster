@@ -47,7 +47,11 @@ $onLadder = in_array($current, Plans::SELECTABLE, true);
                browser, and it keeps working in an email-client preview and
                with a screen reader -- none of which a div and a click handler
                would do. */ ?>
-      <details class="plan-card__more"<?= $isCurrent ? ' open' : '' ?>>
+      <?php /* Closed by default, current plan included. These sit above the
+               content of every page now, so an open panel is three screens of
+               plan detail between the nav and the thing somebody came to do.
+               One click opens it, and the summary says what is behind it. */ ?>
+      <details class="plan-card__more">
         <summary>What is included</summary>
         <p class="plan-card__heading">Includes monthly</p>
         <ul class="plan-card__list">

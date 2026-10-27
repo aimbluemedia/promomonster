@@ -60,8 +60,21 @@ unset($_SESSION['members_flash']);
 <?php /* Under the nav on every page, because the plan is now the reason three
          of the links above it behave differently. A member who meets a locked
          section with no idea why writes a support email; one who can see what
-         they are on, and what the next tier costs, does not have to. */ ?>
-<?= View::render('members/_plan-bar', ['account' => $account ?? []]) ?>
+         they are on, and what the next tier costs, does not have to.
+
+         The cards themselves rather than a line of text: the question somebody
+         actually has at a locked screen is "what would I get", and a price
+         with no list beside it does not answer it.
+
+         id="plans" lives here now, so every "Compare the plans" link still
+         lands on something whichever page it was pressed from. */ ?>
+<div class="planstrip">
+  <div class="container">
+    <section id="plans">
+      <?= View::render('members/_plan-cards', ['account' => $account ?? []]) ?>
+    </section>
+  </div>
+</div>
 
 <main class="admin-main">
   <div class="container">

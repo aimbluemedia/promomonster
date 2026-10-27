@@ -1,15 +1,7 @@
 <?php use App\Support\View; /** @var array $account @var array $locations @var array $stats */ ?>
-<?php /* ---- The plans ---------------------------------------------------- */ ?>
-<?php /* First thing on the page, under the nav and the plan bar. What a member
-         can do with this product is decided here -- three of the screens in
-         the nav are partly closed on Free -- so it goes above the figures
-         rather than below them.
-
-         id="plans" is the anchor the bar and every upgrade button point at. */ ?>
-<section id="plans" style="margin-bottom:2rem;">
-  <?= View::render('members/_plan-cards', ['account' => $account]) ?>
-</section>
-
+<?php /* The plan cards used to be rendered here. They are in the layout now,
+         under the nav on every page, so the dashboard would have shown them
+         twice. */ ?>
 <div class="admin-title">
   <h1>Dashboard</h1>
   <span class="pill-status st-new"><?= View::e(ucfirst((string) ($account['plan'] ?? 'trial'))) ?></span>

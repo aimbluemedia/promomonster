@@ -1425,20 +1425,16 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
 .locked__act{ display:flex; flex-wrap:wrap; gap:.6rem; margin-top:1rem; align-items:center; }
 .locked__act form{ margin:0; }
 
-/* ---- The plan line under the nav -------------------------------------- */
-/* On every members page, because the plan now decides whether three of the
-   screens in the nav above it work. One line, quiet, never a banner. */
-.planbar{ border-bottom:1px solid var(--line); background:var(--wash,#f7f9fb); }
-.planbar__in{ display:flex; flex-wrap:wrap; gap:.4rem 1.25rem; align-items:baseline;
-  padding:.55rem 0; font-size:.86rem; }
-.planbar__label{ text-transform:uppercase; letter-spacing:.05em; font-size:.68rem;
-  font-weight:800; color:var(--muted); margin-right:.3rem; }
-.planbar__mine strong{ color:var(--ink); }
-.planbar__price{ color:var(--muted); margin-left:.3rem; }
-.planbar__more a{ color:var(--brand); font-weight:700; text-decoration:none; }
-.planbar__more a:hover{ text-decoration:underline; }
-.planbar__or{ color:var(--muted); margin:0 .3rem; }
-.planbar__top{ color:var(--muted); }
-@media (max-width:620px){
-  .planbar__in{ flex-direction:column; gap:.15rem; }
+/* ---- The plans under the nav ------------------------------------------ */
+/* On every members page: the plan decides whether three of the screens in the
+   nav above work, so the answer to "what would I get" is never a click away.
+   Panels are collapsed, so this costs one row, not three screens. */
+.planstrip{ border-bottom:1px solid var(--line); background:var(--wash,#f7f9fb);
+  padding:1rem 0 1.1rem; }
+/* padding-top leaves room for the "Current" flag, which overlaps the card's
+   top edge and would otherwise be clipped by the strip. */
+.planstrip .plan-cards{ margin:0; padding-top:.35rem; }
+.planstrip .plan-card{ padding:.9rem 1rem .85rem; }
+.planstrip .plan-card__price{ font-size:1.3rem; }
+.planstrip .plan-card__act{ padding-top:.75rem; }
 }
