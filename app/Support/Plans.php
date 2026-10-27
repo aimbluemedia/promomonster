@@ -340,6 +340,76 @@ final class Plans
         return in_array($key, self::PAID, true);
     }
 
+    /**
+     * A price as money, always with the cents.
+     *
+     * "$0.00" rather than "Free", and "$19.00" rather than "$19", because a
+     * price column where one row says a word and the next says a number reads
+     * as two different kinds of thing. Every price the member sees goes
+     * through here, so they cannot drift into different shapes on different
+     * screens.
+     */
+    public static function money(string|int $plan): string
+    {
+        $dollars = is_int($plan) ? $plan : self::price($plan);
+
+        return '$' . number_format((float) $dollars, 2);
+    }
+
+    /**
+     * Every plan somebody could buy that grants this, cheapest first.
+     *
+     * cheapestWith() answers "which button", this answers "what to say": a
+     * refusal that names only the cheapest option hides the fact that the plan
+     * they were already considering also covers it.
+     *
+     * @return list<string>
+     */
+    public static function plansWith(string $ability): array
+    {
+        $found = [];
+        foreach (self::SELECTABLE as $key) {
+            if (self::can($key, $ability)) {
+                $found[$key] = self::price($key);
+            }
+        }
+
+        asort($found);
+
+        return array_keys($found);
+    }
+
+    /**
+     * The plans that cost more than this one, cheapest first.
+     *
+     * What the bar under the nav offers. Compared by price rather than by
+     * position in SELECTABLE, so a tier inserted in the middle cannot leave
+     * somebody being offered an "upgrade" to something cheaper.
+     *
+     * Empty for Partner and anything else off the self-serve ladder: those are
+     * arranged by hand and must never be shown a buy button.
+     *
+     * @return list<string>
+     */
+    public static function above(string $plan): array
+    {
+        if (!in_array($plan, self::SELECTABLE, true)) {
+            return [];
+        }
+
+        $mine  = self::price($plan);
+        $found = [];
+        foreach (self::SELECTABLE as $key) {
+            if (self::price($key) > $mine) {
+                $found[$key] = self::price($key);
+            }
+        }
+
+        asort($found);
+
+        return array_keys($found);
+    }
+
     /** Plans offered on the pricing page and the signup form, in order. */
     public static function selectable(): array
     {

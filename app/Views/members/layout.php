@@ -56,6 +56,13 @@ unset($_SESSION['members_flash']);
     </nav>
   </div>
 </header>
+
+<?php /* Under the nav on every page, because the plan is now the reason three
+         of the links above it behave differently. A member who meets a locked
+         section with no idea why writes a support email; one who can see what
+         they are on, and what the next tier costs, does not have to. */ ?>
+<?= View::render('members/_plan-bar', ['account' => $account ?? []]) ?>
+
 <main class="admin-main">
   <div class="container">
     <?php if ($flash !== null): ?>

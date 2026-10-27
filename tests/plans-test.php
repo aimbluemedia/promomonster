@@ -279,5 +279,60 @@ check('free card: standard template only',
 check('premium card: no logo',
     Plans::card(Plans::PREMIUM)[5]['text'], 'Website code with no PromoMonster name on it');
 
+// =====================================================================
+// How a price is printed, and what sits above a plan
+// =====================================================================
+//
+// Every price the member sees goes through money(). A column where one row
+// says a word and the next says a number reads as two different things, and
+// the word is the one people skip.
+
+check('free is a number, not a word', Plans::money(Plans::FREE), '$0.00');
+check('pro carries cents',            Plans::money(Plans::PRO), '$19.00');
+check('premium carries cents',        Plans::money(Plans::PREMIUM), '$49.00');
+check('a bare amount formats too',    Plans::money(7), '$7.00');
+
+foreach (Plans::SELECTABLE as $key) {
+    ok("{$key}: the price is money, not prose",
+        preg_match('/^\$[0-9,]+\.[0-9]{2}$/', Plans::money($key)) === 1);
+}
+
+// --- What the bar under the nav offers ----------------------------------
+check('free is offered both paid plans', Plans::above(Plans::FREE), [Plans::PRO, Plans::PREMIUM]);
+check('pro is offered premium',          Plans::above(Plans::PRO), [Plans::PREMIUM]);
+check('premium is offered nothing',      Plans::above(Plans::PREMIUM), []);
+// Partner is arranged by hand. Offering it a buy button would let a stray
+// click replace a reseller agreement with a $19 subscription.
+check('partner is offered nothing',      Plans::above(Plans::PARTNER), []);
+check('an unknown plan is offered nothing', Plans::above('enterprise'), []);
+
+// Everything offered as an upgrade must actually cost more, and be buyable.
+foreach (Plans::SELECTABLE as $key) {
+    foreach (Plans::above($key) as $up) {
+        ok("{$key} -> {$up} really is dearer", Plans::price($up) > Plans::price($key));
+        ok("{$key} -> {$up} can be bought",    in_array($up, Plans::SELECTABLE, true));
+    }
+}
+
+// --- What a refusal names -----------------------------------------------
+// Every plan that grants it, cheapest first, not just the cheapest: somebody
+// who upgrades to Pro for one thing and then needs Premium for the next has
+// been led there one plan at a time.
+check('the Google page names both paid plans',
+    Plans::plansWith(Plans::GOOGLE_PAGE), [Plans::PRO, Plans::PREMIUM]);
+check('white-label names Premium alone',
+    Plans::plansWith(Plans::UNBRANDED), [Plans::PREMIUM]);
+check('an ability nobody sells names nobody', Plans::plansWith('teleportation'), []);
+
+foreach (Plans::ABILITIES as $ability) {
+    $named = Plans::plansWith($ability);
+    ok("{$ability}: something grants it", $named !== []);
+    ok("{$ability}: the cheapest named is the one the button uses",
+        $named[0] === Plans::cheapestWith($ability));
+    foreach ($named as $key) {
+        ok("{$ability}: {$key} really grants it", Plans::can($key, $ability));
+    }
+}
+
 echo "\n{$passed} passed, {$failed} failed\n";
 exit($failed === 0 ? 0 : 1);

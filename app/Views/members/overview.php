@@ -1,4 +1,15 @@
 <?php use App\Support\View; /** @var array $account @var array $locations @var array $stats */ ?>
+<?php /* ---- The plans ---------------------------------------------------- */ ?>
+<?php /* First thing on the page, under the nav and the plan bar. What a member
+         can do with this product is decided here -- three of the screens in
+         the nav are partly closed on Free -- so it goes above the figures
+         rather than below them.
+
+         id="plans" is the anchor the bar and every upgrade button point at. */ ?>
+<section id="plans" style="margin-bottom:2rem;">
+  <?= View::render('members/_plan-cards', ['account' => $account]) ?>
+</section>
+
 <div class="admin-title">
   <h1>Dashboard</h1>
   <span class="pill-status st-new"><?= View::e(ucfirst((string) ($account['plan'] ?? 'trial'))) ?></span>
@@ -24,17 +35,6 @@
     </div>
   <?php endforeach; ?>
 </div>
-
-<?php /* ---- The plans ---------------------------------------------------- */ ?>
-<?php /* Sits directly under the figures rather than buried in Settings,
-         because what somebody can do with this product is decided here and
-         three of the screens in the nav above are partly closed on Free. A
-         member who cannot find out why a page is locked assumes it is broken.
-
-         Move this block above the .stat-grid if it should be the first thing
-         on the page -- nothing else depends on where it sits. */ ?>
-<h2 style="font-size:1.15rem;margin:2.25rem 0 1rem;">Your plan</h2>
-<?= View::render('members/_plan-cards', ['account' => $account]) ?>
 
 <h2 style="font-size:1.15rem;margin:2.25rem 0 1rem;">Your locations</h2>
 <div class="table-wrap">

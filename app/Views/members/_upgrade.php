@@ -41,11 +41,19 @@ $label   = Plans::ABILITY_LABELS[$ability] ?? 'This';
     <p class="locked__blurb">This one we arrange directly &mdash; email us and a
       person will sort it.</p>
   <?php else: ?>
+    <?php /* Every plan that grants it, not just the cheapest. Naming only the
+             cheapest hides the fact that the tier they were already thinking
+             about covers it too, and somebody who upgrades to Pro for this and
+             then finds they needed Premium for the next thing has been led
+             there one plan at a time. */ ?>
+    <?php $options = Plans::plansWith($ability); ?>
     <p class="locked__price">
-      On <strong><?= View::e(Plans::name($needed)) ?></strong>,
-      <?= Plans::price($needed) === 0
-          ? 'at no cost'
-          : '$' . (int) Plans::price($needed) . ' a month' ?>.
+      Upgrade to
+      <?php foreach ($options as $i => $key): ?>
+        <?php if ($i > 0): ?> or <?php endif; ?>
+        <strong><?= View::e(Plans::name($key)) ?></strong><?= $i === 0 ? ',' : '' ?>
+        <?= View::e(Plans::money($key)) ?>/month<?= $i === count($options) - 1 ? '.' : '' ?>
+      <?php endforeach; ?>
     </p>
 
     <div class="locked__act">

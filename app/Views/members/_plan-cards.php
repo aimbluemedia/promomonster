@@ -31,13 +31,15 @@ $onLadder = in_array($current, Plans::SELECTABLE, true);
     ?>
     <div class="plan-card<?= $isCurrent ? ' is-current' : '' ?>">
       <?php if ($isCurrent): ?>
-        <span class="plan-card__flag">Your plan</span>
+        <span class="plan-card__flag">Current</span>
       <?php endif; ?>
 
       <span class="plan-card__name"><?= View::e($plan['name']) ?></span>
+      <?php /* "$0.00", not "Free". A price column where one row says a word
+               and the next says a number reads as two different kinds of
+               thing, and the word is the one people skip over. */ ?>
       <span class="plan-card__price">
-        <?= $plan['price'] === 0 ? 'Free' : '$' . (int) $plan['price'] ?>
-        <?php if ($plan['price'] > 0): ?><small>/mo</small><?php endif; ?>
+        <?= View::e(Plans::money((string) $key)) ?><small>/month</small>
       </span>
 
       <?php /* A details element rather than a script. It needs no JavaScript,
@@ -73,7 +75,7 @@ $onLadder = in_array($current, Plans::SELECTABLE, true);
             <button class="btn btn--primary btn--block" type="submit">
               <?= Plans::isPaid($current)
                   ? 'Change plan on Stripe'
-                  : 'Upgrade &mdash; $' . (int) $plan['price'] . '/mo' ?>
+                  : 'Upgrade &mdash; ' . View::e(Plans::money((string) $key)) . '/month' ?>
             </button>
           </form>
         <?php elseif ($canBuy): ?>
