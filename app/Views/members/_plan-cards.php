@@ -1,0 +1,101 @@
+<?php
+use App\Support\Billing;
+use App\Support\Csrf;
+use App\Support\Plans;
+use App\Support\View;
+/**
+ * The three plans, with the member's own one marked.
+ *
+ * A partial rather than part of the dashboard, because Settings wants the same
+ * three cards and two copies would drift the moment a price moved.
+ *
+ * Every line inside a card comes from Plans::card(), which is generated from
+ * the same table the gates read. Nothing here is typed out: a card that said
+ * "Add reviews by hand" while the gate disagreed would be lying to somebody
+ * who had paid, so the two cannot be edited apart.
+ *
+ * @var array $account
+ */
+$current  = (string) ($account['plan'] ?? Plans::FREE);
+$onLadder = in_array($current, Plans::SELECTABLE, true);
+?>
+<div class="plan-cards">
+  <?php foreach (Plans::selectable() as $key => $plan): ?>
+    <?php
+      $isCurrent = $key === $current;
+      $lines     = Plans::card((string) $key);
+      // Partner sits off the self-serve ladder, so nothing is offered to it:
+      // a reseller agreement must not be replaceable by a stray click on a
+      // $19 button.
+      $canBuy    = $onLadder && !$isCurrent && Plans::isPaid((string) $key);
+    ?>
+    <div class="plan-card<?= $isCurrent ? ' is-current' : '' ?>">
+      <?php if ($isCurrent): ?>
+        <span class="plan-card__flag">Your plan</span>
+      <?php endif; ?>
+
+      <span class="plan-card__name"><?= View::e($plan['name']) ?></span>
+      <span class="plan-card__price">
+        <?= $plan['price'] === 0 ? 'Free' : '$' . (int) $plan['price'] ?>
+        <?php if ($plan['price'] > 0): ?><small>/mo</small><?php endif; ?>
+      </span>
+
+      <?php /* A details element rather than a script. It needs no JavaScript,
+               it opens on its own when somebody searches the page in their
+               browser, and it keeps working in an email-client preview and
+               with a screen reader -- none of which a div and a click handler
+               would do. */ ?>
+      <details class="plan-card__more"<?= $isCurrent ? ' open' : '' ?>>
+        <summary>What is included</summary>
+        <p class="plan-card__heading">Includes monthly</p>
+        <ul class="plan-card__list">
+          <?php foreach ($lines as $line): ?>
+            <li class="<?= $line['included'] ? 'yes' : 'no' ?>">
+              <span aria-hidden="true"><?= $line['included'] ? '&#10003;' : '&#10005;' ?></span>
+              <span><?= View::e($line['text']) ?></span>
+            </li>
+          <?php endforeach; ?>
+        </ul>
+      </details>
+
+      <div class="plan-card__act">
+        <?php if ($isCurrent): ?>
+          <span class="plan-card__on">You are on this plan</span>
+        <?php elseif (!$onLadder): ?>
+          <span class="plan-card__on">Arranged with you directly</span>
+        <?php elseif ($canBuy && Billing::canCharge((string) $key)): ?>
+          <?php /* POST with a token, not a link: a GET that creates a Stripe
+                   customer and a checkout session is one an image tag on
+                   another site can fire. */ ?>
+          <form method="post" action="/members/billing/start">
+            <?= Csrf::field() ?>
+            <input type="hidden" name="plan" value="<?= View::e((string) $key) ?>">
+            <button class="btn btn--primary btn--block" type="submit">
+              <?= Plans::isPaid($current)
+                  ? 'Change plan on Stripe'
+                  : 'Upgrade &mdash; $' . (int) $plan['price'] . '/mo' ?>
+            </button>
+          </form>
+        <?php elseif ($canBuy): ?>
+          <form method="post" action="/members/plan">
+            <?= Csrf::field() ?>
+            <input type="hidden" name="plan" value="<?= View::e((string) $key) ?>">
+            <button class="btn btn--primary btn--block" type="submit">
+              Request <?= View::e($plan['name']) ?>
+            </button>
+          </form>
+        <?php else: ?>
+          <?php /* Moving DOWN to Free. Routed through /members/plan, which
+                   refuses it outright while Stripe is still collecting --
+                   dropping the plan here would leave a business on the Free
+                   allowance with the card still being charged. */ ?>
+          <form method="post" action="/members/plan">
+            <?= Csrf::field() ?>
+            <input type="hidden" name="plan" value="<?= View::e((string) $key) ?>">
+            <button class="btn btn--ghost btn--block" type="submit">Move to Free</button>
+          </form>
+        <?php endif; ?>
+      </div>
+    </div>
+  <?php endforeach; ?>
+</div>

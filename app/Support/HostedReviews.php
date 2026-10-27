@@ -166,7 +166,11 @@ final class HostedReviews
         }
 
         return Database::first(
-            'SELECT id, name, public_slug FROM accounts
+            // plan is here because the embedded widget drops our name on the
+            // plan that pays for that. Without it every account reads as Free
+            // and white-label silently never happens -- a feature somebody
+            // paid for, failing quietly, on a page we never look at.
+            'SELECT id, name, public_slug, plan FROM accounts
               WHERE public_slug = :s AND status = \'active\' LIMIT 1',
             ['s' => $slug],
         );

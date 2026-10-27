@@ -238,6 +238,17 @@ add($checks, 'Hero image', $heroFound !== null ? 'pass' : 'fail',
 
 // --- Config and database --------------------------------------------------
 $configPath = $base . '/app/config.php';
+
+// Declared before the branch below, not inside it.
+//
+// Several checks further down read $config, and they run whether or not the
+// file was there -- so with config.php missing they each emitted "Undefined
+// variable $config" into the middle of the page. Harmless to the checks
+// themselves, which all guard with is_array(), but a page whose job is to tell
+// you what is wrong must not be throwing warnings of its own: the first thing
+// anybody does with one is chase it.
+$config = null;
+
 if (!is_file($configPath)) {
     add($checks, 'app/config.php', 'fail',
         "MISSING. Copy app/config.example.php to app/config.php and fill in your database details.");
@@ -760,7 +771,8 @@ if ($mailFiles !== []) {
                 : '')
             . (App\Support\Billing::key() !== '' && App\Support\Billing::webhookSecret() === ''
                 ? '  ||  Add it at Developers -> Webhooks in Stripe, pointing at '
-                  . rtrim((string) ($config['app_url'] ?? ''), '/') . '/webhooks/stripe, '
+                  . rtrim((string) (is_array($config) ? ($config['app_url'] ?? '') : ''), '/')
+                  . '/webhooks/stripe, '
                   . 'subscribed to checkout.session.completed, customer.subscription.updated, '
                   . 'customer.subscription.deleted and invoice.payment_failed. Then put the '
                   . 'whsec_ value in config.php as stripe.webhook_secret.'

@@ -1,7 +1,9 @@
 <?php use App\Support\Csrf; use App\Support\HostedReviews; use App\Support\View;
 /** @var array $account @var bool $ready @var ?string $slug @var ?string $pageUrl
  *  @var ?string $widgetJs @var array $summary @var array $reviews
- *  @var array $requests @var ?string $error */
+ *  @var array $requests @var ?string $error @var bool $canAdd @var bool $branded */
+$canAdd  = $canAdd ?? true;
+$branded = $branded ?? true;
 ?>
 <div class="admin-title">
   <h1>PromoMonster reviews</h1>
@@ -48,6 +50,15 @@
   </div>
 
   <?php /* ---- 2. Add one by hand -------------------------------------------- */ ?>
+  <?php if (!$canAdd): ?>
+    <?= View::render('members/_upgrade', [
+        'account' => $account,
+        'ability' => App\Support\Plans::ADD_REVIEWS,
+        'blurb'   => 'For a review a customer gave you in person or over the phone, or one '
+                   . 'already sitting on your Google listing. Both are labelled as added by '
+                   . 'you, so nobody reading them is misled about where they came from.',
+    ]) ?>
+  <?php else: ?>
   <div class="card" style="margin-bottom:1.5rem;">
     <div class="step-head">
       <span class="step-head__n">2</span>
@@ -116,6 +127,7 @@
       <button class="btn btn--primary" type="submit" style="justify-self:start;">Add review</button>
     </form>
   </div>
+  <?php endif; ?>
 
   <?php /* ---- 3. The widget ---------------------------------------------- */ ?>
   <div class="card" style="margin-bottom:1.5rem;">
@@ -134,7 +146,26 @@
     </p>
     <p class="muted" style="font-size:.86rem;margin:.6rem 0 0;">
       It shows your latest twelve, your average, and a link to the full page.
+      <?php if ($branded): ?>
+        The link reads <strong>&ldquo;Every review, on PromoMonster&rdquo;</strong>.
+      <?php else: ?>
+        On your plan it carries no PromoMonster name &mdash; the link back just
+        reads <strong>&ldquo;See every review&rdquo;</strong>.
+      <?php endif; ?>
     </p>
+    <?php /* The link itself stays on every plan, branded or not. It is how a
+             reader checks these are ALL the reviews rather than a flattering
+             dozen, and selling the ability to hide that would be selling the
+             ability to mislead. White-label removes our name, not the proof. */ ?>
+    <?php if ($branded): ?>
+      <p class="muted" style="font-size:.86rem;margin:.6rem 0 0;">
+        <?php $plain = App\Support\Plans::cheapestWith(App\Support\Plans::UNBRANDED); ?>
+        <?php if ($plain !== null): ?>
+          Want it without our name on it? That is
+          <a href="/members"><?= View::e(App\Support\Plans::name($plain)) ?></a>.
+        <?php endif; ?>
+      </p>
+    <?php endif; ?>
   </div>
 
   <?php /* ---- What is there ------------------------------------------------ */ ?>

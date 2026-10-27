@@ -4,8 +4,9 @@ use App\Support\EmailTemplates;
 use App\Support\View;
 /**
  * @var array $account @var bool $ready @var bool $defaults @var array $sets
- * @var ?array $editing @var ?string $error
+ * @var ?array $editing @var ?string $error @var bool $canWrite
  */
+$canWrite = $canWrite ?? true;
 $editingId   = $editing === null ? 0 : (int) $editing['id'];
 $editingKind = $editing === null ? 'request' : (string) $editing['kind'];
 $isCopy      = $editing !== null && (int) $editing['is_system'] === 1;
@@ -35,6 +36,19 @@ $isCopy      = $editing !== null && (int) $editing['is_system'] === 1;
          explains itself at the top of the screen. */ ?>
 
 <?php /* ---- The form ------------------------------------------------------ */ ?>
+<?php /* On a plan with the standard wording only, the form is replaced rather
+         than disabled: a form you can fill in and not submit wastes somebody's
+         afternoon. saveTemplate(), makeTemplateDefault() and deleteTemplate()
+         all refuse the POST too, so this is presentation, not the gate. */ ?>
+<?php if (!$canWrite): ?>
+  <?= View::render('members/_upgrade', [
+      'account' => $account,
+      'ability' => App\Support\Plans::ALL_TEMPLATES,
+      'blurb'   => 'Write the ask in your own words, save it, and pick it per send. '
+                 . '"How did Dave do?" gets answered; "How did we do?" gets deleted. '
+                 . 'You also get the rest of the wording we ship, not just the standard one.',
+  ]) ?>
+<?php else: ?>
 <div class="card" style="margin-bottom:1.5rem;">
   <div class="step-head">
     <span class="step-head__n"><?= $editingId > 0 && !$isCopy ? 'E' : '+' ?></span>
@@ -138,6 +152,7 @@ $isCopy      = $editing !== null && (int) $editing['is_system'] === 1;
     </div>
   </form>
 </div>
+<?php endif; ?>
 
 <?php /* ---- What exists, by kind ------------------------------------------ */ ?>
 <?php foreach ($sets as $kind => $set): ?>
@@ -176,11 +191,17 @@ $isCopy      = $editing !== null && (int) $editing['is_system'] === 1;
         </details>
 
         <div class="tmpl__actions">
-          <a class="btn btn--sm" href="/members/templates?edit=<?= $id ?>">
-            <?= $system ? 'Start from this' : 'Edit' ?>
-          </a>
+          <?php if ($canWrite): ?>
+            <a class="btn btn--sm" href="/members/templates?edit=<?= $id ?>">
+              <?= $system ? 'Start from this' : 'Edit' ?>
+            </a>
+          <?php endif; ?>
 
-          <?php if ($defaults && !$isDefault && !$system): ?>
+          <?php if (!$canWrite): ?>
+            <?php /* Nothing to act on, so the row says what it is rather than
+                     showing buttons that would be refused. */ ?>
+            <span class="muted" style="font-size:.86rem;">This is what your requests go out in.</span>
+          <?php elseif ($defaults && !$isDefault && !$system): ?>
             <form method="post" action="/members/templates/default" style="display:inline;">
               <?= Csrf::field() ?>
               <input type="hidden" name="id" value="<?= $id ?>">

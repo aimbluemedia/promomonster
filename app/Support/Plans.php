@@ -65,15 +65,167 @@ final class Plans
      * A null means no limit, and only Partner has one.
      */
     private const LIMITS = [
-        self::FREE    => ['locations' => 1,    'requests_per_month' => 4,
+        self::FREE    => ['locations' => 1,    'requests_per_month' => 5,
                           'burst' => 1,  'burst_days' => 7],
-        self::PRO     => ['locations' => 1,    'requests_per_month' => 60,
+        self::PRO     => ['locations' => 1,    'requests_per_month' => 30,
                           'burst' => 2,  'burst_days' => 1],
-        self::PREMIUM => ['locations' => 5,    'requests_per_month' => 300,
+        self::PREMIUM => ['locations' => 5,    'requests_per_month' => 100,
                           'burst' => 10, 'burst_days' => 1],
         self::PARTNER => ['locations' => null, 'requests_per_month' => null,
                           'burst' => null, 'burst_days' => null],
     ];
+
+    /* ------------------------------------------------------------ abilities */
+
+    /**
+     * The things a plan either can or cannot do.
+     *
+     * Separate from LIMITS because these are not numbers: a limit is "how
+     * many", an ability is "at all". Every gate in the product reads one of
+     * these four, and so does the card that advertises them -- which is the
+     * point. A plan card listing a feature the code does not actually gate,
+     * or gating one the card does not mention, is a refund conversation, so
+     * the card is GENERATED from this table rather than typed out beside it.
+     */
+    public const GOOGLE_PAGE   = 'google_page';
+    public const ALL_TEMPLATES = 'all_templates';
+    public const ADD_REVIEWS   = 'add_reviews';
+    public const UNBRANDED     = 'unbranded_widget';
+
+    /** @var list<string> */
+    public const ABILITIES = [
+        self::GOOGLE_PAGE, self::ALL_TEMPLATES, self::ADD_REVIEWS, self::UNBRANDED,
+    ];
+
+    /**
+     * What to call each one when it has to be refused, in the second person,
+     * because every one of these strings is read by somebody who has just been
+     * told they cannot do the thing they came to do.
+     */
+    public const ABILITY_LABELS = [
+        self::GOOGLE_PAGE   => 'Your Google review page',
+        self::ALL_TEMPLATES => 'Writing your own email wording',
+        self::ADD_REVIEWS   => 'Adding reviews by hand',
+        self::UNBRANDED     => 'The website code without our name on it',
+    ];
+
+    /** @var array<string,array<string,bool>> */
+    private const GRANTS = [
+        self::FREE => [
+            self::GOOGLE_PAGE   => false,
+            self::ALL_TEMPLATES => false,
+            self::ADD_REVIEWS   => false,
+            self::UNBRANDED     => false,
+        ],
+        self::PRO => [
+            self::GOOGLE_PAGE   => true,
+            self::ALL_TEMPLATES => true,
+            self::ADD_REVIEWS   => true,
+            self::UNBRANDED     => false,
+        ],
+        self::PREMIUM => [
+            self::GOOGLE_PAGE   => true,
+            self::ALL_TEMPLATES => true,
+            self::ADD_REVIEWS   => true,
+            self::UNBRANDED     => true,
+        ],
+        // Partner resells Premium to its own clients, so it can do everything
+        // Premium can. A missing entry here would read as "cannot", and a
+        // reseller losing a feature because a plan was added is the kind of
+        // bug nobody reports -- they just stop using it.
+        self::PARTNER => [
+            self::GOOGLE_PAGE   => true,
+            self::ALL_TEMPLATES => true,
+            self::ADD_REVIEWS   => true,
+            self::UNBRANDED     => true,
+        ],
+    ];
+
+    /**
+     * Whether a plan may do something.
+     *
+     * Fails CLOSED on anything it does not recognise. An unknown plan or a
+     * misspelled ability must not open a paid feature -- a typo in a gate
+     * should cost a member a feature they can ask us about, never give away
+     * one they have not paid for.
+     */
+    public static function can(string $plan, string $ability): bool
+    {
+        return self::GRANTS[$plan][$ability] ?? false;
+    }
+
+    /**
+     * The cheapest plan somebody could buy to get this, or null if none does.
+     *
+     * Walked in price order rather than hard-coded, so "Upgrade to Pro" never
+     * points at the wrong tier after a feature moves between them. Partner is
+     * not considered: it is arranged by hand and cannot be bought from a page.
+     */
+    public static function cheapestWith(string $ability): ?string
+    {
+        $candidates = [];
+        foreach (self::SELECTABLE as $key) {
+            if (self::can($key, $ability)) {
+                $candidates[$key] = self::price($key);
+            }
+        }
+
+        if ($candidates === []) {
+            return null;
+        }
+
+        asort($candidates);
+
+        return (string) array_key_first($candidates);
+    }
+
+    /**
+     * The plan card, as lines with a yes or a no against each.
+     *
+     * Built from LIMITS and GRANTS, never typed out. The whole reason this is
+     * a function and not a constant is that a card is a promise: if the list
+     * said "Add reviews by hand" and the gate disagreed, one of them would be
+     * lying to somebody who had paid.
+     *
+     * @return list<array{text:string, included:bool}>
+     */
+    public static function card(string $key): array
+    {
+        $month = self::LIMITS[$key]['requests_per_month'] ?? null;
+
+        return [
+            // Nobody is charged for a customer leaving a review. Capping that
+            // would mean turning a business's own review page off part way
+            // through a month, which is not a plan limit, it is a fault.
+            ['text' => 'Unlimited form fills', 'included' => true],
+            [
+                'text' => $month === null
+                    ? 'Emails to customers requesting a review, uncapped'
+                    : $month . ' emails to customers requesting a review',
+                'included' => true,
+            ],
+            [
+                'text' => self::can($key, self::ALL_TEMPLATES)
+                    ? 'Every email template, and your own wording'
+                    : 'Standard template only',
+                'included' => self::can($key, self::ALL_TEMPLATES),
+            ],
+            [
+                'text'     => 'Your Google review page',
+                'included' => self::can($key, self::GOOGLE_PAGE),
+            ],
+            [
+                'text'     => 'Add reviews by hand',
+                'included' => self::can($key, self::ADD_REVIEWS),
+            ],
+            [
+                'text' => self::can($key, self::UNBRANDED)
+                    ? 'Website code with no PromoMonster name on it'
+                    : 'Website code carries the PromoMonster name',
+                'included' => self::can($key, self::UNBRANDED),
+            ],
+        ];
+    }
 
     /**
      * The catalogue.
@@ -107,13 +259,14 @@ final class Plans
                 'featured' => false,
                 'limits'   => self::LIMITS[self::FREE],
                 'features' => [
-                    ['Google review link and printable QR code', true, self::STATE_NOW],
-                    [self::sendingLimit(self::FREE), true, self::STATE_SOON],
-                    ['One reminder, three days later', true, self::STATE_SOON],
+                    ['Unlimited form fills on your own review page', true, self::STATE_NOW],
+                    [self::sendingLimit(self::FREE), true, self::STATE_NOW],
+                    ['One reminder, three days later', true, self::STATE_NOW],
                     ['Review Growth Score', true, self::STATE_NOW],
-                    ['Sent under your own business name, with no PromoMonster footer', false, null],
-                    ['Your own wording, saved as a template', false, null],
-                    ['See who opened your review link', false, null],
+                    ['Standard email wording only', true, self::STATE_NOW],
+                    ['Your Google review page', false, null],
+                    ['Add reviews by hand', false, null],
+                    ['Website code with no PromoMonster name on it', false, null],
                 ],
             ],
             self::PRO => [
@@ -124,12 +277,13 @@ final class Plans
                 'limits'   => self::LIMITS[self::PRO],
                 'features' => [
                     ['Everything in Free', true, null],
-                    [self::sendingLimit(self::PRO), true, self::STATE_SOON],
-                    ['Sent under your own business name, with no PromoMonster footer', true, self::STATE_SOON],
-                    ['Your own wording, saved as a template', true, self::STATE_SOON],
+                    [self::sendingLimit(self::PRO), true, self::STATE_NOW],
+                    ['Your Google review page', true, self::STATE_NOW],
+                    ['Every email template, and your own wording', true, self::STATE_NOW],
+                    ['Add reviews by hand', true, self::STATE_NOW],
+                    ['See who opened your review link', true, self::STATE_NOW],
                     ['Import your customers from a spreadsheet', true, self::STATE_SOON],
-                    ['See who opened your review link', true, self::STATE_SOON],
-                    ['AI-drafted replies — paste a review, get a reply to post', true, self::STATE_SOON],
+                    ['Website code with no PromoMonster name on it', false, null],
                     ['More than one location', false, null],
                 ],
             ],
@@ -141,10 +295,10 @@ final class Plans
                 'limits'   => self::LIMITS[self::PREMIUM],
                 'features' => [
                     ['Everything in Pro', true, null],
-                    [self::sendingLimit(self::PREMIUM), true, self::STATE_SOON],
+                    [self::sendingLimit(self::PREMIUM), true, self::STATE_NOW],
+                    ['Website code with no PromoMonster name on it', true, self::STATE_NOW],
                     ['Up to 5 locations, scored separately', true, self::STATE_SOON],
                     ['A login and an ask link for each of your people', true, self::STATE_SOON],
-                    ['See which of them is actually getting reviews', true, self::STATE_SOON],
                     ['Downloadable and white-label reports', true, self::STATE_SOON],
                     ['Priority support', true, self::STATE_NOW],
                 ],

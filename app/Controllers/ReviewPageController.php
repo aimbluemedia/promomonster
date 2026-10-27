@@ -8,6 +8,7 @@ use App\Support\Config;
 use App\Support\Csrf;
 use App\Support\Database;
 use App\Support\HostedReviews;
+use App\Support\Plans;
 use App\Support\Request;
 use App\Support\Tokens;
 use App\Support\View;
@@ -127,6 +128,11 @@ final class ReviewPageController
         $id = (int) $account['id'];
         $html = View::render('reviews/widget', [
             'account' => $account,
+            // White-label is a plan feature, decided here rather than on the
+            // members page that shows the snippet: the snippet never changes,
+            // the served file does. A business that upgrades gets our name off
+            // its site within the cache window, with nothing to re-paste.
+            'branded' => !Plans::can((string) ($account['plan'] ?? Plans::FREE), Plans::UNBRANDED),
             'summary' => HostedReviews::summary($id),
             'reviews' => array_slice(HostedReviews::forAccount($id, 12), 0, 12),
             'pageUrl' => rtrim((string) Config::get('app_url', 'https://promomonster.com'), '/')

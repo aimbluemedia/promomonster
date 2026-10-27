@@ -1,5 +1,11 @@
 <?php use App\Support\HostedReviews; use App\Support\View;
-/** @var array $account @var array $summary @var array $reviews @var string $pageUrl */
+/** @var array $account @var array $summary @var array $reviews @var string $pageUrl
+ *  @var bool $branded */
+
+// Branded unless a caller says otherwise. Defaulting the other way round would
+// hand white-label to every plan the first time a caller forgot to pass it,
+// and nobody would report that as a bug.
+$branded = $branded ?? true;
 
 /* Every style is inline, on purpose.
  *
@@ -75,9 +81,12 @@ $stars = static function (int $n): string {
   <?php endif; ?>
 
   <?php /* The link back is not decoration: a reader has to be able to check
-           that this is the whole set and not a flattering selection. */ ?>
+           that this is the whole set and not a flattering selection. So
+           white-label removes our NAME from it and never the link -- selling
+           the ability to hide the full list would be selling the ability to
+           mislead, which is the one thing this product cannot be for. */ ?>
   <div style="<?= $muted ?>">
     <a href="<?= View::e($pageUrl) ?>" target="_blank" rel="noopener"
-       style="color:#0475a3;">Every review, on PromoMonster</a>
+       style="color:#0475a3;"><?= $branded ? 'Every review, on PromoMonster' : 'See every review' ?></a>
   </div>
 </div>

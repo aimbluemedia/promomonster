@@ -1365,3 +1365,62 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
 .where__list dt{ font-weight:600; color:var(--ink); font-size:.88rem; }
 .where__list dd{ margin:0 0 .55rem; color:var(--muted); font-size:.86rem; line-height:1.5; }
 @media (min-width:640px){ .where__list dd{ margin-bottom:.25rem; } }
+
+/* ---- Plan cards ------------------------------------------------------- */
+/* Three plans side by side on the dashboard, with the member's own marked.
+   Shares the look of .plan-option in Settings but not its markup: these are
+   not a radio group, each one carries its own form. */
+.plan-cards{ display:grid; gap:.85rem; margin:0 0 .5rem; }
+@media (min-width:860px){ .plan-cards{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+
+.plan-card{ position:relative; display:flex; flex-direction:column;
+  border:1px solid var(--line); border-radius:12px; padding:1.15rem 1.15rem 1.1rem;
+  background:var(--card,#fff); }
+.plan-card.is-current{ border-color:var(--brand); box-shadow:0 0 0 2px var(--brand) inset; }
+
+.plan-card__flag{ position:absolute; top:-.6rem; left:1.1rem;
+  background:var(--brand); color:#fff; font-size:.68rem; font-weight:800;
+  letter-spacing:.04em; text-transform:uppercase; padding:.18rem .5rem;
+  border-radius:999px; }
+
+.plan-card__name{ display:block; font-weight:700; color:var(--ink); font-size:1.05rem; }
+.plan-card__price{ display:block; font-size:1.55rem; font-weight:800; color:var(--ink);
+  line-height:1.1; margin-top:.15rem; }
+.plan-card__price small{ font-size:.8rem; font-weight:600; color:var(--muted); }
+
+.plan-card__more{ margin-top:.9rem; }
+.plan-card__more summary{ cursor:pointer; font-size:.88rem; font-weight:600;
+  color:var(--brand); list-style:none; padding:.2rem 0; }
+.plan-card__more summary::-webkit-details-marker{ display:none; }
+.plan-card__more summary::before{ content:"\25B8"; display:inline-block;
+  margin-right:.4rem; transition:transform .12s ease; }
+.plan-card__more[open] summary::before{ transform:rotate(90deg); }
+.plan-card__more summary:focus-visible{ outline:2px solid var(--brand); outline-offset:2px; }
+
+.plan-card__heading{ margin:.6rem 0 .35rem; font-size:.78rem; font-weight:700;
+  text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+
+.plan-card__list{ list-style:none; margin:0; padding:0; display:grid; gap:.35rem; }
+.plan-card__list li{ display:grid; grid-template-columns:1.1rem 1fr; gap:.45rem;
+  align-items:start; font-size:.88rem; line-height:1.45; }
+.plan-card__list li.yes span:first-child{ color:#0b7a4b; font-weight:800; }
+.plan-card__list li.no{ color:var(--muted); }
+.plan-card__list li.no span:first-child{ color:#b3261e; font-weight:800; }
+
+.plan-card__act{ margin-top:auto; padding-top:1rem; }
+.plan-card__on{ display:block; text-align:center; font-size:.86rem;
+  font-weight:600; color:var(--muted); }
+
+/* ---- A section the plan does not include ------------------------------ */
+.locked{ border:1px solid var(--line); border-left:5px solid var(--brand);
+  border-radius:12px; padding:1.25rem 1.35rem; background:var(--card,#fff);
+  margin-bottom:1.5rem; }
+.locked__head{ display:flex; flex-wrap:wrap; gap:.6rem; align-items:center; }
+.locked__pill{ background:var(--line); color:var(--ink); font-size:.7rem;
+  font-weight:800; letter-spacing:.04em; text-transform:uppercase;
+  padding:.2rem .55rem; border-radius:999px; }
+.locked__title{ font-size:1.05rem; margin:0; color:var(--ink); }
+.locked__blurb{ margin:.6rem 0 0; font-size:.92rem; color:var(--muted); max-width:46rem; }
+.locked__price{ margin:.75rem 0 0; font-size:.95rem; color:var(--ink); }
+.locked__act{ display:flex; flex-wrap:wrap; gap:.6rem; margin-top:1rem; align-items:center; }
+.locked__act form{ margin:0; }

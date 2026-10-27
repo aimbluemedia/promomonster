@@ -5,8 +5,9 @@ use App\Support\ReviewLink;
 use App\Support\View;
 /**
  * @var array $account @var ?array $location @var int $stuck @var bool $sending
- * @var array $requests
+ * @var array $requests @var bool $allowed
  */
+$allowed = $allowed ?? true;
 $reviewUrl = trim((string) ($location['google_review_url'] ?? ''));
 $ready     = $reviewUrl !== '';
 $business  = trim((string) ($location['name'] ?? ($account['name'] ?? 'your business')));
@@ -24,10 +25,25 @@ $business  = trim((string) ($location['name'] ?? ($account['name'] ?? 'your busi
          the one that offers the choice. */ ?>
 <div class="admin-title">
   <h1>Google reviews</h1>
-  <?php if ($ready): ?>
+  <?php if ($ready && $allowed): ?>
     <a class="btn btn--sm" href="/members/requests">Send a request</a>
   <?php endif; ?>
 </div>
+
+<?php /* Not on this plan. The page still exists and still says what it is for
+         -- a locked screen that explains nothing reads as a broken one -- but
+         everything that writes is replaced by the price of being able to.
+         saveReviewLink() refuses the POST as well, because a hidden form is
+         not a closed door. */ ?>
+<?php if (!$allowed): ?>
+  <?= View::render('members/_upgrade', [
+      'account' => $account,
+      'ability' => App\Support\Plans::GOOGLE_PAGE,
+      'blurb'   => 'Save your Google review link and every request you send drops the '
+                 . 'customer straight into your review box, one tap, no searching. It is '
+                 . 'the listing a stranger reads before they call you.',
+  ]) ?>
+<?php else: ?>
 
 <?php /* A request now sends on the click, so one still waiting is one that did
          not get away -- not one waiting its turn. The old wording blamed a
@@ -117,3 +133,5 @@ $business  = trim((string) ($location['name'] ?? ($account['name'] ?? 'your busi
   Requests to every destination are on the
   <a href="/members/requests" style="color:var(--brand);">Review requests</a> page.
 </p>
+
+<?php endif; ?>

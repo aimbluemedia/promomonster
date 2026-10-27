@@ -82,6 +82,7 @@ final class MembersController
             'location' => $location,
             'stuck'    => $this->queueLooksStuck((int) $account['id']),
             'sending'  => Mailer::isLive(),
+            'allowed'  => $this->can(Plans::GOOGLE_PAGE),
             'requests' => ReviewRequests::recent((int) $account['id'], 'google', 25),
         ]);
     }
@@ -96,6 +97,7 @@ final class MembersController
         $account = Auth::account() ?? [];
         $here    = '/members/reviews';
         $this->guard($here);
+        $this->requirePlan(Plans::GOOGLE_PAGE, $here);
 
         $location = $this->primaryLocation((int) $account['id']);
         if ($location === null) {
@@ -315,6 +317,11 @@ final class MembersController
             'title'    => 'PromoMonster reviews · PromoMonster',
             'account'  => $account,
             'ready'    => HostedReviews::ready(),
+            'canAdd'   => $this->can(Plans::ADD_REVIEWS),
+            // Premium takes our name off the embed. Shown here so the snippet
+            // on screen is the snippet they will get, rather than a promise
+            // the served file then contradicts.
+            'branded'  => !$this->can(Plans::UNBRANDED),
             'slug'     => $slug,
             'pageUrl'  => $slug === null ? null : $base . '/reviews/' . $slug,
             'widgetJs' => $slug === null ? null : $base . '/widget/' . $slug . '.js',
@@ -394,7 +401,7 @@ final class MembersController
             $default = EmailTemplates::defaultFor($id, $kind);
             $sets[$kind] = [
                 'label'     => $label,
-                'rows'      => EmailTemplates::forAccount($id, $kind),
+                'rows'      => $this->wordingFor(EmailTemplates::forAccount($id, $kind)),
                 'defaultId' => $default === null ? null : (int) $default['id'],
             ];
         }
@@ -407,6 +414,7 @@ final class MembersController
             'title'    => 'Email templates · PromoMonster',
             'account'  => $account,
             'ready'    => EmailTemplates::ready(),
+            'canWrite' => $this->can(Plans::ALL_TEMPLATES),
             // Writing templates and picking one per send need nothing from 021.
             // Remembering a favourite does, so the page hides those controls
             // rather than offering a button that cannot work.
@@ -421,6 +429,7 @@ final class MembersController
     public function saveTemplate(): void
     {
         $this->guardTo('/members/templates');
+        $this->requirePlan(Plans::ALL_TEMPLATES, '/members/templates');
         $account = Auth::account() ?? [];
 
         $result = EmailTemplates::save((int) $account['id'], [
@@ -446,6 +455,7 @@ final class MembersController
     public function makeTemplateDefault(): void
     {
         $this->guardTo('/members/templates');
+        $this->requirePlan(Plans::ALL_TEMPLATES, '/members/templates');
         $account = Auth::account() ?? [];
 
         // The stock wording is not a row this account owns, so choosing it is
@@ -468,6 +478,7 @@ final class MembersController
     public function deleteTemplate(): void
     {
         $this->guardTo('/members/templates');
+        $this->requirePlan(Plans::ALL_TEMPLATES, '/members/templates');
         $account = Auth::account() ?? [];
 
         $id = (int) ($_POST['id'] ?? 0);
@@ -485,6 +496,7 @@ final class MembersController
     public function addPromoReview(): void
     {
         $this->guardTo('/members/promomonster-reviews');
+        $this->requirePlan(Plans::ADD_REVIEWS, '/members/promomonster-reviews');
         $account = Auth::account() ?? [];
 
         $source = (string) ($_POST['source'] ?? 'entered_by_business');
@@ -578,6 +590,76 @@ final class MembersController
     }
 
     /**
+     * The wording a plan may choose between.
+     *
+     * "Standard template only" is a real restriction, not just a locked edit
+     * form: on Free the send screen offers the one shipped default rather than
+     * a choice of three, because a picker that offers three and accepts one is
+     * worse than no picker. Everyone else gets the lot, their own included.
+     *
+     * Filtered here rather than inside EmailTemplates, which has no business
+     * knowing what a plan is -- it answers "what wording exists", and this
+     * answers "what may this account use".
+     *
+     * @param  list<array<string,mixed>> $rows
+     * @return list<array<string,mixed>>
+     */
+    private function wordingFor(array $rows): array
+    {
+        if ($this->can(Plans::ALL_TEMPLATES)) {
+            return $rows;
+        }
+
+        $system = array_values(array_filter(
+            $rows,
+            static fn (array $r): bool => (int) ($r['is_system'] ?? 0) === 1,
+        ));
+
+        // The first system row is the shipped default; forAccount() orders
+        // system rows first. Returning an empty list would leave the send form
+        // with no wording at all, so a row is only dropped when another
+        // remains.
+        return $system === [] ? $rows : [$system[0]];
+    }
+
+    /** The plan on the signed-in account, defaulting closed. */
+    private function plan(): string
+    {
+        return (string) ((Auth::account() ?? [])['plan'] ?? Plans::FREE);
+    }
+
+    private function can(string $ability): bool
+    {
+        return Plans::can($this->plan(), $ability);
+    }
+
+    /**
+     * Refuses an action the plan does not include, and says what would.
+     *
+     * The server half of every gate. The views below hide these controls, but
+     * a hidden form is not a closed door: the POST route exists and anybody
+     * can send to it. This is the part that actually decides, and the view is
+     * only what stops a member meeting it by accident.
+     *
+     * Names the plan it would take rather than just refusing, because
+     * "upgrade" with no price is the most annoying sentence in software.
+     */
+    private function requirePlan(string $ability, string $back): void
+    {
+        if ($this->can($ability)) {
+            return;
+        }
+
+        $label  = Plans::ABILITY_LABELS[$ability] ?? 'That';
+        $needed = Plans::cheapestWith($ability);
+
+        $this->backTo($back, $needed === null
+            ? $label . ' is not part of the self-serve plans. Email us and a person will sort it.'
+            : $label . ' is on ' . Plans::name($needed) . ', $' . Plans::price($needed)
+              . ' a month. Your dashboard has the plans side by side.');
+    }
+
+    /**
      * "Review requests" — choose where, then ask.
      *
      * The one screen that sends. Where the review is left is the first
@@ -620,10 +702,10 @@ final class MembersController
             'available'   => $available,
             // The wording to offer. One entry means there is nothing to choose
             // between, and the picker is not drawn.
-            'templates'      => EmailTemplates::forAccount($id, 'request'),
+            'templates'      => $this->wordingFor(EmailTemplates::forAccount($id, 'request')),
             // The wording offered when chasing somebody who did not open the
             // first one. A different kind of message, so a different list.
-            'reminders'      => EmailTemplates::forAccount($id, 'follow_up'),
+            'reminders'      => $this->wordingFor(EmailTemplates::forAccount($id, 'follow_up')),
             'templateChosen' => (function () use ($id): ?int {
                 $row = EmailTemplates::defaultFor($id, 'request');
 

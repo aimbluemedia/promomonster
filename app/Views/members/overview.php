@@ -25,6 +25,17 @@
   <?php endforeach; ?>
 </div>
 
+<?php /* ---- The plans ---------------------------------------------------- */ ?>
+<?php /* Sits directly under the figures rather than buried in Settings,
+         because what somebody can do with this product is decided here and
+         three of the screens in the nav above are partly closed on Free. A
+         member who cannot find out why a page is locked assumes it is broken.
+
+         Move this block above the .stat-grid if it should be the first thing
+         on the page -- nothing else depends on where it sits. */ ?>
+<h2 style="font-size:1.15rem;margin:2.25rem 0 1rem;">Your plan</h2>
+<?= View::render('members/_plan-cards', ['account' => $account]) ?>
+
 <h2 style="font-size:1.15rem;margin:2.25rem 0 1rem;">Your locations</h2>
 <div class="table-wrap">
   <?php if ($locations === []): ?>
