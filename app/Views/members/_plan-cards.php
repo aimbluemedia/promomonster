@@ -79,46 +79,46 @@ $onLadder = in_array($current, Plans::SELECTABLE, true);
             </li>
           <?php endforeach; ?>
         </ul>
-      </details>
 
-      <div class="plan-card__act">
-        <?php if ($isCurrent): ?>
-          <span class="plan-card__on">You are on this plan</span>
-        <?php elseif (!$onLadder): ?>
-          <span class="plan-card__on">Arranged with you directly</span>
-        <?php elseif ($canBuy && Billing::canCharge((string) $key)): ?>
+        <div class="plan-card__act">
+          <?php if ($isCurrent): ?>
+            <span class="plan-card__on">You are on this plan</span>
+          <?php elseif (!$onLadder): ?>
+            <span class="plan-card__on">Arranged with you directly</span>
+          <?php elseif ($canBuy && Billing::canCharge((string) $key)): ?>
           <?php /* POST with a token, not a link: a GET that creates a Stripe
                    customer and a checkout session is one an image tag on
                    another site can fire. */ ?>
-          <form method="post" action="/members/billing/start">
-            <?= Csrf::field() ?>
-            <input type="hidden" name="plan" value="<?= View::e((string) $key) ?>">
-            <button class="btn btn--primary btn--block" type="submit">
-              <?= Plans::isPaid($current)
+            <form method="post" action="/members/billing/start">
+              <?= Csrf::field() ?>
+              <input type="hidden" name="plan" value="<?= View::e((string) $key) ?>">
+              <button class="btn btn--primary btn--block" type="submit">
+                <?= Plans::isPaid($current)
                   ? 'Change plan on Stripe'
                   : 'Upgrade &mdash; ' . View::e(Plans::money((string) $key)) . '/month' ?>
-            </button>
-          </form>
-        <?php elseif ($canBuy): ?>
-          <form method="post" action="/members/plan">
-            <?= Csrf::field() ?>
-            <input type="hidden" name="plan" value="<?= View::e((string) $key) ?>">
-            <button class="btn btn--primary btn--block" type="submit">
+              </button>
+            </form>
+          <?php elseif ($canBuy): ?>
+            <form method="post" action="/members/plan">
+              <?= Csrf::field() ?>
+              <input type="hidden" name="plan" value="<?= View::e((string) $key) ?>">
+              <button class="btn btn--primary btn--block" type="submit">
               Request <?= View::e($plan['name']) ?>
-            </button>
-          </form>
-        <?php else: ?>
+              </button>
+            </form>
+          <?php else: ?>
           <?php /* Moving DOWN to Free. Routed through /members/plan, which
                    refuses it outright while Stripe is still collecting --
                    dropping the plan here would leave a business on the Free
                    allowance with the card still being charged. */ ?>
-          <form method="post" action="/members/plan">
-            <?= Csrf::field() ?>
-            <input type="hidden" name="plan" value="<?= View::e((string) $key) ?>">
-            <button class="btn btn--ghost btn--block" type="submit">Move to Free</button>
-          </form>
-        <?php endif; ?>
-      </div>
+            <form method="post" action="/members/plan">
+              <?= Csrf::field() ?>
+              <input type="hidden" name="plan" value="<?= View::e((string) $key) ?>">
+              <button class="btn btn--ghost btn--block" type="submit">Move to Free</button>
+            </form>
+          <?php endif; ?>
+        </div>
+      </details>
     </div>
   <?php endforeach; ?>
 </div>

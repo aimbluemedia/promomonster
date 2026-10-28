@@ -37,6 +37,16 @@ final class MembersController
             ['id' => (int) $account['id']],
         );
 
+        // Counted BEFORE the stats, because the figure on the dashboard and the
+        // tick on the checklist have to come from the same number. They did
+        // not: the card counted the reviews table and the checklist counted
+        // that plus hosted_reviews, so a business whose first review landed on
+        // its own page saw "Reviews collected 0" directly above "Collect your
+        // first review -- DONE". One screen, two answers.
+        $hosted = HostedReviews::ready()
+            ? (int) (HostedReviews::summary((int) $account['id'])['count'] ?? 0)
+            : 0;
+
         $stats = Database::first(
             'SELECT
                (SELECT COUNT(*) FROM contacts c
@@ -55,24 +65,19 @@ final class MembersController
              'a3' => (int) $account['id'], 'a4' => (int) $account['id']],
         ) ?? [];
 
+        // Reviews from both places, everywhere this page says "reviews".
+        $stats['reviews'] = (int) ($stats['reviews'] ?? 0) + $hosted;
+
         // What the member still has to do. Gathered here, decided in
         // Onboarding, drawn in the view -- so the interesting part (which step
         // is next, what a plan hides) is testable without a database.
-        //
-        // Reviews are counted from BOTH tables. Somebody whose first review
-        // landed on their own page would otherwise still be told to go and
-        // collect one, which is the checklist calling them a liar.
-        $hosted = HostedReviews::ready()
-            ? (int) (HostedReviews::summary((int) $account['id'])['count'] ?? 0)
-            : 0;
-
         $steps = Onboarding::steps([
             'plan'             => (string) ($account['plan'] ?? Plans::FREE),
             'hasPage'          => HostedReviews::ready()
                 && HostedReviews::slug((int) $account['id'], (string) ($account['name'] ?? '')) !== null,
             'hasGoogleLink'    => trim((string) ($locations[0]['google_review_url'] ?? '')) !== '',
             'requestsSent'     => (int) ($stats['requests'] ?? 0),
-            'reviewsCollected' => (int) ($stats['reviews'] ?? 0) + $hosted,
+            'reviewsCollected' => (int) $stats['reviews'],
         ]);
 
         echo View::members('members/overview', [

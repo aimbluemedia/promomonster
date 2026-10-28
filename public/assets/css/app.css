@@ -1463,7 +1463,8 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
   margin:1rem 0 1.35rem; }
 .gs__bar span{ display:block; height:100%; border-radius:999px; background:var(--brand);
   transition:width .3s ease; }
-.gs--done .gs__bar span{ background:#0b7a4b; }
+.gs--done .gs__bar span,
+.gs__bar.is-full span{ background:#0b7a4b; }
 
 .gs__steps{ list-style:none; margin:0; padding:0; display:grid; gap:.5rem; }
 .gs__step{ display:grid; grid-template-columns:2rem 1fr; gap:.85rem; align-items:start;
@@ -1501,3 +1502,8 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
   .gs__step{ padding:.6rem .5rem; gap:.65rem; grid-template-columns:1.75rem 1fr; }
   .gs__n{ width:1.75rem; height:1.75rem; font-size:.8rem; }
 }
+
+/* A line under each figure saying what it means. Four bare numbers is a
+   diagnosis in a language the reader does not speak. */
+.stat-card__h{ margin-top:.3rem; font-size:.78rem; line-height:1.35; color:var(--muted); }
+.gs__countwhat{ display:block; font-size:.72rem; color:var(--muted); }

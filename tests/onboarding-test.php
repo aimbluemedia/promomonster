@@ -235,6 +235,35 @@ check('complete, and still pointing at the website', [$p['complete'], $p['next']
     [true, 'display']);
 
 // =====================================================================
+// "Complete" never means "nothing left"
+// =====================================================================
+//
+// The dashboard printed "You are set up / 3 of 3" directly above an unticked
+// step and a padlock. Three things on one screen disagreeing about whether the
+// job was done, which to anybody who has not read the code means the screen is
+// broken.
+//
+// The cause is by design: the website step can never be ticked, so complete
+// has always meant "nothing WE CAN CHECK is left". The heading now says that,
+// and it reads $progress['next'] to decide -- so this pins the invariant it
+// leans on: there is always a next step, complete or not.
+
+foreach ([Plans::FREE, Plans::PRO, Plans::PREMIUM] as $plan) {
+    foreach ([[false, 0, 0], [true, 0, 0], [true, 9, 0], [true, 9, 9]] as [$link, $sent, $got]) {
+        [, $prog] = run(['plan' => $plan, 'hasPage' => true, 'hasGoogleLink' => $link,
+                         'requestsSent' => $sent, 'reviewsCollected' => $got]);
+
+        ok("{$plan}: there is always something next", $prog['next'] !== null);
+
+        // And when the bar is full, the thing still outstanding is the one we
+        // cannot check -- never a real task left silently undone.
+        if ($prog['complete']) {
+            check("{$plan}: a full bar leaves only the website step", $prog['next'], 'display');
+        }
+    }
+}
+
+// =====================================================================
 // The sentence that counts the steps
 // =====================================================================
 
