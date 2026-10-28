@@ -93,7 +93,13 @@ $isCopy      = $editing !== null && (int) $editing['is_system'] === 1;
             </option>
           <?php endforeach; ?>
         </select>
-        <p class="form__note">The reminder goes out once, three days later.</p>
+        <?php /* Was "goes out once, three days later". Nothing goes out on a
+                 schedule -- the chase is a button on the request, and the code
+                 allows it a day after the first email. Promising an automatic
+                 send that never happens is how a member concludes the product
+                 is broken. */ ?>
+        <p class="form__note">You send the reminder yourself, from the request,
+          any time after the first day.</p>
       </div>
     </div>
 
@@ -164,7 +170,8 @@ $isCopy      = $editing !== null && (int) $editing['is_system'] === 1;
           ? 'Sent the moment you ask. The one marked default is what the send form starts on.'
           : 'Sent the moment you ask. The send form starts on the standard wording and you can change it there.' ?>
       <?php else: ?>
-        Sent once, three days after the request, and only if they have not been back.
+        The wording for your one follow-up. You send it from the request itself,
+        any time after the first day &mdash; and only if they have not been back.
       <?php endif; ?>
     </p>
 

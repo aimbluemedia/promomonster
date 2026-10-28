@@ -271,9 +271,10 @@ $canSendAnything = $chosen !== null;
 
       <p class="form__note" style="margin-top:.75rem;">
         Goes out as <strong><?= View::e($business) ?></strong>, with replies coming
-        to <strong><?= View::e($replyTo) ?></strong>. One reminder three days
-        later, then we stop &mdash; and every customer gets the same message and
-        the same link, which is the only compliant way to do this.
+        to <strong><?= View::e($replyTo) ?></strong>. One reminder, sent by you
+        from the list below once a day has passed, then stop &mdash; and every
+        customer gets the same message and the same link, which is the only
+        compliant way to do this.
       </p>
     </div>
   <?php endif; ?>

@@ -30,8 +30,14 @@ $trade = $trade ?? '';
       <li><strong>Ask at</strong> <?= View::e($playbook['trigger_moment']) ?></li>
       <li><strong>Who asks</strong> <?= View::e($playbook['who_asks']) ?></li>
       <li><strong>Channel</strong> <?= View::e(strtoupper((string) $playbook['primary_channel'])) ?></li>
+      <?php /* "Reminder ... days later" read as a schedule. Nothing here is
+               scheduled: the chase is a button on the request, available once
+               a day has passed. This is advice about when to press it. */ ?>
       <?php if ($playbook['follow_up_days']): ?>
-        <li><strong>Reminder</strong> once, <?= (int) $playbook['follow_up_days'] ?> days later</li>
+        <li><strong>Chase once</strong> about
+          <?= (int) $playbook['follow_up_days'] ?>
+          <?= (int) $playbook['follow_up_days'] === 1 ? 'day' : 'days' ?> later,
+          then stop</li>
       <?php endif; ?>
       <?php if ($playbook['offline_method']): ?>
         <li><strong>Offline</strong> <?= View::e($playbook['offline_method']) ?></li>
@@ -40,6 +46,14 @@ $trade = $trade ?? '';
     <p style="margin:1.4rem 0 0;padding-top:1.1rem;border-top:1px solid var(--line);font-size:.94rem;color:var(--body);">
       <strong style="color:var(--ink);">They say:</strong>
       &ldquo;<?= View::e($playbook['verbal_ask']) ?>&rdquo;</p>
+    <?php /* The objection column has been in the schema since migration 009
+             and nothing has ever shown it. It is the most useful line on the
+             card: what the customer says back, and what to say to that. */ ?>
+    <?php if (!empty($playbook['objection'])): ?>
+      <p style="margin:1rem 0 0;font-size:.94rem;color:var(--body);">
+        <strong style="color:var(--ink);">When they hesitate:</strong>
+        <?= View::e((string) $playbook['objection']) ?></p>
+    <?php endif; ?>
     <?php if ($playbook['compliance_note']): ?>
       <p class="muted" style="margin-top:1rem;font-size:.88rem;"><?= View::e($playbook['compliance_note']) ?></p>
     <?php endif; ?>
