@@ -1,5 +1,8 @@
-<?php use App\Support\View; /** @var array $account @var array $locations @var array $stats
- *  @var array $steps @var array $progress */ ?>
+<?php use App\Support\Plans; use App\Support\View; /** @var array $account @var array $locations @var array $stats
+ *  @var array $steps @var array $progress
+ *  @var bool $canGoogle @var ?string $pageUrl */
+$canGoogle = $canGoogle ?? true;
+$pageUrl   = $pageUrl ?? null; ?>
 <?php /* The plan cards used to be rendered here. They are in the layout now,
          under the nav on every page, so the dashboard would have shown them
          twice. */ ?>
@@ -56,28 +59,74 @@
 
 <h2 style="font-size:1.15rem;margin:2.25rem 0 .35rem;">Your business</h2>
 <p class="muted" style="margin:0 0 1rem;font-size:.9rem;">
-  What we have on file. Tell us if any of it is wrong.
+  Every row goes to the page that changes it.
 </p>
+
+<?php /* A "Google listing: Not connected" column used to sit here, reading
+         locations.google_place_id. Nothing in this product has ever written
+         that column -- it exists in migration 007 and nowhere else -- so it
+         said "Not connected" to every business on every visit, forever, with
+         no page anywhere that could clear it. A red status nobody can fix is
+         worse than no status, and it was sitting next to the Google column
+         that IS real. The two are now one. */ ?>
 <div class="table-wrap">
   <?php if ($locations === []): ?>
-    <p class="empty">No locations yet — we add these for you during setup.</p>
+    <p class="empty">No business on file yet &mdash; we add this during setup.
+      <a href="/members/settings">Check your settings</a>.</p>
   <?php else: ?>
     <table class="data">
-      <thead><tr><th>Your business</th><th>Trade</th><th>Google listing</th><th>Review link</th></tr></thead>
+      <thead><tr>
+        <th>Your business</th><th>Trade</th><th>Google reviews</th><th>Your own review page</th>
+      </tr></thead>
       <tbody>
         <?php foreach ($locations as $l): ?>
           <tr>
-            <td><strong><?= View::e($l['name']) ?></strong>
+            <td>
+              <a href="/members/settings"><strong><?= View::e($l['name']) ?></strong></a>
               <?php if (!empty($l['city'])): ?>
-                <div class="muted" style="font-size:.82rem;"><?= View::e($l['city'] . ', ' . ($l['region'] ?? '')) ?></div>
+                <div class="muted" style="font-size:.82rem;">
+                  <?= View::e(trim($l['city'] . ', ' . ($l['region'] ?? ''), ' ,')) ?>
+                </div>
               <?php endif; ?>
             </td>
-            <td><?= View::e($l['vertical'] ?? '—') ?></td>
-            <td><?= $l['google_place_id'] ? 'Connected' : '<span class="muted">Not connected</span>' ?></td>
+
+            <?php /* Trade decides which playbook you get, so that is where it
+                     leads. Nothing in the members area sets it -- it is filled
+                     in during setup -- so when it is empty the cell says that
+                     rather than offering a link that would not help. */ ?>
             <td>
-              <?php if (!empty($l['google_review_url'])): ?>
-                <a href="<?= View::e($l['google_review_url']) ?>" style="color:var(--brand);" rel="noopener" target="_blank">Open</a>
-              <?php else: ?><span class="muted">—</span><?php endif; ?>
+              <?php if (!empty($l['vertical'])): ?>
+                <a href="/members/playbook"><?= View::e($l['vertical']) ?></a>
+              <?php else: ?>
+                <span class="muted">We add this during setup</span>
+              <?php endif; ?>
+            </td>
+
+            <td>
+              <?php if (!$canGoogle): ?>
+                <a href="/members#plans">Needs <?= View::e(Plans::name(
+                    (string) Plans::cheapestWith(Plans::GOOGLE_PAGE))) ?></a>
+              <?php elseif (!empty($l['google_review_url'])): ?>
+                <a href="<?= View::e($l['google_review_url']) ?>" rel="noopener"
+                   target="_blank">Open your review box</a>
+                <div style="font-size:.82rem;"><a href="/members/reviews">Change the link</a></div>
+              <?php else: ?>
+                <a href="/members/reviews">Add your Google link</a>
+              <?php endif; ?>
+            </td>
+
+            <td>
+              <?php if ($pageUrl !== null): ?>
+                <a href="<?= View::e($pageUrl) ?>" rel="noopener" target="_blank">See your page</a>
+                <div style="font-size:.82rem;">
+                  <a href="/members/promomonster-reviews">Manage it</a>
+                </div>
+              <?php else: ?>
+                <?php /* Still goes somewhere: that page is what explains why
+                         the review page is not live yet (migration 020) and is
+                         where it appears the moment it is. */ ?>
+                <a href="/members/promomonster-reviews">Not switched on yet</a>
+              <?php endif; ?>
             </td>
           </tr>
         <?php endforeach; ?>

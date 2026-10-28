@@ -71,10 +71,15 @@ final class MembersController
         // What the member still has to do. Gathered here, decided in
         // Onboarding, drawn in the view -- so the interesting part (which step
         // is next, what a plan hides) is testable without a database.
+        // The public review page, so the dashboard can link straight to it
+        // rather than describing it. Null until migration 020 is applied.
+        $slug = HostedReviews::ready()
+            ? HostedReviews::slug((int) $account['id'], (string) ($account['name'] ?? ''))
+            : null;
+
         $steps = Onboarding::steps([
             'plan'             => (string) ($account['plan'] ?? Plans::FREE),
-            'hasPage'          => HostedReviews::ready()
-                && HostedReviews::slug((int) $account['id'], (string) ($account['name'] ?? '')) !== null,
+            'hasPage'          => $slug !== null,
             'hasGoogleLink'    => trim((string) ($locations[0]['google_review_url'] ?? '')) !== '',
             'requestsSent'     => (int) ($stats['requests'] ?? 0),
             'reviewsCollected' => (int) $stats['reviews'],
@@ -87,6 +92,11 @@ final class MembersController
             'stats'     => $stats,
             'steps'     => $steps,
             'progress'  => Onboarding::progress($steps),
+            'canGoogle' => $this->can(Plans::GOOGLE_PAGE),
+            'pageUrl'   => $slug === null
+                ? null
+                : rtrim((string) Config::get('app_url', 'https://promomonster.com'), '/')
+                  . '/reviews/' . $slug,
         ]);
     }
 
