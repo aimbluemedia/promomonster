@@ -100,9 +100,20 @@ $lastStep = $progress['complete'] && $progress['next'] !== null;
             <?php if ($step['done']): ?>
               <span class="gs__tag">Done</span>
             <?php elseif ($step['locked'] && $step['needs'] !== null): ?>
+              <?php /* Every plan that grants it, not just the cheapest. Naming
+                       Pro alone left somebody already weighing Premium to
+                       wonder whether the dearer plan covered it too -- and the
+                       locked SECTIONS have named both all along, so the
+                       dashboard was the odd one out. */ ?>
+              <?php $grants = $step['ability'] === null
+                  ? [(string) $step['needs']]
+                  : Plans::plansWith((string) $step['ability']); ?>
               <span class="gs__tag gs__tag--lock">
-                <?= View::e(Plans::name((string) $step['needs'])) ?>
-                <?= View::e(Plans::money((string) $step['needs'])) ?>/month
+                <?php foreach ($grants as $i => $planKey): ?>
+                  <?= $i > 0 ? ' or ' : '' ?>
+                  <?= View::e(Plans::name($planKey)) ?>
+                  <?= View::e(Plans::money($planKey)) ?>/month
+                <?php endforeach; ?>
               </span>
             <?php elseif (!$step['checkable']): ?>
               <?php /* Said out loud rather than quietly left unticked. The
@@ -120,8 +131,15 @@ $lastStep = $progress['complete'] && $progress['next'] !== null;
           <?php endif; ?>
 
           <?php if ($step['locked'] && $step['needs'] !== null): ?>
+            <?php $grants = $step['ability'] === null
+                ? [(string) $step['needs']]
+                : Plans::plansWith((string) $step['ability']); ?>
             <a class="btn btn--sm" href="/members#plans">
-              Upgrade to <?= View::e(Plans::name((string) $step['needs'])) ?>
+              Upgrade to
+              <?= View::e(implode(' or ', array_map(
+                  static fn (string $k): string => Plans::name($k),
+                  $grants,
+              ))) ?>
             </a>
           <?php elseif ($isNext): ?>
             <a class="btn btn--primary btn--sm" href="<?= View::e($step['href']) ?>">

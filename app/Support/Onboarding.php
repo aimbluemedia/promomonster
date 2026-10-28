@@ -34,7 +34,7 @@ final class Onboarding
      * } $state
      * @return list<array{
      *     key:string, title:string, what:string, done:bool, locked:bool,
-     *     checkable:bool, href:string, cta:string, needs:?string
+     *     checkable:bool, href:string, cta:string, needs:?string, ability:?string
      * }>
      */
     public static function steps(array $state): array
@@ -62,6 +62,7 @@ final class Onboarding
                 'href'      => '/members/promomonster-reviews',
                 'cta'       => 'Open your review page',
                 'needs'     => null,
+                'ability'   => null,
             ],
             [
                 'key'       => 'google',
@@ -75,6 +76,11 @@ final class Onboarding
                 'href'      => '/members/reviews',
                 'cta'       => 'Add the link',
                 'needs'     => $canGoogle ? null : Plans::cheapestWith(Plans::GOOGLE_PAGE),
+                // The ability, not just the cheapest plan that grants it. The
+                // screen names every plan it is on -- somebody weighing Premium
+                // should not be told about Pro alone and left wondering whether
+                // the dearer plan covers it too.
+                'ability'   => $canGoogle ? null : Plans::GOOGLE_PAGE,
             ],
             [
                 'key'       => 'send',
@@ -87,6 +93,7 @@ final class Onboarding
                 'href'      => '/members/requests',
                 'cta'       => 'Ask a customer',
                 'needs'     => null,
+                'ability'   => null,
             ],
             [
                 'key'       => 'collect',
@@ -100,6 +107,7 @@ final class Onboarding
                 'href'      => '/members/promomonster-reviews',
                 'cta'       => 'See what has come in',
                 'needs'     => null,
+                'ability'   => null,
             ],
             [
                 'key'       => 'display',
@@ -114,6 +122,7 @@ final class Onboarding
                 'href'      => '/members/promomonster-reviews',
                 'cta'       => 'Get your code',
                 'needs'     => null,
+                'ability'   => null,
             ],
         ];
     }

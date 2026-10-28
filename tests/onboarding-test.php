@@ -204,6 +204,62 @@ check('and is not called complete',                $sp['complete'], false);
 check('an empty list is safe',  Onboarding::progress([])['percent'], 100);
 
 // =====================================================================
+// A locked step names every plan that would unlock it
+// =====================================================================
+//
+// It used to name only the cheapest. Somebody already weighing Premium was
+// told about Pro and left to wonder whether the dearer plan covered it too --
+// and the locked SECTIONS have named both all along, so the dashboard was the
+// odd one out. The step carries the ability so the screen can ask Plans, which
+// is the one place that knows.
+
+[$free, ] = run(['plan' => Plans::FREE, 'hasPage' => true]);
+$locked = step($free, 'google');
+
+check('the locked step carries its ability', $locked['ability'], Plans::GOOGLE_PAGE);
+
+$grants = Plans::plansWith((string) $locked['ability']);
+ok('more than one plan grants it', count($grants) > 1);
+check('and both paid plans do', $grants, [Plans::PRO, Plans::PREMIUM]);
+
+// The cheapest stays on the step too: it is what decides which plan is named
+// first, and the two must not disagree.
+check('the cheapest is the first named', $grants[0], $locked['needs']);
+
+// Nothing ungated claims an ability, or every step would sprout a price.
+foreach ($free as $s) {
+    if ($s['key'] === 'google') {
+        continue;
+    }
+    check("{$s['key']}: carries no ability", $s['ability'], null);
+    check("{$s['key']}: carries no plan",    $s['needs'], null);
+}
+
+// On a plan that already has it, the step is not locked and names nothing.
+[$pro, ] = run(['plan' => Plans::PRO, 'hasPage' => true]);
+$open = step($pro, 'google');
+check('on Pro it is not locked',   $open['locked'], false);
+check('and names no ability',      $open['ability'], null);
+check('and names no plan',         $open['needs'], null);
+
+// Whatever is named has to actually grant the thing, on every plan, or the
+// upgrade button sends somebody to a tier that will refuse them again.
+foreach ([Plans::FREE, Plans::PRO, Plans::PREMIUM] as $plan) {
+    [$list, ] = run(['plan' => $plan, 'hasPage' => true]);
+    foreach ($list as $s) {
+        if ($s['ability'] === null) {
+            continue;
+        }
+        foreach (Plans::plansWith((string) $s['ability']) as $named) {
+            ok("{$plan}/{$s['key']}: {$named} really grants it",
+                Plans::can($named, (string) $s['ability']));
+            ok("{$plan}/{$s['key']}: {$named} can be bought",
+                in_array($named, Plans::SELECTABLE, true));
+        }
+    }
+}
+
+// =====================================================================
 // The bar
 // =====================================================================
 
