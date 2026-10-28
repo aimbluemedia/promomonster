@@ -1,12 +1,27 @@
-<?php use App\Support\ReviewPlaces; use App\Support\View; /** @var ?array $playbook */ ?>
+<?php use App\Support\ReviewPlaces; use App\Support\Trades; use App\Support\View;
+/** @var ?array $playbook @var string $trade */
+$trade = $trade ?? '';
+?>
 <div class="admin-title"><h1>Your playbook</h1></div>
 <p class="muted" style="font-size:.94rem;max-width:44rem;margin:0 0 1.5rem;">
   The moment to ask, who should ask, and what they should say. Getting the
   verbal ask right lifts response more than any software setting.</p>
 
 <?php if ($playbook === null): ?>
+  <?php /* Two different situations, and they used to read as one. "Once we
+           know what kind of business you run" is fair when nobody has told us
+           and is a lie when somebody just did -- and a member who sets their
+           trade and sees the same sentence concludes the form did not save. */ ?>
   <div class="table-wrap"><p class="empty">
-    We build your playbook during setup, once we know what kind of business you run.
+    <?php if ($trade === ''): ?>
+      Tell us what kind of business you run and we will put your playbook
+      together. <a href="/members/settings">Set your trade</a>.
+    <?php else: ?>
+      You are down as <strong><?= View::e(Trades::label($trade)) ?></strong>.
+      Your playbook for that trade is still being written &mdash; we are doing
+      them by hand, one trade at a time. Everything below applies whatever you
+      do, so it is worth reading in the meantime.
+    <?php endif; ?>
   </p></div>
 <?php else: ?>
   <div class="card">

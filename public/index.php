@@ -174,6 +174,7 @@ $router->get('/members/requests', static fn () => (new MembersController())->req
 $router->get('/members/playbook', static fn () => (new MembersController())->playbook());
 $router->get('/members/settings', static fn () => (new MembersController())->settings());
 $router->post('/members/plan',   static fn () => (new MembersController())->requestPlan());
+$router->post('/members/trade',  static fn () => (new MembersController())->saveTrade());
 
 // Paying for a plan. /members/plan above still exists and still works: it is
 // the fallback for when Stripe is not configured, and the only route to Free.

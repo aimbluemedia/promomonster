@@ -1,4 +1,4 @@
-<?php use App\Support\Plans; use App\Support\View; /** @var array $account @var array $locations @var array $stats
+<?php use App\Support\Plans; use App\Support\Trades; use App\Support\View; /** @var array $account @var array $locations @var array $stats
  *  @var array $steps @var array $progress
  *  @var bool $canGoogle @var ?string $pageUrl */
 $canGoogle = $canGoogle ?? true;
@@ -90,15 +90,18 @@ $pageUrl   = $pageUrl ?? null; ?>
               <?php endif; ?>
             </td>
 
-            <?php /* Trade decides which playbook you get, so that is where it
-                     leads. Nothing in the members area sets it -- it is filled
-                     in during setup -- so when it is empty the cell says that
-                     rather than offering a link that would not help. */ ?>
+            <?php /* Trade decides which playbook you get, so a set one leads
+                     there and "Change" leads to where it is set. It used to
+                     read "we add this during setup" when empty, because
+                     nothing in the members area could set it. Settings can
+                     now, so this is the last cell in the table to stop being
+                     a dead end. */ ?>
             <td>
               <?php if (!empty($l['vertical'])): ?>
-                <a href="/members/playbook"><?= View::e($l['vertical']) ?></a>
+                <a href="/members/playbook"><?= View::e(Trades::label((string) $l['vertical'])) ?></a>
+                <div style="font-size:.82rem;"><a href="/members/settings">Change</a></div>
               <?php else: ?>
-                <span class="muted">We add this during setup</span>
+                <a href="/members/settings">Tell us your trade</a>
               <?php endif; ?>
             </td>
 

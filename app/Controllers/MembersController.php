@@ -19,6 +19,7 @@ use App\Support\Plans;
 use App\Support\ReviewLink;
 use App\Support\ReviewRequests;
 use App\Support\SendLimit;
+use App\Support\Trades;
 use App\Support\Request;
 use App\Support\View;
 
@@ -660,6 +661,57 @@ final class MembersController
         return $system === [] ? $rows : [$system[0]];
     }
 
+    /**
+     * Sets what kind of business this is.
+     *
+     * It was filled in during onboarding and by nothing else, so a business
+     * whose trade was wrong -- or never asked -- had no way to correct it, and
+     * the dashboard said "we add this during setup" forever.
+     *
+     * Written on the location rather than the account because that is where
+     * the column has always lived, and because the playbook is looked up from
+     * it. A business with several locations in different trades is not a thing
+     * this product has met yet; when it does, this writes to the primary one
+     * and the others keep what they have.
+     */
+    public function saveTrade(): void
+    {
+        $here = '/members/settings';
+        $this->guardTo($here);
+
+        $account  = Auth::account() ?? [];
+        $location = $this->primaryLocation((int) $account['id']);
+
+        if ($location === null) {
+            $this->backTo($here, 'We could not find a business on your account. Please get in touch.');
+        }
+
+        // Validated against the list, never taken as typed. playbooks.vertical
+        // is a lookup key: a free-typed value would match no playbook and read
+        // as the playbook being broken rather than the form being wrong.
+        $trade = Trades::clean((string) ($_POST['trade'] ?? ''));
+
+        if ($trade === null) {
+            $this->backTo($here, 'Pick one of the trades in the list and we will save it.');
+        }
+
+        $before = (string) ($location['vertical'] ?? '');
+
+        if ($before === $trade) {
+            $this->backTo($here, 'That is already what we have you down as.');
+        }
+
+        Database::run(
+            'UPDATE locations SET vertical = :v WHERE id = :id',
+            ['v' => $trade, 'id' => (int) $location['id']],
+        );
+
+        Audit::log('location.trade_changed', 'location', (int) $location['id'],
+            ['vertical' => $before === '' ? null : $before], ['vertical' => $trade]);
+
+        $this->backTo($here, 'Saved — you are down as ' . Trades::label($trade) . '.');
+    }
+
     /** The plan on the signed-in account, defaulting closed. */
     private function plan(): string
     {
@@ -785,6 +837,11 @@ final class MembersController
         echo View::members('members/playbook', [
             'title'    => 'Your playbook · PromoMonster',
             'account'  => $account,
+            // The trade itself, so the empty state can tell the two cases
+            // apart. They are not the same thing and used to read the same:
+            // "once we know what kind of business you run" is fair when we do
+            // not, and blames the member when we do.
+            'trade'    => (string) ($vertical['vertical'] ?? ''),
             'playbook' => $vertical === null ? null : Database::first(
                 'SELECT * FROM playbooks WHERE vertical = :v',
                 ['v' => $vertical['vertical']],
@@ -801,6 +858,7 @@ final class MembersController
             'title'   => 'Settings · PromoMonster',
             'account' => $account,
             'plans'   => Plans::selectable(),
+            'trade'   => (string) ($this->primaryLocation((int) $account['id'])['vertical'] ?? ''),
             'user'    => Auth::user() ?? [],
             'team'    => Database::all(
                 'SELECT u.first_name, u.last_name, u.email, au.role

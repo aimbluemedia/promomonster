@@ -1,5 +1,8 @@
-<?php use App\Support\Billing; use App\Support\Csrf; use App\Support\Plans; use App\Support\View;
-/** @var array $account @var array $user @var array $team @var array $plans */
+<?php use App\Support\Billing; use App\Support\Csrf; use App\Support\Plans;
+use App\Support\Trades; use App\Support\View;
+/** @var array $account @var array $user @var array $team @var array $plans
+ *  @var string $trade */
+$trade = $trade ?? '';
 $current   = (string) ($account['plan'] ?? Plans::FREE);
 $requested = $account['requested_plan'] ?? null;
 
@@ -151,6 +154,49 @@ $onCard    = Billing::hasLiveSubscription($account);
     </form>
   </div>
 <?php endif; ?>
+
+<?php /* ---- What kind of business ---------------------------------------- */ ?>
+<?php /* This was asked once during onboarding and could never be changed
+         afterwards, so a business with the wrong trade -- or one never asked --
+         was stuck with it, and the dashboard said "we add this during setup"
+         forever. */ ?>
+<div class="card" style="margin-bottom:1.5rem;">
+  <h2 style="font-size:1.05rem;margin-bottom:.4rem;">What kind of business</h2>
+  <p class="muted" style="margin:0 0 1rem;font-size:.9rem;">
+    It decides which playbook you get, and which of the review sites on
+    <a href="/members/playbook">Your playbook</a> are worth your time. Nothing
+    is sent to anyone.
+  </p>
+
+  <form class="form" method="post" action="/members/trade">
+    <?= Csrf::field() ?>
+    <div class="form__row form__row--2">
+      <div>
+        <label for="trade">Your trade</label>
+        <select class="field" id="trade" name="trade" required>
+          <?php if ($trade === ''): ?>
+            <option value="" selected disabled>Pick the closest one</option>
+          <?php endif; ?>
+          <?php foreach (Trades::ALL as $value => $label): ?>
+            <option value="<?= View::e($value) ?>"<?= $trade === $value ? ' selected' : '' ?>>
+              <?= View::e($label) ?>
+            </option>
+          <?php endforeach; ?>
+          <?php /* A value staff typed in during onboarding that is not on the
+                   list stays selectable, so saving something else is a choice
+                   rather than something the form does behind their back. */ ?>
+          <?php if ($trade !== '' && !Trades::has($trade)): ?>
+            <option value="<?= View::e($trade) ?>" selected><?= View::e($trade) ?></option>
+          <?php endif; ?>
+        </select>
+        <p class="form__note">Closest is fine &mdash; it only picks which advice you see.</p>
+      </div>
+    </div>
+    <button class="btn btn--primary" type="submit" style="justify-self:start;">
+      <?= $trade === '' ? 'Save my trade' : 'Save changes' ?>
+    </button>
+  </form>
+</div>
 
 <div class="grid grid--2">
   <div class="card">

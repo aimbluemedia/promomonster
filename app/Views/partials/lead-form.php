@@ -58,12 +58,10 @@ unset($_SESSION['lead_done'], $_SESSION['lead_error']);
         <label class="sr-only" for="vertical">What kind of business?</label>
         <select class="field" id="vertical" name="vertical">
           <option value="">What kind of business?</option>
-          <?php foreach ([
-            'landscaping'=>'Landscaping / lawn care','hvac'=>'HVAC / plumbing / electrical',
-            'roofing'=>'Roofing / exteriors','dental'=>'Dental / medical','veterinary'=>'Veterinary',
-            'restaurant'=>'Restaurant / café','salon'=>'Salon / barber / spa',
-            'auto'=>'Auto repair','legal'=>'Law firm','realestate'=>'Real estate','other'=>'Something else',
-          ] as $value => $label): ?>
+          <?php /* One list, shared with the members-side picker and with the
+                   playbook lookup. It used to be typed out here and nowhere
+                   else. */ ?>
+          <?php foreach (\App\Support\Trades::ALL as $value => $label): ?>
             <option value="<?= View::e($value) ?>"><?= View::e($label) ?></option>
           <?php endforeach; ?>
         </select>
