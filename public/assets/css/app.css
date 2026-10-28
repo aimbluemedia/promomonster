@@ -1434,12 +1434,24 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
    nav above work, so the answer to "what would I get" is never a click away.
    Panels are collapsed, so this costs one row, not three screens. */
 .planstrip{ border-bottom:1px solid var(--line); background:var(--wash,#f7f9fb);
-  padding:1rem 0 1.1rem; }
+  padding:.7rem 0 .8rem; }
 /* padding-top leaves room for the "Current" flag, which overlaps the card's
    top edge and would otherwise be clipped by the strip. */
-.planstrip .plan-cards{ margin:0; padding-top:.35rem; }
-.planstrip .plan-card{ padding:.9rem 1rem .85rem; }
-.planstrip .plan-card__price{ font-size:1.3rem; }
+.planstrip .plan-cards{ margin:0; padding-top:.4rem; }
+/* display:block, not the flex column the full card uses. A flex child is
+   blockified, so the inline name and price below were still taking a line
+   each and the row stayed as tall as before. */
+.planstrip .plan-card{ display:block; padding:.7rem .95rem .65rem; }
+
+/* Name and price share a line here, where they do not in the full card.
+   Moving the buttons into the panel left the collapsed card two short rows
+   tall inside a box sized for four, so the strip read as mostly empty. One
+   row of "Free $0.00/month" and one of the toggle is all there is to show. */
+.planstrip .plan-card__name{ display:inline; font-size:1rem; }
+.planstrip .plan-card__price{ display:inline; margin-left:.45rem; font-size:1.15rem; }
+.planstrip .plan-card__price small{ font-size:.72rem; }
+.planstrip .plan-card__more{ margin-top:.45rem; }
+.planstrip .plan-card__more summary{ font-size:.84rem; padding:.1rem 0; }
 .planstrip .plan-card__act{ padding-top:.75rem; }
 }
 
