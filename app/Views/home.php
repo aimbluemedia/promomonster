@@ -1,0 +1,244 @@
+<?php use App\Support\Icon; use App\Support\Plans; use App\Support\View; ?>
+
+<?php /* Dark band first, then the photograph hero it sits above. */ ?>
+<?php require APP_ROOT . '/Views/partials/hero-band.php'; ?>
+
+<section class="section">
+  <div class="container hero">
+    <div class="hero__media">
+      <!-- Served straight from the web root at /assets/img/hero.jpg. No
+           server-side existence check: it silently swallowed a wrong path
+           twice, where a plain 404 in the network tab says exactly what is
+           wrong.
+
+           width/height are the file's real pixels (portrait), so the browser
+           reserves the right box and the page does not jump as it loads. The
+           JPEG is the same photograph as hero.png at a ninetieth of the weight;
+           this is the largest asset on the page, so that matters. -->
+      <img src="/assets/img/hero.jpg" width="1122" height="1402" fetchpriority="high"
+           alt="A home service professional outside a customer&rsquo;s home, holding a tablet.">
+      <div class="hero__float">
+        <span class="stars" aria-hidden="true">★★★★★</span>
+        <span>
+          <strong>+38 reviews in 90 days</strong>
+          <p>Acme Pools &middot; Mesa, AZ</p>
+        </span>
+      </div>
+    </div>
+
+    <div>
+      <p class="eyebrow">Reputation Management</p>
+      <h1>Reviews. Reputation. <em>Growth.</em></h1>
+      <p class="lede">Every customer gets an email with your Google review link
+        in it, on the day of the job, and one reminder three days later. Built
+        for local businesses that get chosen, or skipped, on their star
+        rating.</p>
+
+      <div class="hero__cards">
+        <?php foreach ([
+          ['01','users','Ask','Every customer emailed, on the day of the job.'],
+          ['02','bell','Remind','One nudge three days later. Never a third.'],
+          ['03','chart','Grow','More reviews on the page people actually check.'],
+        ] as [$num,$icon,$title,$body]): ?>
+          <div class="step step--sm">
+            <?= Icon::chip($icon) ?>
+            <div class="step__num"><?= $num ?></div>
+            <h3><?= View::e($title) ?></h3>
+            <p><?= View::e($body) ?></p>
+          </div>
+        <?php endforeach; ?>
+      </div>
+
+      <ul class="pills">
+        <li>Google</li><li>Email</li><li>QR codes</li><li>One reminder</li>
+      </ul>
+
+      <p class="hero__note">Everything compliant. We never gate, incentivise or
+        write reviews.</p>
+
+      <div class="btn-row">
+        <a class="btn btn--primary" href="#score">Get your Free Review Score</a>
+        <a class="btn btn--ghost" href="/members/signup">Join FREE Now!</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<?php /* ---- Free Review Score. Directly under the hero on purpose: it is the
+         one thing we want a first-time visitor to do. ------------------- */ ?>
+<section class="section score-band" id="score">
+  <div class="container" style="max-width:54rem;">
+    <div class="center" style="margin-bottom:1.75rem;">
+      <p class="eyebrow">Free Review Score</p>
+      <h2 class="display" style="margin-bottom:.6rem;">Try it right now &mdash;
+        <em>see your score in seconds</em></h2>
+      <p class="lede" style="margin-inline:auto;">We read your website and score it
+        out of 100 on how well it is set up to win customer reviews. No credit card,
+        no sales call.</p>
+    </div>
+
+    <div class="card score-card score-card--hero">
+      <?php require APP_ROOT . '/Views/partials/score-form.php'; ?>
+    </div>
+  </div>
+</section>
+
+<?php /* Ticker strips break the page into chapters the way the reference does,
+         and carry the compliance line past anyone who only skims. */ ?>
+<?php require APP_ROOT . '/Views/partials/ticker.php'; ?>
+
+<section class="section" style="padding-block:2.5rem;">
+  <div class="container">
+    <div class="benefits" data-reveal>
+      <?php foreach ([
+        ['clock',   'Live in a day',      'Not a project'],
+        ['shield',  'Never gates',        'Google-safe'],
+        ['send',    'Email requests',     'Sent for you'],
+        ['bell',    'One reminder',       'Then it stops'],
+        ['qr',      'QR code',            'For the invoice'],
+        ['star',    'Starts free',        'No card'],
+      ] as [$icon, $title, $sub]): ?>
+        <div class="benefit">
+          <?= Icon::render($icon) ?>
+          <strong><?= View::e($title) ?></strong>
+          <span><?= View::e($sub) ?></span>
+        </div>
+      <?php endforeach; ?>
+    </div>
+  </div>
+</section>
+
+<?php /* ---- The calculator: the centrepiece of the page. ----------------- */ ?>
+<section class="section section--wash" id="calculator">
+  <div class="container">
+    <div class="center" style="max-width:46rem;margin-inline:auto;" data-reveal>
+      <p class="eyebrow">Review calculator</p>
+      <h2 class="display display--tight" style="margin-inline:auto;">
+        How many five-star reviews does it <em>actually</em> take?
+      </h2>
+      <p class="lede">Move the sliders. The maths is exact: a rating is an
+        average, and an average takes a knowable number of reviews to shift.</p>
+    </div>
+    <div style="margin-top:2.5rem;" data-reveal data-reveal-delay="1">
+      <?php require APP_ROOT . '/Views/partials/calculator.php'; ?>
+    </div>
+  </div>
+</section>
+
+<?php require APP_ROOT . '/Views/partials/ticker.php'; ?>
+
+<?php /* ---- The close.
+
+         Dark, because this is where the page asks for the decision and it has
+         to look like a different kind of moment from the white sections above
+         it. It also bookends the dark band under the nav, so the page opens
+         and closes on the same note.
+
+         The cards are reasons a small business owner already cares about —
+         leads, trust, what the business is worth when they sell it — not a
+         feature list, because nobody buys a feature list.
+
+         Every claim is reasoning the reader can check against their own
+         experience, or a fact we can point at: the rating filter is in Google
+         Maps, and the tools in the last card are exactly what Plans::all()
+         gives a free account. No invented statistics and no revenue
+         projection — a number we cannot defend is worse than no number.
+
+         Contrast on this band is computed against the lightest point of the
+         gradient with the card wash on top of it, not against the darkest, so
+         the worst case is the measured one. See the CSS. ----------------- */ ?>
+<section class="section close-band" id="free">
+  <div class="container">
+
+    <div class="close-head" data-reveal>
+      <p class="close-tag"><?= Icon::render('star') ?>Free account &middot; no credit card</p>
+      <h2 class="close-title">Get reviews <em>like a pro</em>.<br>Start free today.</h2>
+      <p class="close-lede">If you run a small service business, reviews are not
+        a marketing extra you get to later. They are the thing that decides who
+        gets the call. Every reason below is one you already feel &mdash; the
+        free account is just how you stop having to remember.</p>
+    </div>
+
+    <div class="close-grid">
+      <?php foreach ([
+        ['chart', 'More leads from the work you already do',
+         'When three businesses come up side by side, the rating is the
+          tie-breaker. Every van, every sign and every ad you already pay for
+          lands harder behind a 4.8 than behind a 3.9.', false],
+        ['users', 'Trust before you ever speak to them',
+         'A stranger decides whether to call you by reading what your last
+          twenty customers said. It is the reference you cannot hand out
+          yourself, and it works while you are on a job.', false],
+        ['star', 'A business worth more when you sell it',
+         'A buyer is buying your reputation along with the vans. A 4.8 with 400
+          reviews transfers on day one. A 3.9 with 40 is something they have to
+          fix first, and they will price it that way.', false],
+        ['search', 'Get past Google’s rating filter',
+         'Google Maps lets people filter results by rating, and the lowest rung
+          of that filter is 4.0. Below it you are not competing badly — you are
+          not in the list they are looking at.', false],
+        ['megaphone', 'Stop competing on price alone',
+         'A strong rating is the reason someone pays your quote instead of the
+          cheapest one. Without it, price is the only thing left to compare you
+          on, and that is a race you do not want to win.', false],
+        ['pin', 'Keep up with the shop down the road',
+         'Your competitors are asking their customers. If you are not, the gap
+          widens every month — whether or not you are doing the better work.
+          This is the one area where effort compounds.', false],
+        ['bell', 'Never have to remember to ask',
+         'Most owners do not have few reviews because customers said no. They
+          have few because nobody asked, on the day, every time. That is the
+          part we take off your hands.', false],
+        ['message', 'Hear about a bad review first',
+         'Monitoring and alerts come with the free account, so you find out
+          from us and reply the same day — not from a customer mentioning it
+          three weeks later.', false],
+        ['qr', 'Free tools, and a person who sets them up',
+         'Today that is your Review Growth Score, and your Google review link
+          and printable QR code set up with you by hand. Automatic sending —
+          ' . lcfirst(Plans::sendingLimit(Plans::FREE)) . ' — lands as it
+          ships. Free for as long as you want it, no card on file.', true],
+      ] as $i => [$icon, $title, $body, $lead]): ?>
+        <div class="close-card<?= $lead ? ' close-card--lead' : '' ?>"
+             data-reveal data-reveal-delay="<?= ($i % 3) + 1 ?>">
+          <span class="close-card__tile"><?= Icon::render($icon) ?></span>
+          <h3><?= View::e($title) ?></h3>
+          <p><?= View::e(preg_replace('/\s+/', ' ', $body)) ?></p>
+        </div>
+      <?php endforeach; ?>
+    </div>
+
+    <div class="close-act" data-reveal>
+      <p class="close-rule">
+        <?= Icon::render('shield') ?>
+        <span><strong>And we get them the honest way: we ask everyone.</strong>
+          Filtering who gets asked is review gating. Google prohibits it
+          outright, the FTC treats suppressing or buying reviews as deceptive,
+          and it is the quickest way to lose the profile you spent years
+          building. We will never do it, on any plan.</span>
+      </p>
+
+      <a class="close-btn" href="/members/signup">
+        Create your free account
+        <?= Icon::render('send') ?>
+      </a>
+
+      <ul class="close-facts">
+        <?php foreach ([
+          'No credit card',
+          'Free is a plan, not a trial',
+          // Not a disclaimer buried at the bottom: for a small business owner,
+          // "a person sets it up with you" is the reason to pick us over a
+          // self-serve tool, so it belongs next to the button.
+          'Early access — we set it up with you',
+        ] as $fact): ?>
+          <li><?= Icon::render('check') ?><?= View::e($fact) ?></li>
+        <?php endforeach; ?>
+      </ul>
+
+      <p class="close-alt"><a href="#score">Or score my website first</a></p>
+    </div>
+
+  </div>
+</section>
