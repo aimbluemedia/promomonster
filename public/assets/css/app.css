@@ -1519,3 +1519,18 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
    diagnosis in a language the reader does not speak. */
 .stat-card__h{ margin-top:.3rem; font-size:.78rem; line-height:1.35; color:var(--muted); }
 .gs__countwhat{ display:block; font-size:.72rem; color:var(--muted); }
+
+/* ---- The logo lockup --------------------------------------------------- */
+/* "by Toutify" sits under the wordmark rather than beside it. On one line it
+   reads as part of the product's name; stacked and smaller it reads as who
+   makes it, which is what it is. */
+.logo__text{ display:inline-flex; flex-direction:column; justify-content:center;
+  line-height:1.05; }
+.logo__by{ font-size:.66em; font-weight:600; letter-spacing:0; color:var(--muted);
+  margin-top:.12em; white-space:nowrap; }
+/* The mark is two lines tall now, so it stops being vertically centred against
+   a single line of text and starts looking dropped. */
+.logo--stacked{ align-items:center; }
+/* Below 379px the wordmark is hidden to save the header; the byline has to go
+   with it or "by Toutify" is left floating beside the mark on its own. */
+@media (max-width:379px){ .logo__by{ display:none; } }

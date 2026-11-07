@@ -21,13 +21,7 @@ unset($_SESSION['admin_flash']);
 <header class="admin-header">
   <div class="container">
     <div class="admin-header__top">
-      <a class="logo" href="/superadmin">
-        <svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-          <rect width="32" height="32" rx="9" fill="var(--brand)"/>
-          <path d="M16 7.5l2.3 4.7 5.2.75-3.75 3.65.9 5.15L16 19.3l-4.65 2.45.9-5.15L8.5 12.95l5.2-.75z" fill="#fff"/>
-        </svg>
-        <span class="logo__word">Promo<span class="logo__accent">Monster</span></span>
-      </a>
+      <?= View::render('partials/logo', ['href' => '/superadmin']) ?>
       <div class="admin-header__who">
         <span><?= View::e(trim(($me['first_name'] ?? '') . ' ' . ($me['last_name'] ?? ''))) ?></span>
         <form method="post" action="/superadmin/logout" style="display:inline;">

@@ -16,13 +16,7 @@
 <body>
 <div class="login-wrap">
   <div class="login-card">
-    <a class="logo" href="/">
-      <svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <rect width="32" height="32" rx="9" fill="var(--brand)"/>
-        <path d="M16 7.5l2.3 4.7 5.2.75-3.75 3.65.9 5.15L16 19.3l-4.65 2.45.9-5.15L8.5 12.95l5.2-.75z" fill="#fff"/>
-      </svg>
-      <span class="logo__word">Promo<span class="logo__accent">Monster</span></span>
-    </a>
+    <?= View::render('partials/logo', ['href' => '/', 'size' => 28]) ?>
 
     <?php if ($reset === null): ?>
       <?php /* One message for expired, already used, and never real. Saying
