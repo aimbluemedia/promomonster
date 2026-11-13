@@ -364,14 +364,100 @@ select.field{ appearance:none; background-image:linear-gradient(45deg,transparen
 .faq p{ margin:.75rem 0 0; color:var(--body); font-size:.95rem; max-width:52rem; }
 
 /* Footer ----------------------------------------------------------------- */
-.site-footer{ border-top:1px solid var(--line); padding-block:3rem; background:var(--wash); }
-.site-footer__grid{ display:flex; flex-direction:column; gap:1.75rem; }
-@media (min-width:700px){ .site-footer__grid{ flex-direction:row; justify-content:space-between; } }
-.site-footer p{ max-width:28rem; margin:.85rem 0 0; font-size:.9rem; color:var(--body); }
-.site-footer nav{ display:flex; flex-wrap:wrap; gap:.5rem 1.75rem; font-size:.9rem; }
-.site-footer nav a{ color:var(--body); text-decoration:none; }
-.site-footer nav a:hover{ color:var(--ink); }
-.site-footer__legal{ margin-top:2.25rem; font-size:.78rem; color:var(--muted); }
+/* ---- Membership band + footer ----------------------------------------- */
+/*
+ * These two carry their own colours rather than the theme's. They are dark in
+ * light mode and dark in dark mode, like the band they are modelled on, so
+ * var(--ink) and friends would invert them into a light block in dark mode and
+ * lose the separation from the page above. Every pair below was checked for
+ * contrast rather than eyeballed.
+ *
+ * --pm-deep is the brand hue taken most of the way to black, so the footer
+ * reads as this product's dark rather than as a generic one.
+ */
+.membership, .site-footer{
+  --pm-deep:  #071824;
+  --pm-deep2: #0c2435;
+  --pm-sky:   #7fd2f7;
+  --pm-dim:   #9fb3c4;
+}
+
+/* Nothing in this gradient is lighter than #0a4f87. The first version ran up
+   to the full brand blue, where 85% white text measured 4.05:1 and the small
+   sky-blue eyebrow 3.25:1 -- both below AA. Same hue, held darker. */
+.membership{ background:linear-gradient(160deg, #073f6b 0%, #0a4f87 55%, #06375d 100%);
+  color:#fff; padding-block:4rem; }
+.membership__eyebrow{ margin:0 0 .9rem; font-size:.72rem; font-weight:800;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--pm-sky); }
+.membership__title{ margin:0; font-size:clamp(1.65rem, 3.4vw, 2.5rem); line-height:1.15;
+  letter-spacing:-.02em; color:#fff; max-width:22ch; }
+.membership__accent{ color:var(--pm-sky); }
+.membership__lead{ margin:1rem 0 0; max-width:46rem; font-size:1rem; line-height:1.6;
+  color:rgba(255,255,255,.90); }
+
+.membership__act{ display:flex; flex-wrap:wrap; align-items:center; gap:.9rem 1.4rem;
+  margin-top:1.75rem; }
+/* White on blue: the page's own primary button is blue and would vanish. */
+.membership .btn--primary{ background:#fff; color:#06395f; border-color:#fff; }
+.membership .btn--primary:hover{ background:var(--pm-sky); border-color:var(--pm-sky);
+  color:#06293f; }
+.membership__already{ font-size:.92rem; color:rgba(255,255,255,.90); }
+.membership__already a{ color:#fff; font-weight:700; }
+
+.membership__promises{ list-style:none; display:flex; flex-wrap:wrap; gap:.5rem 1.5rem;
+  margin:1.5rem 0 0; padding:0; font-size:.88rem; color:rgba(255,255,255,.95); }
+.membership__promises li{ display:inline-flex; align-items:center; gap:.4rem; }
+.membership__promises .icon{ width:16px; height:16px; color:var(--pm-sky); flex:none; }
+
+.membership__label{ margin:2.75rem 0 1rem; font-size:.72rem; font-weight:800;
+  letter-spacing:.14em; text-transform:uppercase; color:rgba(255,255,255,.85); }
+
+.membership__grid{ display:grid; gap:.8rem; }
+@media (min-width:640px){ .membership__grid{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (min-width:980px){ .membership__grid{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+
+.tout{ display:flex; gap:.8rem; padding:.95rem 1rem; border-radius:12px;
+  background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14);
+  text-decoration:none; color:inherit; }
+a.tout:hover{ background:rgba(255,255,255,.15); border-color:rgba(255,255,255,.3); }
+/* The one you are already on is stated, not sold. */
+.tout--here{ background:rgba(255,255,255,.17); border-color:var(--pm-sky); }
+.tout__icon{ flex:none; display:flex; align-items:center; justify-content:center;
+  width:34px; height:34px; border-radius:9px; background:rgba(255,255,255,.16); }
+.tout__icon .icon{ width:18px; height:18px; color:#fff; }
+.tout__body{ display:flex; flex-direction:column; gap:.1rem; min-width:0; }
+.tout__name{ font-weight:700; font-size:.95rem; color:#fff;
+  display:flex; flex-wrap:wrap; align-items:center; gap:.45rem; }
+.tout__here{ font-size:.62rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase;
+  padding:.12rem .4rem; border-radius:999px; background:var(--pm-sky); color:#06293f; }
+.tout__by{ font-size:.72rem; font-weight:600; color:rgba(255,255,255,.78); }
+.tout__what{ margin-top:.2rem; font-size:.84rem; line-height:1.45;
+  color:rgba(255,255,255,.88); }
+
+/* ---- The footer proper ------------------------------------------------- */
+.site-footer{ background:var(--pm-deep); color:var(--pm-dim); padding-block:3.25rem 2rem; }
+.site-footer__top{ display:grid; gap:2.25rem; }
+@media (min-width:760px){
+  .site-footer__top{ grid-template-columns:minmax(0,1.6fr) repeat(4, minmax(0,1fr)); gap:2rem; }
+}
+.site-footer__brand p{ max-width:30rem; margin:1rem 0 0; font-size:.88rem; line-height:1.6;
+  color:var(--pm-dim); }
+/* The logo is dark-on-light everywhere else, so it needs its own colours here
+   or "Promo" disappears into the background. */
+.site-footer .logo{ color:#fff; }
+.site-footer .logo__accent{ color:var(--pm-sky); }
+.site-footer .logo__by{ color:rgba(255,255,255,.6); }
+
+.site-footer__col{ display:flex; flex-direction:column; gap:.55rem; }
+.site-footer__col h2{ margin:0 0 .3rem; font-size:.72rem; font-weight:800;
+  letter-spacing:.1em; text-transform:uppercase; color:#fff; }
+.site-footer__col a{ font-size:.88rem; color:var(--pm-dim); text-decoration:none; }
+.site-footer__col a:hover{ color:#fff; text-decoration:underline; }
+
+.site-footer__legal{ display:flex; flex-wrap:wrap; justify-content:space-between;
+  gap:.5rem 2rem; margin-top:2.75rem; padding-top:1.5rem;
+  border-top:1px solid rgba(255,255,255,.12); font-size:.78rem; color:rgba(255,255,255,.7); }
+.site-footer__legal span:last-child{ max-width:42rem; }
 
 .sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px;
   overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }

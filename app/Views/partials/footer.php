@@ -1,24 +1,60 @@
 <?php use App\Support\View; ?>
+<?php /* The membership band sits above the legal footer, not inside it: it is
+         a pitch and the footer is a map, and running them together is how a
+         footer stops being somewhere people look things up. */ ?>
+<?= View::render('partials/membership') ?>
+
 <footer class="site-footer">
-  <div class="container site-footer__grid">
-    <div>
-      <?= View::render('partials/logo', ['href' => '/', 'size' => 30]) ?>
-      <p>Reviews. Reputation. Growth. PromoMonster helps local businesses ask
-         every customer for a review, respond to what comes back, and show it
-         off — without breaking a single platform rule.</p>
+  <div class="container">
+    <div class="site-footer__top">
+      <div class="site-footer__brand">
+        <?= View::render('partials/logo', ['href' => '/', 'size' => 30]) ?>
+        <p>Reviews. Reputation. Growth. PromoMonster helps local businesses ask
+           every customer for a review, respond to what comes back, and show it
+           off &mdash; without breaking a single platform rule.</p>
+      </div>
+
+      <?php /* Grouped by what somebody came looking for. The old footer was
+               one run of seven links where "Privacy" sat next to "Features",
+               which is a list rather than a map. */ ?>
+      <?php foreach ([
+        'PromoMonster' => [
+          '/how-it-works' => 'How it works',
+          '/features'     => 'Features',
+          '/pricing'      => 'Pricing',
+          '/agencies'     => 'For agencies',
+        ],
+        'Free tools' => [
+          '/audit'   => 'Free review audit',
+          '/score'   => 'Review Growth Score',
+          '/compare' => 'Compare your reviews',
+        ],
+        'Your account' => [
+          '/members/signup' => 'Create a free account',
+          '/members/login'  => 'Log in',
+          '/members'        => 'Members dashboard',
+        ],
+        'Legal' => [
+          '/privacy' => 'Privacy',
+          '/terms'   => 'Terms',
+        ],
+      ] as $heading => $links): ?>
+        <nav class="site-footer__col" aria-label="<?= View::e($heading) ?>">
+          <h2><?= View::e($heading) ?></h2>
+          <?php foreach ($links as $href => $label): ?>
+            <a href="<?= View::e($href) ?>"><?= View::e($label) ?></a>
+          <?php endforeach; ?>
+        </nav>
+      <?php endforeach; ?>
     </div>
-    <nav>
-      <a href="/how-it-works">How It Works</a>
-      <a href="/features">Features</a>
-      <a href="/pricing">Pricing</a>
-      <a href="/agencies">For Agencies</a>
-      <a href="/audit">Free Review Audit</a>
-      <a href="/privacy">Privacy</a>
-      <a href="/terms">Terms</a>
-    </nav>
-  </div>
-  <div class="container site-footer__legal">
-    &copy; <?= date('Y') ?> PromoMonster. We never sell, write or incentivise
-    reviews, and we never filter which customers get asked.
+
+    <div class="site-footer__legal">
+      <span>&copy; <?= date('Y') ?> PromoMonster by Toutify. All rights reserved.</span>
+      <?php /* The promise stays in the footer rather than moving to a policy
+               page. It is the thing that separates this product from the ones
+               that sell reviews, and it belongs where every page carries it. */ ?>
+      <span>We never sell, write or incentivise reviews, and we never filter
+        which customers get asked.</span>
+    </div>
   </div>
 </footer>
