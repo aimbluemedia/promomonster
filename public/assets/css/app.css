@@ -868,11 +868,20 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
 
 /* --- Calculator ---------------------------------------------------------- */
 .calc{ display:grid; gap:1.25rem; }
-@media (min-width:900px){ .calc{ grid-template-columns:1.05fr .95fr; gap:1.75rem; align-items:start; } }
+/* stretch, not start. The inputs panel sizes to its content and the result
+   panel to its own, so side by side they ended on different lines and the row
+   finished in a step. Equal height is the whole reason the left panel now has
+   a header on it. */
+@media (min-width:900px){ .calc{ grid-template-columns:1.05fr .95fr; gap:1.75rem; align-items:stretch; } }
 
 .calc__panel{ background:var(--surface); border:1px solid var(--line);
   border-radius:var(--radius); padding:1.5rem; }
-.calc__panel h3{ font-size:1rem; margin:0 0 1.25rem; color:var(--ink); }
+.calc__panel h3{ font-size:1.25rem; margin:.15rem 0 0; color:var(--ink);
+  letter-spacing:-.01em; }
+.calc__head{ margin-bottom:1.4rem; padding-bottom:1.1rem;
+  border-bottom:1px solid var(--line); }
+.calc__head .calc__eyebrow{ margin:0; }
+.calc__intro{ margin:.5rem 0 0; font-size:.88rem; line-height:1.55; color:var(--body); }
 
 .calc__field{ margin-bottom:1.5rem; }
 .calc__field:last-child{ margin-bottom:0; }

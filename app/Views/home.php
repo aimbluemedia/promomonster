@@ -11,17 +11,25 @@
            twice, where a plain 404 in the network tab says exactly what is
            wrong.
 
-           width/height are the file's real pixels (portrait), so the browser
-           reserves the right box and the page does not jump as it loads. The
-           JPEG is the same photograph as hero.png at a ninetieth of the weight;
-           this is the largest asset on the page, so that matters. -->
-      <img src="/assets/img/hero.jpg" width="1122" height="1402" fetchpriority="high"
-           alt="A home service professional outside a customer&rsquo;s home, holding a tablet.">
+           width/height are the file's real pixels, so the browser reserves the
+           right box and the page does not jump as it loads. Cropped to 4:5 in
+           the file rather than left to object-fit: the CSS crop is centred and
+           would have taken the top of her hair off. This is the largest asset
+           on the page, so it is a stripped, progressive JPEG. -->
+      <img src="/assets/img/hero.jpg" width="1061" height="1326" fetchpriority="high"
+           alt="A bakery owner handing a card reader to a customer buying a box of doughnuts.">
+      <?php /* The trade here follows the photograph. It read "Acme Pools" over
+               a picture of a bakery, which is the kind of detail that tells a
+               visitor the whole page is stock.
+
+               Still an illustration, and labelled as one: the figure is not a
+               customer's result and the business does not exist, so it must
+               not read as a case study. */ ?>
       <div class="hero__float">
         <span class="stars" aria-hidden="true">★★★★★</span>
         <span>
           <strong>+38 reviews in 90 days</strong>
-          <p>Acme Pools &middot; Mesa, AZ</p>
+          <p>Example &middot; a bakery in Mesa, AZ</p>
         </span>
       </div>
     </div>

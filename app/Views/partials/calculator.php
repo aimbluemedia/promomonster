@@ -35,7 +35,19 @@ $needed = (int) ceil(round($defaultReviews * ($defaultTarget - $defaultRating) /
      data-jobs="<?= $defaultJobs ?>">
 
   <div class="calc__panel">
-    <h3>Your business today</h3>
+    <?php /* A proper header rather than a lone h3. The left panel ran 84px
+             shorter than the result beside it, so the row ended in a ragged
+             step; this fills it with something worth reading instead of
+             padding. The privacy line is the useful part -- these four numbers
+             are about somebody's own business and nothing here sends them
+             anywhere, which is not obvious from a form. */ ?>
+    <div class="calc__head">
+      <p class="calc__eyebrow">Start here</p>
+      <h3>Your business today</h3>
+      <p class="calc__intro">Four numbers off your Google listing. Drag each one
+        to match your business &mdash; nothing is saved, nothing is sent, and
+        the answer on the right updates as you go.</p>
+    </div>
 
     <div class="calc__field">
       <label class="calc__label" for="calc-rating">
