@@ -27,6 +27,8 @@ if (PHP_SAPI !== 'cli') {
 
 require dirname(__DIR__) . '/app/bootstrap.php';
 
+use App\Support\AfterSending;
+use App\Support\Config;
 use App\Support\Database;
 use App\Support\Heartbeat;
 use App\Support\Mailer;
@@ -124,6 +126,34 @@ try {
         $skipped,
         microtime(true) - $startedAt,
     ));
+
+    /**
+     * The periodic work that is not sending.
+     *
+     * Review alerts and the monthly report, inside this runner rather than in
+     * cron jobs of their own. There is one cron job in this product; every
+     * extra one is another line to type into a control panel by hand, another
+     * thing to forget, and another thing that can be quietly dropped when a
+     * hosting plan changes. This one already wakes every five minutes and
+     * already holds the lock that stops two copies overlapping.
+     *
+     * After the sending, never before. Mail somebody is waiting on does not
+     * queue behind an API call, and AfterSending catches its own failures so
+     * a broken report cannot take the queue down with it.
+     */
+    $after = AfterSending::run(
+        rtrim((string) Config::get('app_url', 'https://promomonster.com'), '/')
+    );
+
+    if ($after['alerts'] > 0) {
+        echo line(sprintf('Alerts: %d review(s) announced', $after['alerts']));
+    }
+    if ($after['report'] !== null) {
+        echo line('Report: monthly comparison sent to ' . $after['report']);
+    }
+    foreach ($after['notes'] as $note) {
+        echo line('  ' . $note);
+    }
 } finally {
     // Explicit, even though closing the connection would do it. A future
     // version that keeps running after this block would otherwise hold the

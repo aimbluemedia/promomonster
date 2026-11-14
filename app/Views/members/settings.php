@@ -1,8 +1,20 @@
 <?php use App\Support\Billing; use App\Support\Csrf; use App\Support\Plans;
 use App\Support\Trades; use App\Support\View;
 /** @var array $account @var array $user @var array $team @var array $plans
- *  @var string $trade */
+ *  @var string $trade @var bool $alertsOn @var bool $canReport
+ *  @var array $competitors @var bool $reportReady @var ?string $reportNext
+ *  @var int $reportMax */
 $trade = $trade ?? '';
+
+// Defaults, so this page renders before migration 028 has been run. Settings
+// is where somebody goes when something is wrong; it is the last page that
+// should fatal on a missing key.
+$alertsOn    = $alertsOn ?? true;
+$canReport   = $canReport ?? false;
+$competitors = $competitors ?? [];
+$reportReady = $reportReady ?? false;
+$reportNext  = $reportNext ?? null;
+$reportMax   = $reportMax ?? 2;
 $current   = (string) ($account['plan'] ?? Plans::FREE);
 $requested = $account['requested_plan'] ?? null;
 
@@ -196,6 +208,98 @@ $onCard    = Billing::hasLiveSubscription($account);
       <?= $trade === '' ? 'Save my trade' : 'Save changes' ?>
     </button>
   </form>
+</div>
+
+<?php /* ---- Hearing about a review ---------------------------------------- */ ?>
+<?php /* On every plan. A member who never hears about their reviews has no
+         reason to come back, and the one-star that needed answering the same
+         afternoon gets found a fortnight later. */ ?>
+<div class="card" style="margin-bottom:1.5rem;">
+  <h2 style="font-size:1.05rem;margin-bottom:.4rem;">When a review arrives</h2>
+  <p class="muted" style="font-size:.9rem;margin:0 0 1rem;max-width:40rem;">
+    We email you the review itself, not a note telling you to log in and find out
+    how bad it is. A poor one says so in the subject line, because that is the one
+    worth answering today.
+  </p>
+  <form class="form" method="post" action="/members/alerts">
+    <?= Csrf::field() ?>
+    <label style="display:flex;align-items:center;gap:.6rem;font-size:.95rem;">
+      <input type="checkbox" name="alerts_on" value="1" <?= $alertsOn ? 'checked' : '' ?>>
+      <span>Email me when someone leaves a review</span>
+    </label>
+    <button class="btn btn--primary" type="submit" style="justify-self:start;">Save</button>
+  </form>
+</div>
+
+<?php /* ---- The monthly report --------------------------------------------- */ ?>
+<div class="card" style="margin-bottom:1.5rem;">
+  <h2 style="font-size:1.05rem;margin-bottom:.4rem;">Your monthly report</h2>
+
+  <?php if (!$canReport): ?>
+    <?php /* Shown rather than hidden. Somebody who cannot see a feature exists
+             cannot decide they want it, and a settings page with a hole in it
+             on one plan reads as a page that failed to load. */ ?>
+    <p class="muted" style="font-size:.9rem;margin:0 0 .8rem;max-width:40rem;">
+      Once a month we compare your rating and review count against two businesses
+      you name, and email you what the difference is and what to do about it.
+    </p>
+    <p style="font-size:.92rem;margin:0;">
+      On <?= View::e(Plans::name((string) Plans::cheapestWith(Plans::MONTHLY_REPORT))) ?>,
+      <?= View::e(Plans::money((string) Plans::cheapestWith(Plans::MONTHLY_REPORT))) ?>/month.
+      <a href="/members#plans">Compare the plans &rarr;</a>
+    </p>
+  <?php elseif (!$reportReady): ?>
+    <p class="muted" style="font-size:.9rem;margin:0;">
+      This needs a database update we have not run yet. It will appear here on its own.
+    </p>
+  <?php else: ?>
+    <p class="muted" style="font-size:.9rem;margin:0 0 1rem;max-width:40rem;">
+      Name up to <?= (int) $reportMax ?> businesses you want to be measured against, with
+      the rating and review count off their Google listing. We do not guess who they are
+      &mdash; a report about a business two towns over that you have never heard of is
+      worse than no report.
+      <?php if ($competitors === []): ?>
+        Leave this empty and no report goes out.
+      <?php endif; ?>
+    </p>
+
+    <form class="form" method="post" action="/members/competitors">
+      <?= Csrf::field() ?>
+      <?php foreach (range(1, (int) $reportMax) as $n): ?>
+        <?php $c = $competitors[$n - 1] ?? null; ?>
+        <fieldset style="border:1px solid var(--line);border-radius:10px;padding:.9rem 1rem;margin:0 0 .8rem;">
+          <legend style="font-size:.78rem;font-weight:700;color:var(--muted);padding:0 .35rem;">
+            Business <?= (int) $n ?>
+          </legend>
+          <label class="sr-only" for="cname<?= $n ?>">Name</label>
+          <input class="field" id="cname<?= $n ?>" name="competitor_name_<?= $n ?>" type="text"
+                 maxlength="150" placeholder="Their business name"
+                 value="<?= View::e((string) ($c['name'] ?? '')) ?>">
+          <div class="grid grid--2" style="margin-top:.6rem;">
+            <div>
+              <label for="crate<?= $n ?>" style="font-size:.82rem;">Their rating</label>
+              <input class="field" id="crate<?= $n ?>" name="competitor_rating_<?= $n ?>"
+                     type="number" step="0.1" min="1" max="5" placeholder="4.2"
+                     value="<?= $c === null || $c['rating'] === null ? '' : View::e((string) $c['rating']) ?>">
+            </div>
+            <div>
+              <label for="ccount<?= $n ?>" style="font-size:.82rem;">How many reviews</label>
+              <input class="field" id="ccount<?= $n ?>" name="competitor_count_<?= $n ?>"
+                     type="number" min="0" step="1" placeholder="130"
+                     value="<?= $c === null || $c['review_count'] === null ? '' : (int) $c['review_count'] ?>">
+            </div>
+          </div>
+        </fieldset>
+      <?php endforeach; ?>
+      <button class="btn btn--primary" type="submit" style="justify-self:start;">Save</button>
+    </form>
+
+    <?php if ($competitors !== [] && $reportNext !== null): ?>
+      <p class="muted" style="font-size:.84rem;margin:.9rem 0 0;">
+        Next report: <?= View::e((string) $reportNext) ?> (UTC).
+      </p>
+    <?php endif; ?>
+  <?php endif; ?>
 </div>
 
 <div class="grid grid--2">

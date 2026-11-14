@@ -16,9 +16,11 @@ use App\Support\EmailTemplates;
 use App\Support\Heartbeat;
 use App\Support\HostedReviews;
 use App\Support\Mailer;
+use App\Support\MonthlyReport;
 use App\Support\Onboarding;
 use App\Support\Plans;
 use App\Support\ReplyDrafts;
+use App\Support\ReviewAlerts;
 use App\Support\ReviewLink;
 use App\Support\ReviewRequests;
 use App\Support\SendLimit;
@@ -757,6 +759,65 @@ final class MembersController
      * this product has met yet; when it does, this writes to the primary one
      * and the others keep what they have.
      */
+    /**
+     * Who the monthly report measures them against.
+     *
+     * Typed, never looked up. Guessing a rival from a map radius is how you
+     * email somebody a report about a business two towns over that they have
+     * never heard of -- so the member names them, off the listing they are
+     * actually worried about.
+     */
+    public function saveCompetitors(): void
+    {
+        $here = '/members/settings';
+        $this->guardTo($here);
+        $this->requirePlan(Plans::MONTHLY_REPORT, $here);
+
+        $account = Auth::account() ?? [];
+
+        if (!MonthlyReport::ready()) {
+            $this->backTo($here, 'This needs a database update we have not run yet. Try again shortly.');
+        }
+
+        $rows = [];
+        foreach (range(1, MonthlyReport::MAX_COMPETITORS) as $n) {
+            $rows[] = [
+                'name'         => (string) ($_POST['competitor_name_' . $n] ?? ''),
+                'rating'       => $_POST['competitor_rating_' . $n] ?? null,
+                'review_count' => $_POST['competitor_count_' . $n] ?? null,
+            ];
+        }
+
+        $saved = MonthlyReport::save((int) $account['id'], $rows);
+
+        $this->backTo($here, $saved === 0
+            ? 'Cleared. No report will go out until you name somebody to compare against.'
+            : 'Saved. Your first report goes out within the hour, then monthly.');
+    }
+
+    /** Whether to hear about a review when it arrives. */
+    public function saveAlerts(): void
+    {
+        $here = '/members/settings';
+        $this->guardTo($here);
+
+        $account = Auth::account() ?? [];
+        $on      = isset($_POST['alerts_on']);
+
+        try {
+            Database::run(
+                'UPDATE accounts SET alerts_on = :on WHERE id = :id',
+                ['on' => $on ? 1 : 0, 'id' => (int) $account['id']],
+            );
+        } catch (Throwable) {
+            $this->backTo($here, 'This needs a database update we have not run yet. Try again shortly.');
+        }
+
+        $this->backTo($here, $on
+            ? 'On. We will email you when a review arrives.'
+            : 'Off. Your reviews still arrive, we just will not email about them.');
+    }
+
     public function saveTrade(): void
     {
         $here = '/members/settings';
@@ -967,6 +1028,12 @@ final class MembersController
             'account' => $account,
             'plans'   => Plans::selectable(),
             'trade'   => (string) ($this->primaryLocation((int) $account['id'])['vertical'] ?? ''),
+            'alertsOn'    => ReviewAlerts::wanted($account),
+            'canReport'   => $this->can(Plans::MONTHLY_REPORT),
+            'competitors' => MonthlyReport::competitors((int) $account['id']),
+            'reportReady' => MonthlyReport::ready(),
+            'reportNext'  => $account['report_next_at'] ?? null,
+            'reportMax'   => MonthlyReport::MAX_COMPETITORS,
             'user'    => Auth::user() ?? [],
             'team'    => Database::all(
                 'SELECT u.first_name, u.last_name, u.email, au.role

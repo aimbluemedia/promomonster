@@ -126,7 +126,19 @@ before pointing it at a real inbox.
 complaints land on the reputation of whatever domain signs these, and if that is
 `promomonster.com` then a blocklisting takes your login emails down with it.
 
+### 6a-bis. Migration 028
+
+Run `database/migrations/028_premium_tools.sql` with the others. It adds the
+drafted replies, the monthly report's saved competitors, and the `alerted_at`
+column that stops a review being announced twice. Safe to paste twice.
+
 ### 6b. The cron job, in hPanel
+
+Still **one** cron job, and still the same line. The review alerts and the
+monthly comparison report run inside `send-due.php` once the queue is empty,
+rather than in jobs of their own -- every extra cron entry is another thing to
+type by hand, forget, or lose when a hosting plan changes. If sending works,
+those work.
 
 Hostinger: **Advanced → Cron Jobs → Create a New Cron Job**, set it to run
 **every 5 minutes**, and paste this as the command — substituting your own
