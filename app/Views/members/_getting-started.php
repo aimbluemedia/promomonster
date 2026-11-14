@@ -134,7 +134,7 @@ $lastStep = $progress['complete'] && $progress['next'] !== null;
             <?php $grants = $step['ability'] === null
                 ? [(string) $step['needs']]
                 : Plans::plansWith((string) $step['ability']); ?>
-            <a class="btn btn--sm" href="/members#plans">
+            <a class="btn btn--ghost btn--sm" href="/members#plans">
               Upgrade to
               <?= View::e(implode(' or ', array_map(
                   static fn (string $k): string => Plans::name($k),

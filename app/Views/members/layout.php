@@ -1,9 +1,6 @@
 <?php
 /** @var string $content @var ?string $title @var array $account */
-use App\Support\Auth;
-use App\Support\Csrf;
 use App\Support\View;
-$me = Auth::user();
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/members', PHP_URL_PATH) ?: '/members';
 $flash = $_SESSION['members_flash'] ?? null;
 unset($_SESSION['members_flash']);
@@ -17,67 +14,32 @@ unset($_SESSION['members_flash']);
 <title><?= View::e($title ?? 'PromoMonster') ?></title>
 <link rel="stylesheet" href="<?= View::e(View::asset('/assets/css/app.css')) ?>">
 </head>
-<body>
-<header class="admin-header">
-  <div class="container">
-    <div class="admin-header__top">
-      <?= View::render('partials/logo', ['href' => '/members']) ?>
-      <div class="admin-header__who">
-        <span><?= View::e($account['name'] ?? '') ?></span>
-        <form method="post" action="/members/logout" style="display:inline;">
-          <?= Csrf::field() ?>
-          <button type="submit" style="background:none;border:0;padding:0;color:var(--brand);
-            font:inherit;font-size:.88rem;font-weight:700;cursor:pointer;">Sign out</button>
-        </form>
-      </div>
+<body class="members">
+<a class="skip-link" href="#main">Skip to the page</a>
+
+<?php /* Sidebar and page, side by side.
+
+         What used to be here: a header, a row of eight links that scrolled
+         sideways, and the three plan cards on every single page. The plan
+         cards were put there so a member meeting a locked screen could see
+         what the next tier costs without hunting -- that reason still holds,
+         and the sidebar still answers it, but with one line of plan and
+         allowance instead of three boxes above every page. The cards
+         themselves now live where somebody goes to compare them. */ ?>
+<div class="shell">
+  <?= View::render('members/_sidebar', [
+      'account' => $account ?? [],
+      'path'    => $path,
+  ]) ?>
+
+  <main class="shell__main" id="main">
+    <div class="shell__inner">
+      <?php if ($flash !== null): ?>
+        <div class="flash" role="status"><?= View::e($flash) ?></div>
+      <?php endif; ?>
+      <?= $content ?>
     </div>
-    <nav class="admin-nav">
-      <?php /* Order is what a member does, not what the app is made of, so the
-               two screens they open daily sit at the front. "Requests" was the
-               nav's own name for a page whose heading has always read "Review
-               requests" -- one label for one screen. */ ?>
-      <?php foreach ([
-        '/members'                      => 'Dashboard',
-        '/members/requests'             => 'Review requests',
-        '/members/reviews'              => 'Google reviews',
-        '/members/promomonster-reviews' => 'PromoMonster reviews',
-        '/members/templates'            => 'Email templates',
-        '/members/playbook'             => 'Your playbook',
-        '/members/profile'              => 'Your details',
-        '/members/settings'             => 'Settings',
-      ] as $href => $label): ?>
-        <a href="<?= $href ?>"<?= $path === $href ? ' aria-current="page"' : '' ?>><?= View::e($label) ?></a>
-      <?php endforeach; ?>
-    </nav>
-  </div>
-</header>
-
-<?php /* Under the nav on every page, because the plan is now the reason three
-         of the links above it behave differently. A member who meets a locked
-         section with no idea why writes a support email; one who can see what
-         they are on, and what the next tier costs, does not have to.
-
-         The cards themselves rather than a line of text: the question somebody
-         actually has at a locked screen is "what would I get", and a price
-         with no list beside it does not answer it.
-
-         id="plans" lives here now, so every "Compare the plans" link still
-         lands on something whichever page it was pressed from. */ ?>
-<div class="planstrip">
-  <div class="container">
-    <section id="plans">
-      <?= View::render('members/_plan-cards', ['account' => $account ?? []]) ?>
-    </section>
-  </div>
+  </main>
 </div>
-
-<main class="admin-main">
-  <div class="container">
-    <?php if ($flash !== null): ?>
-      <div class="flash" role="status"><?= View::e($flash) ?></div>
-    <?php endif; ?>
-    <?= $content ?>
-  </div>
-</main>
 </body>
 </html>

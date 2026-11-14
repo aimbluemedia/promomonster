@@ -76,7 +76,7 @@ $label   = Plans::ABILITY_LABELS[$ability] ?? 'This';
           </button>
         </form>
       <?php endif; ?>
-      <a class="btn btn--ghost" href="/members">Compare the plans</a>
+      <a class="btn btn--ghost" href="/members#plans">Compare the plans</a>
     </div>
   <?php endif; ?>
 </div>

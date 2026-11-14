@@ -14,13 +14,11 @@ $pageUrl   = $pageUrl ?? null; ?>
 <?php /* The page says whose it is before it says anything else. The heading
          used to appear a third of the way down, under the plans and the
          checklist, so the first thing on screen was a price list. */ ?>
-<div class="admin-title">
-  <h1>Dashboard</h1>
-  <?php /* The plan badge that sat here is gone: the cards above the nav
-           already say which plan this is, and two answers to the same
-           question on one screen is one too many. */ ?>
-  <span class="muted" style="font-size:.95rem;"><?= View::e($account['name'] ?? '') ?></span>
-</div>
+<?= View::render('members/_welcome', [
+    'account'   => $account ?? [],
+    'locations' => $locations ?? [],
+    'pageUrl'   => $pageUrl,
+]) ?>
 
 <?php /* ---- What to do next ------------------------------------------- */ ?>
 <?= View::render('members/_getting-started', [
@@ -137,3 +135,25 @@ $pageUrl   = $pageUrl ?? null; ?>
     </table>
   <?php endif; ?>
 </div>
+
+<?php /* ---- The plans --------------------------------------------------- */ ?>
+<?php /* These three cards used to sit above the nav on every page in the
+         members area. They were put there so a member who met a locked
+         screen could see what the next tier costs without hunting for it --
+         a good reason, served badly: three boxes above every page, including
+         the eight pages where nobody was asking. The sidebar carries the
+         plan and the allowance now, on every page, in one line, and the
+         cards live here, at the end of the only page that is about how the
+         account is doing.
+
+         id="plans" stays on this section: every "Compare the plans" and
+         "Needs Pro" link in the members area points at /members#plans, and
+         they all still land on the same thing. */ ?>
+<section id="plans" class="plans-at-foot">
+  <h2>Your plan</h2>
+  <p class="muted">
+    What you are on, and what the other two would add. Nothing changes until
+    you say so.
+  </p>
+  <?= View::render('members/_plan-cards', ['account' => $account ?? []]) ?>
+</section>

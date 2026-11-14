@@ -151,9 +151,14 @@ h3{ font-size:1.0625rem; font-weight:700; letter-spacing:-.01em; }
 .center .lede{ margin-inline:auto; }
 
 /* Buttons ---------------------------------------------------------------- */
+/* color is declared here, not left to the browser. Without it a .btn with no
+   variant -- there is one, in the locked step on the dashboard -- took the
+   user agent's link colour, which goes purple once visited. In dark mode that
+   was a purple "Upgrade to Pro or Premium" on a near-black card. */
 .btn{ display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
   padding:.85rem 1.5rem; border-radius:var(--radius-sm); border:1px solid transparent;
   font:inherit; font-size:.95rem; font-weight:700; text-decoration:none; cursor:pointer;
+  color:var(--ink);
   transition:background-color .15s,color .15s; }
 .btn--primary{ background:var(--brand); color:#fff; }
 .btn--primary:hover{ background:var(--brand-hover); }
@@ -465,6 +470,204 @@ a:focus-visible, button:focus-visible, summary:focus-visible{
   outline:2px solid var(--brand); outline-offset:2px; border-radius:4px; }
 
 /* Admin ------------------------------------------------------------------ */
+/* The members area is a sidebar and a page, not a header and a page.
+
+   What it replaces: a header, a row of eight links that scrolled sideways,
+   and three plan cards above every page. Eight links in a row means the last
+   three are off the edge of a phone and behind a drag on a laptop -- the two
+   screens most used, "Your playbook" and "Settings", were the two hardest to
+   reach. A column shows all eight at once, with room for an icon and for the
+   grouping that says which half of the product you are in.
+
+   No JavaScript: the members area loads no script at all, and a menu that
+   needs one is a menu that is shut when the script fails. Below 1000px the
+   same markup becomes a bar across the top, with the links wrapped onto two
+   or three rows rather than scrolled sideways -- the whole point was to stop
+   hiding half of them, and a scrolling row on a phone hides exactly the same
+   three the old header did. */
+body.members{ background:var(--wash); }
+
+.shell{ min-height:100vh; }
+.shell__main{ min-width:0; }
+.shell__inner{ width:100%; max-width:66rem; margin-inline:auto;
+  padding:1.5rem 1.25rem 4rem; }
+
+@media (min-width:1000px){
+  .shell{ display:grid; grid-template-columns:17rem minmax(0,1fr); }
+  .shell__inner{ padding:2rem 2.25rem 4.5rem; }
+
+  /* The sidebar is 100vh and sticky, so on a long page its own background
+     stops one screen down and the column below it shows the page's wash --
+     a white panel floating in a blue-grey gutter. This paints the column
+     itself, for the full height of whichever side is taller, and draws the
+     dividing line in the same stroke. */
+  .shell{ background-image:linear-gradient(to right,
+      var(--surface) 0 17rem,
+      var(--line) 17rem calc(17rem + 1px),
+      transparent calc(17rem + 1px)); }
+}
+
+/* ---- The sidebar ------------------------------------------------------- */
+.side{ display:flex; flex-direction:column; gap:.2rem;
+  background:var(--surface); border-bottom:1px solid var(--line);
+  padding:.9rem 1rem 1rem; }
+
+@media (min-width:1000px){
+  /* No border-right: the column's own gradient below draws that line, for
+     the full height of the page. Both at once put two 1px strokes a pixel
+     apart, which reads as a seam where the sticky panel ends. */
+  .side{ position:sticky; top:0; height:100vh; gap:.35rem;
+    border-bottom:0; background:transparent;
+    padding:1.25rem 1rem 1rem; }
+  /* The nav scrolls, the brand, the plan and the signed-in row do not. A
+     sidebar where the way out scrolls off the bottom is a sidebar with no way
+     out on a short window. */
+  .side__scroll{ flex:1 1 auto; overflow-y:auto; min-height:0;
+    margin-inline:-.25rem; padding-inline:.25rem; }
+}
+
+.side__brand{ padding:.1rem .25rem .25rem; }
+.side__brand .logo{ font-size:1.05rem; }
+
+/* The one primary action on the page, and it is what the product is for. */
+.side__cta{ display:flex; align-items:center; justify-content:center; gap:.5rem;
+  margin:.75rem 0 1rem; padding:.7rem .9rem; border-radius:10px;
+  background:var(--brand); color:#fff; font-weight:700; font-size:.92rem;
+  text-decoration:none; }
+.side__cta:hover{ background:var(--brand-hover); color:#fff; }
+.side__cta .icon{ width:1.05rem; height:1.05rem; }
+/* In dark mode --brand is a light blue and white on it is 1.98:1. The mark
+   cannot follow the scheme, so the label has to -- the same trick .btn--primary
+   already uses. */
+@media (prefers-color-scheme: dark){
+  .side__cta, .side__cta:hover{ color:var(--paper); }
+}
+
+.side__group{ margin:.9rem .55rem .3rem; font-size:.68rem; font-weight:800;
+  letter-spacing:.09em; text-transform:uppercase; color:var(--muted); }
+.side__group:first-of-type{ margin-top:0; }
+
+.side__nav{ display:flex; flex-direction:column; gap:.1rem; }
+.side__link{ display:flex; align-items:center; gap:.6rem;
+  padding:.52rem .55rem; border-radius:9px; font-size:.91rem; font-weight:500;
+  color:var(--body); text-decoration:none; }
+.side__link .icon{ width:1.05rem; height:1.05rem; flex:0 0 auto; color:var(--muted); }
+.side__link:hover{ background:var(--wash); color:var(--ink); }
+.side__link:hover .icon{ color:var(--brand); }
+.side__link.is-here{ background:var(--tint); color:var(--brand); font-weight:700; }
+.side__link.is-here .icon{ color:var(--brand); }
+
+/* ---- Plan and allowance ------------------------------------------------ */
+/* The only selling on the page, and it is a number rather than a pitch:
+   "3 / 5" is a reason to do something, where "Free plan" on its own is a
+   label. It is the same count the sender enforces, from the same source, so
+   the figure here and the figure that blocks a send cannot disagree. */
+.side__plan{ margin-top:1rem; padding:.8rem .85rem .85rem; border-radius:11px;
+  background:var(--tint-2); border:1px solid var(--line-2); }
+.side__planhead{ display:flex; align-items:baseline; justify-content:space-between;
+  gap:.5rem; }
+.side__planhead strong{ font-size:.92rem; color:var(--ink); }
+.side__planhead span{ font-size:.82rem; font-weight:700; color:var(--brand);
+  font-variant-numeric:tabular-nums; }
+.side__meter{ height:5px; margin:.5rem 0 .45rem; border-radius:999px;
+  background:var(--line); overflow:hidden; }
+.side__meter span{ display:block; height:100%; border-radius:999px;
+  background:var(--brand); }
+.side__plan p{ margin:0; font-size:.78rem; color:var(--muted); line-height:1.35; }
+.side__plan a{ display:inline-block; margin-top:.5rem; font-size:.8rem;
+  font-weight:700; color:var(--brand); }
+
+/* ---- Who is signed in -------------------------------------------------- */
+.side__me{ display:flex; align-items:center; gap:.55rem; margin-top:.85rem;
+  padding-top:.85rem; border-top:1px solid var(--line); }
+.side__avatar{ flex:0 0 auto; width:2rem; height:2rem; border-radius:50%;
+  display:grid; place-items:center; background:var(--brand); color:#fff;
+  font-weight:800; font-size:.85rem; }
+@media (prefers-color-scheme: dark){ .side__avatar{ color:var(--paper); } }
+.side__who{ min-width:0; display:flex; flex-direction:column; line-height:1.25; }
+.side__who strong{ font-size:.85rem; color:var(--ink);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.side__who span{ font-size:.74rem; color:var(--muted);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.side__me form{ margin:0 0 0 auto; }
+.side__me button{ background:none; border:0; padding:.2rem; cursor:pointer;
+  font:inherit; font-size:.76rem; font-weight:700; color:var(--brand);
+  white-space:nowrap; }
+.side__me button:hover{ color:var(--brand-hover); text-decoration:underline; }
+
+/* ---- The same sidebar, across the top of a phone ----------------------- */
+@media (max-width:999px){
+  .side__cta{ margin:.6rem 0 .5rem; }
+  /* Headings off: two words of label above two rows of links is most of a
+     phone screen spent on furniture. */
+  .side__group{ display:none; }
+  /* Wrapped, not scrolled. Eight links in a row that scrolls means the last
+     three are off the edge, which is the bug this layout exists to fix. Two
+     or three short rows cost about 90px and hide nothing. */
+  .side__scroll{ display:flex; flex-wrap:wrap; gap:.3rem; }
+  .side__nav{ flex-direction:row; flex-wrap:wrap; gap:.3rem; }
+  .side__link{ white-space:nowrap; padding:.42rem .7rem;
+    border:1px solid var(--line); border-radius:999px; font-size:.86rem; }
+  .side__link.is-here{ border-color:var(--brand); }
+  /* The allowance keeps its number and loses its bar and its caption: the
+     figure is the part that matters and it fits on one line beside the plan. */
+  .side__plan{ display:flex; align-items:center; gap:.6rem;
+    margin-top:.55rem; padding:.55rem .75rem; }
+  .side__plan .side__meter, .side__plan p{ display:none; }
+  .side__planhead{ gap:.45rem; }
+  .side__plan a{ margin:0 0 0 auto; }
+  .side__me{ margin-top:.55rem; padding-top:.6rem; }
+}
+/* ---- The band at the top of the dashboard ------------------------------ */
+/* Whose account, what plan, how much is set up -- before anything has to be
+   read. The dashboard used to open with a price list and put its heading a
+   third of the way down.
+
+   The gradient stops short of full --brand on purpose: at #006cb8 the pill
+   text measured 4.05:1 and the eyebrow 3.25:1, both under AA. Capping the
+   lightest stop at #0a4f87 brings the worst pair on the band to 5.14:1. */
+.hello{ display:flex; flex-wrap:wrap; align-items:flex-end; gap:1.25rem;
+  justify-content:space-between; margin-bottom:1.75rem;
+  padding:1.5rem 1.6rem 1.6rem; border-radius:16px; color:#fff;
+  background:linear-gradient(135deg,#0a4f87,#083b66 55%,#062c4d); }
+.hello__text{ min-width:min(100%,19rem); }
+.hello__eyebrow{ margin:0 0 .4rem; font-size:.7rem; font-weight:800;
+  letter-spacing:.11em; text-transform:uppercase; color:#b7dcf5; }
+.hello__h{ margin:0; font-size:1.65rem; color:#fff; letter-spacing:-.025em; }
+.hello__sub{ margin:.4rem 0 0; font-size:.93rem; color:#d6e9f7; }
+.hello__sub strong{ color:#fff; font-weight:700; }
+
+.hello__pills{ list-style:none; display:flex; flex-wrap:wrap; gap:.45rem;
+  margin:1.05rem 0 0; padding:0; }
+.hello__pills li{ display:flex; align-items:baseline; gap:.4rem;
+  padding:.3rem .7rem; border-radius:999px; font-size:.8rem;
+  background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.22); }
+.hello__pills span{ color:#dceaf6; }
+.hello__pills strong{ color:#fff; font-weight:700; }
+
+.hello__acts{ display:flex; flex-wrap:wrap; gap:.55rem; }
+.hello__btn{ display:inline-flex; align-items:center; padding:.6rem 1rem;
+  border-radius:9px; font-size:.88rem; font-weight:700; text-decoration:none;
+  color:#fff; background:rgba(255,255,255,.14);
+  border:1px solid rgba(255,255,255,.3); }
+.hello__btn:hover{ background:rgba(255,255,255,.22); color:#fff; }
+/* White on the dark band, and it stays white in dark mode: the band sets its
+   own background, so it does not follow the scheme. */
+.hello__btn--solid{ background:#fff; color:#0a4f87; border-color:#fff; }
+.hello__btn--solid:hover{ background:#e8f3fb; color:#083b66; }
+
+@media (max-width:620px){
+  .hello{ padding:1.25rem 1.1rem 1.3rem; border-radius:14px; }
+  .hello__h{ font-size:1.35rem; }
+  .hello__acts{ width:100%; }
+  .hello__btn{ flex:1 1 auto; justify-content:center; }
+}
+
+/* ---- Header and link row: superadmin only ------------------------------ */
+/* The members area no longer uses these -- it is the sidebar above. The
+   superadmin screens still do, and they are not a shop window, so they keep
+   the plain header. Deleting these rules with the members header is how the
+   staff screens lose their nav without anybody noticing for a month. */
 .admin-header{ border-bottom:1px solid var(--line); background:var(--surface); }
 .admin-header__top{ display:flex; align-items:center; justify-content:space-between;
   gap:1rem; height:3.75rem; }
@@ -1470,7 +1673,7 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
 
 .plan-card{ position:relative; display:flex; flex-direction:column;
   border:1px solid var(--line); border-radius:12px; padding:1.15rem 1.15rem 1.1rem;
-  background:var(--card,#fff); }
+  background:var(--surface); }
 .plan-card.is-current{ border-color:var(--brand); box-shadow:0 0 0 2px var(--brand) inset; }
 
 .plan-card__flag{ position:absolute; top:-.6rem; left:1.1rem;
@@ -1512,7 +1715,7 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
 
 /* ---- A section the plan does not include ------------------------------ */
 .locked{ border:1px solid var(--line); border-left:5px solid var(--brand);
-  border-radius:12px; padding:1.25rem 1.35rem; background:var(--card,#fff);
+  border-radius:12px; padding:1.25rem 1.35rem; background:var(--surface);
   margin-bottom:1.5rem; }
 .locked__head{ display:flex; flex-wrap:wrap; gap:.6rem; align-items:center; }
 .locked__pill{ background:var(--line); color:var(--ink); font-size:.7rem;
@@ -1524,39 +1727,26 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
 .locked__act{ display:flex; flex-wrap:wrap; gap:.6rem; margin-top:1rem; align-items:center; }
 .locked__act form{ margin:0; }
 
-/* ---- The plans under the nav ------------------------------------------ */
-/* On every members page: the plan decides whether three of the screens in the
-   nav above work, so the answer to "what would I get" is never a click away.
-   Panels are collapsed, so this costs one row, not three screens. */
-.planstrip{ border-bottom:1px solid var(--line); background:var(--wash,#f7f9fb);
-  padding:.7rem 0 .8rem; }
-/* padding-top leaves room for the "Current" flag, which overlaps the card's
-   top edge and would otherwise be clipped by the strip. */
-.planstrip .plan-cards{ margin:0; padding-top:.4rem; }
-/* display:block, not the flex column the full card uses. A flex child is
-   blockified, so the inline name and price below were still taking a line
-   each and the row stayed as tall as before. */
-.planstrip .plan-card{ display:block; padding:.7rem .95rem .65rem; }
+/* ---- The plans, at the foot of the dashboard -------------------------- */
+/* They used to be a strip above the nav on every members page. The reason was
+   sound -- the plan decides whether three of those screens work, so "what
+   would I get" should never be a click away -- but three boxes above eight
+   pages is a lot of page spent on a question asked on one of them. The
+   sidebar answers it now in a line, and the cards sit here.
 
-/* Name and price share a line here, where they do not in the full card.
-   Moving the buttons into the panel left the collapsed card two short rows
-   tall inside a box sized for four, so the strip read as mostly empty. One
-   row of "Free $0.00/month" and one of the toggle is all there is to show. */
-.planstrip .plan-card__name{ display:inline; font-size:1rem; }
-.planstrip .plan-card__price{ display:inline; margin-left:.45rem; font-size:1.15rem; }
-.planstrip .plan-card__price small{ font-size:.72rem; }
-.planstrip .plan-card__more{ margin-top:.45rem; }
-.planstrip .plan-card__more summary{ font-size:.84rem; padding:.1rem 0; }
-.planstrip .plan-card__act{ padding-top:.75rem; }
-}
+   The stray closing brace that used to end this block is gone with it. It
+   closed nothing; CSS skips it, which is why it survived. */
+.plans-at-foot{ margin-top:2.75rem; padding-top:2rem; border-top:1px solid var(--line); }
+.plans-at-foot h2{ font-size:1.15rem; margin:0 0 .35rem; }
+.plans-at-foot > .muted{ margin:0 0 1.1rem; font-size:.9rem; max-width:40rem; }
 
 /* ---- Get started ------------------------------------------------------ */
 /* One step highlighted at a time. A list where everything shouts is a list
    where nothing does, so finished steps go quiet and only the live one gets
    the border, the blurb and the button. */
 .gs{ border:1px solid var(--line); border-radius:14px; padding:1.4rem 1.5rem 1.5rem;
-  background:var(--card,#fff); margin-bottom:2rem; }
-.gs--done{ background:linear-gradient(0deg, rgba(11,122,75,.05), rgba(11,122,75,.05)), var(--card,#fff);
+  background:var(--surface); margin-bottom:2rem; }
+.gs--done{ background:linear-gradient(0deg, rgba(11,122,75,.05), rgba(11,122,75,.05)), var(--surface);
   border-color:rgba(11,122,75,.35); }
 
 .gs__head{ display:flex; flex-wrap:wrap; gap:.75rem 1.5rem; align-items:flex-start;
