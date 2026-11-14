@@ -63,6 +63,7 @@ $sidebar = (string) file_get_contents($views . '/_sidebar.php');
 $layout  = (string) file_get_contents($views . '/layout.php');
 $welcome = (string) file_get_contents($views . '/_welcome.php');
 $started = (string) file_get_contents($views . '/_getting-started.php');
+$promo   = (string) file_get_contents($views . '/promo-reviews.php');
 
 /**
  * The same file with its comments taken out.
@@ -84,6 +85,7 @@ $sidebarCode = code($sidebar);
 $layoutCode  = code($layout);
 $welcomeCode = code($welcome);
 $startedCode = code($started);
+$promoCode   = code($promo);
 $css     = (string) file_get_contents(BASE_PATH . '/public/assets/css/app.css');
 $index   = (string) file_get_contents(BASE_PATH . '/public/index.php');
 
@@ -193,7 +195,7 @@ ok('superadmin still has its nav rules', str_contains($css, '.admin-nav a[aria-c
 // The "no design change" bug: markup renders, class name is a typo, nothing
 // is styled and nothing complains.
 $classes = [];
-foreach ([$sidebar, $welcome, $layout, $started] as $source) {
+foreach ([$sidebar, $welcome, $layout, $started, $promo] as $source) {
     if (preg_match_all('~class="([^"<>$]+)"~', $source, $m) > 0) {
         foreach ($m[1] as $attr) {
             foreach (preg_split('/\s+/', trim($attr)) ?: [] as $name) {
@@ -208,6 +210,7 @@ foreach ([$sidebar, $welcome, $layout, $started] as $source) {
 foreach ([
     'side__link', 'is-here', 'hello__btn--solid',
     'gs', 'gs--done', 'gs__card', 'is-next', 'is-done', 'gs__btn--go', 'is-full',
+    'step3', 'step3--locked', 'step3__pill--paid',
 ] as $name) {
     $classes[$name] = true;
 }
@@ -259,6 +262,44 @@ ok('the badges are both there', str_contains($started, 'Do this next')
 // A finished card shows what came of it, never its blurb and a chip at once.
 ok('chips are an elseif on done', str_contains($startedCode, "elseif ((\$step['facts'] ?? []) !== [])"));
 ok('and the blurb is the not-done branch', str_contains($startedCode, "if (!\$step['done']):"));
+
+/* ---- The three steps on the review page ------------------------------ */
+
+// Order matters here and is easy to undo by accident. Adding by hand is the
+// only one of the three that a plan can refuse, so it goes last: it sat in
+// the middle, between the two everybody can do, which put the one locked
+// card in the centre of the row for most of the people reading it.
+$order = [];
+foreach (['Your review page', 'Put them on your website', 'Add a review yourself'] as $heading) {
+    $at = strpos($promo, $heading);
+    ok("the row has: {$heading}", $at !== false);
+    $order[$heading] = $at === false ? PHP_INT_MAX : $at;
+}
+ok('the page comes first', $order['Your review page'] < $order['Put them on your website']);
+ok('the website second', $order['Put them on your website'] < $order['Add a review yourself']);
+
+ok('they are in one row', str_contains($promo, 'class="steps3"'));
+
+// Two pills say "yours already", one says what it costs. The second half of
+// that matters as much as the first: a member on Free should see at a glance
+// that two of the three are already theirs.
+check('two cards are on every plan',
+    substr_count($promo, 'All membership access'), 2);
+
+// The paid one names the plan from the catalogue rather than the word
+// "Premium" typed into a view. Move the ability and this follows.
+ok('the paid pill is generated',
+    str_contains($promoCode, 'Plans::cheapestWith(App\\Support\\Plans::ADD_REVIEWS)'));
+ok('and no plan name is hardcoded beside it',
+    !str_contains($promoCode, 'Premium access'));
+
+// The form is full width underneath, not squeezed into a third of the row.
+ok('the form has its own anchor', str_contains($promo, 'id="add-review"'));
+ok('and the card points at it', str_contains($promo, 'href="#add-review"'));
+
+// Only rendered for a plan that may use it, or the anchor is a dead link and
+// the form is a gate that is not one.
+ok('the form is behind the gate', str_contains($promoCode, "if (\$canAdd):"));
 
 /* ---- The band says only what it can stand behind --------------------- */
 

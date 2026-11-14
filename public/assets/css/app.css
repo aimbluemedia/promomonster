@@ -1740,6 +1740,47 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
 .plans-at-foot h2{ font-size:1.15rem; margin:0 0 .35rem; }
 .plans-at-foot > .muted{ margin:0 0 1.1rem; font-size:.9rem; max-width:40rem; }
 
+/* ---- The three steps on the review page -------------------------------- */
+/* Across, not stacked. They are three things to do once, and a column of
+   three full-width cards pushed the reviews themselves below the fold on
+   every visit after the first.
+
+   Equal height by grid, with the access pill pinned to the foot of each so
+   the three line up along the bottom whatever the card says above them. */
+.steps3{ display:grid; gap:1rem; margin-bottom:1.5rem; }
+@media (min-width:760px){ .steps3{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (min-width:1180px){ .steps3{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+
+.step3{ display:flex; flex-direction:column; margin:0; }
+/* The one the plan does not include goes quiet rather than loud. Nothing has
+   gone wrong; it is simply not theirs yet. */
+.step3--locked{ background:var(--wash); }
+
+.step3__h{ font-size:1.02rem; margin:0; }
+.step3__sub{ margin:.2rem 0 0; font-size:.88rem; line-height:1.5; }
+.step3__note{ font-size:.84rem; margin:.6rem 0 0; line-height:1.5; }
+
+/* A URL and a script tag both have to survive a third of a row without
+   dragging the page sideways. */
+.step3__link{ margin:.9rem 0 0; overflow-wrap:anywhere; }
+.step3__code{ margin:.9rem 0 0; }
+.step3__code code{ display:block; padding:.7rem .8rem; font-size:.78rem;
+  line-height:1.5; overflow-wrap:anywhere; background:var(--wash);
+  border:1px solid var(--line); border-radius:8px; }
+
+.step3__act{ margin:.9rem 0 0; }
+
+/* margin-top:auto is what pins this to the bottom of a flex column, so the
+   three pills sit on one line across the row. */
+.step3__who{ margin:auto 0 0; padding-top:1rem; }
+.step3__pill{ display:inline-block; padding:.25rem .6rem; border-radius:999px;
+  font-size:.7rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase;
+  background:var(--tint); color:var(--brand); }
+/* #8a5a12 on #fff4e0, the same deep amber the locked-plan pill already uses:
+   at 11px uppercase this needs 4.5:1 and --star on its own tint does not
+   reach it. */
+.step3__pill--paid{ background:#fff4e0; color:#8a5a12; }
+
 /* ---- Get started ------------------------------------------------------ */
 /* A card per step that can be finished, in a row, with one of them live.
 
