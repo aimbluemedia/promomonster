@@ -1741,69 +1741,140 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
 .plans-at-foot > .muted{ margin:0 0 1.1rem; font-size:.9rem; max-width:40rem; }
 
 /* ---- Get started ------------------------------------------------------ */
-/* One step highlighted at a time. A list where everything shouts is a list
-   where nothing does, so finished steps go quiet and only the live one gets
-   the border, the blurb and the button. */
-.gs{ border:1px solid var(--line); border-radius:14px; padding:1.4rem 1.5rem 1.5rem;
+/* A card per step that can be finished, in a row, with one of them live.
+
+   The panel used to be a vertical list of five rows. Rows make everything
+   look equally urgent, and the member only ever has one next thing to do --
+   so the live step now gets a card of its own with a tinted fill, a badge and
+   a solid button, the finished ones go quiet and green, and the two steps
+   that cannot be counted (locked by plan, or on a website we cannot see) sit
+   underneath in smaller type where they inform without nagging.
+
+   Three signals, three colours, all from the palette: amber is your turn,
+   green is finished, and blue stays the product's own. Red is not used --
+   on this page nothing has gone wrong, and a red badge would say it had. */
+.gs{ border:1px solid var(--line); border-radius:16px; padding:1.4rem 1.5rem 1.6rem;
   background:var(--surface); margin-bottom:2rem; }
-.gs--done{ background:linear-gradient(0deg, rgba(11,122,75,.05), rgba(11,122,75,.05)), var(--surface);
-  border-color:rgba(11,122,75,.35); }
+.gs--done{ background:linear-gradient(0deg, rgba(21,128,61,.05), rgba(21,128,61,.05)), var(--surface);
+  border-color:rgba(21,128,61,.35); }
 
-.gs__head{ display:flex; flex-wrap:wrap; gap:.75rem 1.5rem; align-items:flex-start;
-  justify-content:space-between; }
-.gs__title{ font-size:1.25rem; margin:0; color:var(--ink); }
-.gs__sub{ margin:.25rem 0 0; font-size:.9rem; color:var(--muted); max-width:48rem; }
-.gs__count{ font-size:.9rem; color:var(--muted); white-space:nowrap; }
-.gs__count strong{ font-size:1.35rem; color:var(--ink); }
+/* The flag. One job: say where to look first on a page that has a banner, a
+   panel, four figures and a table on it. */
+/* #8a5a12, not --star. The flag is 11px uppercase, so it needs 4.5:1, and
+   white on --star measured 3.57:1 -- fine for a star glyph, not for type this
+   small. #8a5a12 is the same deep amber the locked-plan pill already uses, so
+   this borrows a colour rather than inventing one, and comes out at 5.92:1. */
+.gs__flag{ display:inline-block; margin:0 0 .85rem; padding:.3rem .75rem;
+  border-radius:999px; background:#8a5a12; color:#fff;
+  font-size:.68rem; font-weight:800; letter-spacing:.09em; text-transform:uppercase; }
 
-.gs__bar{ height:6px; border-radius:999px; background:var(--line); overflow:hidden;
-  margin:1rem 0 1.35rem; }
-.gs__bar span{ display:block; height:100%; border-radius:999px; background:var(--brand);
-  transition:width .3s ease; }
-.gs--done .gs__bar span,
-.gs__bar.is-full span{ background:#0b7a4b; }
+.gs__head{ display:flex; flex-wrap:wrap; align-items:flex-end; gap:1rem;
+  justify-content:space-between; margin-bottom:1.35rem; }
+.gs__headtext{ min-width:min(100%,20rem); }
+.gs__title{ font-size:1.4rem; margin:0; letter-spacing:-.025em; }
+.gs__sub{ margin:.4rem 0 0; font-size:.93rem; color:var(--body); max-width:42rem; }
 
-.gs__steps{ list-style:none; margin:0; padding:0; display:grid; gap:.5rem; }
-.gs__step{ display:grid; grid-template-columns:2rem 1fr; gap:.85rem; align-items:start;
-  padding:.7rem .85rem; border:1px solid transparent; border-radius:10px; }
+.gs__meter{ flex:0 0 auto; min-width:12rem; }
+.gs__count{ margin:0 0 .4rem; font-size:.85rem; color:var(--muted); text-align:right; }
+.gs__count strong{ color:var(--ink); font-weight:800; }
+.gs__bar{ height:7px; border-radius:999px; background:var(--line); overflow:hidden; }
+.gs__bar span{ display:block; height:100%; border-radius:999px; background:var(--brand); }
+.gs__bar.is-full span{ background:var(--good); }
 
-.gs__n{ display:flex; align-items:center; justify-content:center;
-  width:2rem; height:2rem; border-radius:50%; font-size:.86rem; font-weight:800;
-  background:var(--line); color:var(--muted); }
+/* ---- The cards -------------------------------------------------------- */
+/* auto-rows:1fr, so a card with a blurb and a card without still come out the
+   same height. Without it the finished ones sit short and the row reads as
+   three boxes that failed to load.
 
-.gs__h{ font-size:.97rem; margin:.2rem 0 0; color:var(--ink); font-weight:700;
-  display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; }
-.gs__what{ margin:.4rem 0 .7rem; font-size:.89rem; color:var(--muted); max-width:46rem; }
-.gs__quiet{ font-size:.86rem; color:var(--brand); font-weight:600; text-decoration:none; }
-.gs__quiet:hover{ text-decoration:underline; }
+   Only once there is more than one column, though. Stacked on a phone there
+   is nothing to line up with, and forcing every card to the height of the
+   tallest just adds two screens of empty box. */
+.gs__cards{ list-style:none; margin:0; padding:0; display:grid; gap:.9rem; }
+@media (min-width:760px){
+  .gs__cards{ grid-template-columns:repeat(2,minmax(0,1fr)); grid-auto-rows:1fr; }
+}
+@media (min-width:1180px){ .gs__cards{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
 
-.gs__tag{ font-size:.66rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase;
-  padding:.16rem .45rem; border-radius:999px; background:#e3f3ec; color:#0b6b5b; }
-.gs__tag--lock{ background:#fdf0e3; color:#8a4b08; }
-.gs__tag--soft{ background:var(--line); color:var(--muted); }
+.gs__card{ display:flex; flex-direction:column; border:1px solid var(--line);
+  border-radius:13px; padding:1.1rem 1.15rem 1.15rem; background:var(--surface); }
+/* Your turn. The tint is what the eye lands on, so only one card ever has it. */
+.gs__card.is-next{ border-color:var(--star);
+  background:linear-gradient(0deg, rgba(194,118,10,.07), rgba(194,118,10,.07)), var(--surface); }
+.gs__card.is-done{ border-color:rgba(21,128,61,.3); }
 
-/* Done: ticked, muted, out of the way. */
-.gs__step.is-done .gs__n{ background:#0b7a4b; color:#fff; }
-.gs__step.is-done .gs__h{ color:var(--muted); }
+.gs__cardtop{ display:flex; align-items:center; justify-content:space-between;
+  gap:.6rem; margin-bottom:.9rem; }
+.gs__icon{ display:grid; place-items:center; width:2.25rem; height:2.25rem;
+  border-radius:10px; background:var(--tint); color:var(--brand); }
+.gs__card.is-next .gs__icon{ background:var(--star); color:#fff; }
+.gs__card.is-done .gs__icon{ background:rgba(21,128,61,.12); color:var(--good); }
+.gs__icon .icon{ width:1.15rem; height:1.15rem; }
 
-/* The one to do now. The only step with a border, a blurb and a button. */
-.gs__step.is-next{ border-color:var(--brand); background:rgba(4,117,163,.045); }
-.gs__step.is-next .gs__n{ background:var(--brand); color:#fff; }
-.gs__step.is-next .gs__h{ font-size:1.02rem; }
+.gs__badge{ font-size:.7rem; font-weight:800; letter-spacing:.03em;
+  padding:.25rem .6rem; border-radius:999px; white-space:nowrap; }
+/* #8a5a12 on #fff4e0, not --star on its own tint: the amber that is right for
+   a 2.25rem icon tile is not light enough to carry 11px text. */
+.gs__badge--next{ background:#fff4e0; color:#8a5a12; }
+.gs__badge--done{ background:rgba(21,128,61,.12); color:#166534; }
 
-.gs__step.is-locked{ border-color:var(--line); background:var(--wash,#f7f9fb); }
-.gs__step.is-locked .gs__h{ color:var(--muted); }
+.gs__step{ margin:0 0 .15rem; font-size:.68rem; font-weight:800;
+  letter-spacing:.09em; text-transform:uppercase; color:var(--muted); }
+.gs__h{ margin:0; font-size:1.08rem; letter-spacing:-.02em; }
+.gs__what{ margin:.5rem 0 0; font-size:.88rem; line-height:1.5; color:var(--body); }
 
-@media (max-width:620px){
-  .gs{ padding:1.1rem 1rem 1.25rem; }
-  .gs__step{ padding:.6rem .5rem; gap:.65rem; grid-template-columns:1.75rem 1fr; }
-  .gs__n{ width:1.75rem; height:1.75rem; font-size:.8rem; }
+/* What came of a finished step, where its blurb used to be. */
+.gs__facts{ list-style:none; display:flex; flex-wrap:wrap; gap:.35rem;
+  margin:.6rem 0 0; padding:0; }
+.gs__facts li{ padding:.22rem .6rem; border-radius:999px; font-size:.78rem;
+  font-weight:600; color:#166534; background:rgba(21,128,61,.12); }
+
+/* The green fill is translucent, so in dark mode it sits over a near-black
+   card and the dark green on it measured 2.17:1. The fill is right; the text
+   colour has to follow the scheme. */
+@media (prefers-color-scheme: dark){
+  .gs__badge--done, .gs__facts li{ color:#86efac; }
 }
 
-/* A line under each figure saying what it means. Four bare numbers is a
-   diagnosis in a language the reader does not speak. */
-.stat-card__h{ margin-top:.3rem; font-size:.78rem; line-height:1.35; color:var(--muted); }
-.gs__countwhat{ display:block; font-size:.72rem; color:var(--muted); }
+/* margin-top:auto pins every button to the bottom of its card, so three
+   buttons line up across the row however much text is above them. */
+.gs__btn{ display:block; margin-top:auto; padding-top:1.05rem;
+  font-size:.88rem; font-weight:700; color:var(--brand); text-decoration:none; }
+.gs__btn:hover{ text-decoration:underline; }
+/* The live step gets a real button; the rest get a link. Three solid buttons
+   in a row is three equal calls to action, which is none. */
+.gs__btn--go{ display:flex; align-items:center; justify-content:center;
+  margin-top:auto; padding:.7rem 1rem; border-radius:9px;
+  background:var(--brand); color:#fff; text-decoration:none; }
+.gs__btn--go:hover{ background:var(--brand-hover); color:#fff; text-decoration:none; }
+@media (prefers-color-scheme: dark){
+  .gs__btn--go, .gs__btn--go:hover{ color:var(--paper); }
+}
+
+/* ---- The two that cannot be counted ----------------------------------- */
+.gs__also{ list-style:none; margin:1.1rem 0 0; padding:1.1rem 0 0;
+  border-top:1px solid var(--line); display:grid; gap:.7rem; }
+.gs__note{ display:flex; flex-wrap:wrap; align-items:center; gap:.85rem;
+  padding:.8rem .95rem; border:1px solid var(--line); border-radius:11px;
+  background:var(--wash); }
+.gs__noteicon{ flex:0 0 auto; display:grid; place-items:center;
+  width:1.9rem; height:1.9rem; border-radius:8px;
+  background:var(--surface); border:1px solid var(--line); font-size:.9rem; }
+.gs__noteicon .icon{ width:1rem; height:1rem; color:var(--muted); }
+.gs__note > div{ flex:1 1 16rem; min-width:0; }
+.gs__note h3{ margin:0; font-size:.95rem; }
+.gs__note p{ margin:.2rem 0 0; font-size:.85rem; line-height:1.45; color:var(--muted); }
+.gs__notebtn{ flex:0 0 auto; display:flex; flex-direction:column;
+  font-size:.86rem; font-weight:700; color:var(--brand); text-decoration:none; }
+.gs__notebtn:hover{ text-decoration:underline; }
+.gs__notecost{ font-size:.73rem; font-weight:600; color:var(--muted); }
+
+@media (max-width:620px){
+  .gs{ padding:1.15rem 1.1rem 1.25rem; border-radius:14px; }
+  .gs__title{ font-size:1.2rem; }
+  .gs__meter{ width:100%; }
+  .gs__count{ text-align:left; }
+  .gs__notebtn{ margin-left:auto; text-align:right; }
+}
 
 /* ---- The logo lockup --------------------------------------------------- */
 /* "by Toutify" sits under the wordmark rather than beside it. On one line it

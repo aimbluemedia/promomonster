@@ -62,6 +62,7 @@ $views   = BASE_PATH . '/app/Views/members';
 $sidebar = (string) file_get_contents($views . '/_sidebar.php');
 $layout  = (string) file_get_contents($views . '/layout.php');
 $welcome = (string) file_get_contents($views . '/_welcome.php');
+$started = (string) file_get_contents($views . '/_getting-started.php');
 
 /**
  * The same file with its comments taken out.
@@ -82,6 +83,7 @@ function code(string $source): string
 $sidebarCode = code($sidebar);
 $layoutCode  = code($layout);
 $welcomeCode = code($welcome);
+$startedCode = code($started);
 $css     = (string) file_get_contents(BASE_PATH . '/public/assets/css/app.css');
 $index   = (string) file_get_contents(BASE_PATH . '/public/index.php');
 
@@ -191,7 +193,7 @@ ok('superadmin still has its nav rules', str_contains($css, '.admin-nav a[aria-c
 // The "no design change" bug: markup renders, class name is a typo, nothing
 // is styled and nothing complains.
 $classes = [];
-foreach ([$sidebar, $welcome, $layout] as $source) {
+foreach ([$sidebar, $welcome, $layout, $started] as $source) {
     if (preg_match_all('~class="([^"<>$]+)"~', $source, $m) > 0) {
         foreach ($m[1] as $attr) {
             foreach (preg_split('/\s+/', trim($attr)) ?: [] as $name) {
@@ -203,7 +205,10 @@ foreach ([$sidebar, $welcome, $layout] as $source) {
     }
 }
 // Classes built by PHP rather than typed in full.
-foreach (['side__link', 'is-here', 'hello__btn--solid'] as $name) {
+foreach ([
+    'side__link', 'is-here', 'hello__btn--solid',
+    'gs', 'gs--done', 'gs__card', 'is-next', 'is-done', 'gs__btn--go', 'is-full',
+] as $name) {
     $classes[$name] = true;
 }
 
@@ -220,6 +225,40 @@ foreach (array_keys($classes) as $name) {
     // A rule for .side__cta, .side__cta:hover, or .side__cta{ -- any of them.
     ok("styled: .{$name}", preg_match('~\.' . preg_quote($name, '~') . '(?![\w-])~', $css) === 1);
 }
+
+/* ---- The step cards -------------------------------------------------- */
+
+// One filter, used twice, would be two chances to disagree. The view takes
+// the count from progress() rather than counting the cards again, so the
+// heading, the bar and the number of boxes on screen cannot drift apart.
+ok('the card count comes from progress()', str_contains($startedCode, "\$progress['total']"));
+ok('and is not counted a second time', !str_contains($startedCode, '$total    = count($cards)')
+    && !str_contains($startedCode, '$total = count($cards)'));
+
+// Cards are the steps that can be finished; the rest go underneath.
+ok('cards filter on checkable and unlocked',
+    str_contains($startedCode, "\$s['checkable'] && !\$s['locked']"));
+ok('and the notes are the complement',
+    str_contains($startedCode, "!\$s['checkable'] || \$s['locked']"));
+
+// The locked step and the one we cannot verify must still be on the page.
+// Dropping them would leave somebody wondering why a nav item does nothing,
+// or never learning the last step exists at all.
+ok('the uncountable steps are still rendered', str_contains($startedCode, 'gs__also'));
+ok('the locked one names every plan that grants it',
+    str_contains($startedCode, 'Plans::plansWith('));
+ok('and says what it would cost', str_contains($startedCode, 'Plans::money('));
+ok('the unverifiable one says so', str_contains($started, 'We cannot check this one'));
+
+// One card live at a time.
+ok('the live card is the one progress() names',
+    str_contains($startedCode, "\$progress['next'] === \$step['key']"));
+ok('the badges are both there', str_contains($started, 'Do this next')
+    && str_contains($started, 'gs__badge--done'));
+
+// A finished card shows what came of it, never its blurb and a chip at once.
+ok('chips are an elseif on done', str_contains($startedCode, "elseif ((\$step['facts'] ?? []) !== [])"));
+ok('and the blurb is the not-done branch', str_contains($startedCode, "if (!\$step['done']):"));
 
 /* ---- The band says only what it can stand behind --------------------- */
 
@@ -238,6 +277,30 @@ ok('so the band does not read it from the user', !str_contains($welcomeCode, "\$
 // else's site is a 404 that only shows up after it ships.
 ok('the Toutify link uses the issuer', str_contains($welcome, 'ToutifyAuth::issuer()'));
 ok('and only when it is configured', str_contains($welcome, 'ToutifyAuth::configured()'));
+
+// Both ways into Toutify from the band: out to the issuer for a session that
+// came through it, and into the sign-in route for one that did not.
+ok('a non-Toutify session is offered sign-in',
+    str_contains($welcome, 'href="/auth/toutify/login"'));
+ok('and that is a route the app registers',
+    in_array('/auth/toutify/login', $routes, true));
+// In this tab. An authorisation redirect opened in a new tab loses the
+// session cookie the callback needs on some browsers.
+//
+// The whole tag, not the text after href: the first version of this check
+// looked only to the right of the href and passed happily when target was
+// written before it.
+preg_match_all('~<a\s[^>]*>~', $welcome, $anchors);
+$signIn = array_values(array_filter(
+    $anchors[0],
+    static fn (string $tag): bool => str_contains($tag, '/auth/toutify/login'),
+));
+check('there is one sign-in link', count($signIn), 1);
+ok('sign-in does not open a new tab',
+    $signIn !== [] && !str_contains($signIn[0], 'target'));
+// Out to the issuer, though, is a different site, so it does.
+ok('the issuer link opens a new tab and is safe',
+    str_contains($welcome, 'target="_blank" rel="noopener"'));
 foreach (['/dashboard', '/account', '/login'] as $guess) {
     ok("no guessed path: {$guess}", !str_contains($welcomeCode, 'issuer()) ?>' . $guess));
 }

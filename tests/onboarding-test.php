@@ -328,5 +328,86 @@ check('four has a word',  Onboarding::inWords(4), 'four');
 // Rather than inventing one it does not have.
 check('a big number falls back to the digit', Onboarding::inWords(99), '99');
 
+// =====================================================================
+// The chips on a finished card
+// =====================================================================
+//
+// They sit where a finished step's blurb used to be, so the cards in a row
+// come out the same height. Everything they say has to be read out of the
+// same state that decided the step was done -- a chip is the one place on
+// this screen where a number appears without a label beside it, so a wrong
+// one is a number nobody can check.
+
+foreach ([
+    ['free', ['hasPage' => false, 'hasGoogleLink' => false, 'requestsSent' => 0,  'reviewsCollected' => 0]],
+    ['free', ['hasPage' => true,  'hasGoogleLink' => true,  'requestsSent' => 1,  'reviewsCollected' => 1]],
+    ['free', ['hasPage' => true,  'hasGoogleLink' => true,  'requestsSent' => 12, 'reviewsCollected' => 7]],
+    ['pro',  ['hasPage' => true,  'hasGoogleLink' => true,  'requestsSent' => 3,  'reviewsCollected' => 0]],
+    ['pro',  ['hasPage' => false, 'hasGoogleLink' => false, 'requestsSent' => 0,  'reviewsCollected' => 0]],
+] as [$plan, $state]) {
+    $steps = Onboarding::steps($state + ['plan' => $plan]);
+    $prog  = Onboarding::progress($steps);
+
+    foreach ($steps as $step) {
+        ok("{$plan}/{$step['key']}: has a facts list", array_key_exists('facts', $step));
+        ok("{$plan}/{$step['key']}: facts is a list", is_array($step['facts']));
+
+        // Nothing to show for a step that is not finished. A chip on an
+        // unfinished card would contradict the card it is sitting on.
+        if (!$step['done']) {
+            check("{$plan}/{$step['key']}: unfinished says nothing", $step['facts'], []);
+        }
+
+        foreach ($step['facts'] as $fact) {
+            ok("{$plan}/{$step['key']}: the chip has words", trim((string) $fact) !== '');
+            // Every digit in a chip must be a number we were handed.
+            if (preg_match('/\d+/', (string) $fact, $m) === 1) {
+                $n = (int) $m[0];
+                $knows = in_array($n, [
+                    (int) $state['requestsSent'],
+                    (int) $state['reviewsCollected'],
+                ], true);
+                ok("{$plan}/{$step['key']}: '{$fact}' counts something real", $knows);
+            }
+        }
+    }
+
+    // The locked step must never carry a chip, whatever the state says: on
+    // Free, hasGoogleLink is true here and the step is still not theirs.
+    $google = null;
+    foreach ($steps as $step) {
+        if ($step['key'] === 'google') {
+            $google = $step;
+        }
+    }
+    if ($google !== null && $google['locked']) {
+        check("{$plan}: the locked step shows no chip", $google['facts'], []);
+    }
+
+    // What the dashboard draws as cards, and what progress() counts, are the
+    // same set. The heading says "Finish these N steps", the bar reads N, and
+    // N boxes are on screen -- one filter, or they drift.
+    $cards = array_values(array_filter(
+        $steps,
+        static fn (array $s): bool => $s['checkable'] && !$s['locked'],
+    ));
+    check("{$plan}: cards and the counter agree", count($cards), $prog['total']);
+}
+
+// Singular and plural, because "1 reviews in" is the kind of thing that stays
+// on a screen for a year.
+$one = Onboarding::steps(['plan' => 'free', 'hasPage' => true, 'requestsSent' => 1, 'reviewsCollected' => 1]);
+$many = Onboarding::steps(['plan' => 'free', 'hasPage' => true, 'requestsSent' => 2, 'reviewsCollected' => 2]);
+$factOf = static function (array $steps, string $key): array {
+    foreach ($steps as $s) {
+        if ($s['key'] === $key) {
+            return $s['facts'];
+        }
+    }
+    return [];
+};
+check('one review reads as one', $factOf($one, 'collect'), ['1 review in']);
+check('two read as two',        $factOf($many, 'collect'), ['2 reviews in']);
+
 echo "\n{$passed} passed, {$failed} failed\n";
 exit($failed === 0 ? 0 : 1);

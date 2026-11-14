@@ -72,12 +72,27 @@ $pills = [
     <?php if (Plans::above($plan) !== []): ?>
       <a class="hello__btn hello__btn--solid" href="/members#plans">Upgrade my plan &rarr;</a>
     <?php endif; ?>
-    <?php /* The issuer's own origin, never a guessed path. "/dashboard" on
-             somebody else's site is a 404 waiting to happen, and it is the
-             sort of link that only breaks after it has shipped. */ ?>
-    <?php if ($viaToutify && ToutifyAuth::configured()): ?>
-      <a class="hello__btn" href="<?= View::e(ToutifyAuth::issuer()) ?>"
-         target="_blank" rel="noopener">Toutify account &#8599;</a>
+    <?php /* Toutify, from the band, either way round.
+
+             Already signed in through Toutify: straight out to the issuer's
+             own origin, in a new tab. Never a guessed path -- "/dashboard" on
+             somebody else's site is a 404 that only shows up after it ships.
+
+             Signed in some other way: the sign-in route, in THIS tab. An
+             authorisation redirect opened in a new tab loses the session
+             cookie the callback needs on some browsers, and leaves the
+             original tab sitting on a stale page either way.
+
+             Nothing at all when Toutify is not configured: /auth/toutify/login
+             with no issuer and no client secret is an error page, and a button
+             that leads to one is worse than no button. */ ?>
+    <?php if (ToutifyAuth::configured()): ?>
+      <?php if ($viaToutify): ?>
+        <a class="hello__btn" href="<?= View::e(ToutifyAuth::issuer()) ?>"
+           target="_blank" rel="noopener">Toutify members &#8599;</a>
+      <?php else: ?>
+        <a class="hello__btn" href="/auth/toutify/login">Sign in to Toutify</a>
+      <?php endif; ?>
     <?php endif; ?>
   </div>
 </section>

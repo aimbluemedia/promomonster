@@ -49,6 +49,12 @@ final class Onboarding
         // plan rather than as something they have failed to finish.
         $canGoogle = Plans::can($plan, Plans::GOOGLE_PAGE);
 
+        // `facts` is what a finished step can show instead of its blurb -- the
+        // card on the dashboard is the same height whether it is done or not,
+        // and an empty box reads as one that failed to load. Every entry is
+        // read out of the state that decided `done`, so a card cannot show a
+        // count for something it is also calling unfinished. A step with
+        // nothing true to report gets an empty list, never a filler phrase.
         return [
             [
                 'key'       => 'page',
@@ -63,6 +69,7 @@ final class Onboarding
                 'cta'       => 'Open your review page',
                 'needs'     => null,
                 'ability'   => null,
+                'facts'     => ($state['hasPage'] ?? false) ? ['Live'] : [],
             ],
             [
                 'key'       => 'google',
@@ -81,6 +88,7 @@ final class Onboarding
                 // should not be told about Pro alone and left wondering whether
                 // the dearer plan covers it too.
                 'ability'   => $canGoogle ? null : Plans::GOOGLE_PAGE,
+                'facts'     => $canGoogle && ($state['hasGoogleLink'] ?? false) ? ['Link saved'] : [],
             ],
             [
                 'key'       => 'send',
@@ -94,6 +102,7 @@ final class Onboarding
                 'cta'       => 'Ask a customer',
                 'needs'     => null,
                 'ability'   => null,
+                'facts'     => $requests > 0 ? [$requests . ' sent'] : [],
             ],
             [
                 'key'       => 'collect',
@@ -108,6 +117,7 @@ final class Onboarding
                 'cta'       => 'See what has come in',
                 'needs'     => null,
                 'ability'   => null,
+                'facts'     => $reviews > 0 ? [$reviews . ($reviews === 1 ? ' review in' : ' reviews in')] : [],
             ],
             [
                 'key'       => 'display',
@@ -123,6 +133,7 @@ final class Onboarding
                 'cta'       => 'Get your code',
                 'needs'     => null,
                 'ability'   => null,
+                'facts'     => [],
             ],
         ];
     }
