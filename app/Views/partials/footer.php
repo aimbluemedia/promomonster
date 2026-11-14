@@ -1,8 +1,15 @@
 <?php use App\Support\View; ?>
 <?php /* The membership band sits above the legal footer, not inside it: it is
          a pitch and the footer is a map, and running them together is how a
-         footer stops being somewhere people look things up. */ ?>
-<?= View::render('partials/membership') ?>
+         footer stops being somewhere people look things up.
+
+         Not on the sign-up page. The band's own "Start free" button would sit
+         directly under the sign-up form, competing with the one thing that
+         page exists to do -- and pitching the free account to somebody who is
+         already filling in the form for it. */ ?>
+<?php if (($current ?? '') !== '/members/signup'): ?>
+  <?= View::render('partials/membership') ?>
+<?php endif; ?>
 
 <footer class="site-footer">
   <div class="container">
