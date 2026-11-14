@@ -2,3 +2,7 @@ app/config.php
 .DS_Store
 *.log
 storage/logs/*.log
+
+# Toutify's discovery document and signing keys, refetched hourly.
+# Runtime cache, not source: it is whatever Toutify served an hour ago.
+storage/cache/

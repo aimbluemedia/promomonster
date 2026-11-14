@@ -58,7 +58,15 @@ App\Support\ErrorHandler::register((bool) ($config['debug'] ?? false));
  *
  * It also keeps the redirect fast, which is the entire job of /r/.
  */
-$sessionless = ['/r/', '/u/', '/webhooks/'];
+$sessionless = [
+    '/r/', '/u/', '/webhooks/',
+    // Called by Toutify's SERVER, not by a browser. There is no session to
+    // start and no cookie to set, and the signature on the body is the
+    // authorisation. The sign-in routes beside them DO need a session, which
+    // is why these are listed in full rather than as a '/auth/' prefix.
+    '/auth/toutify/webhook',
+    '/auth/toutify/backchannel-logout',
+];
 $requestPath = '/' . ltrim((string) parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH), '/');
 if (str_starts_with($requestPath, '/public/')) {
     $requestPath = substr($requestPath, 7);

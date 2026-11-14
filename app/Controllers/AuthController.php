@@ -7,6 +7,7 @@ namespace App\Controllers;
 use App\Support\Auth;
 use App\Support\Csrf;
 use App\Support\Request;
+use App\Support\ToutifyAuth;
 use App\Support\View;
 
 /**
@@ -37,6 +38,13 @@ final class AuthController
         }
         if ($area === 'members' && Auth::account() !== null) {
             Request::redirect('/members');
+        }
+
+        // Members sign in on Toutify. Superadmin does not: staff keep their
+        // own password here, so the one person who could fix a broken Toutify
+        // connection is never locked out by it.
+        if ($area === 'members' && ToutifyAuth::configured()) {
+            Request::redirect('/auth/toutify/login');
         }
 
         $error = $_SESSION['login_error'] ?? null;
@@ -89,6 +97,16 @@ final class AuthController
     public function logout(string $area): void
     {
         $this->assertArea($area);
+
+        // Signing out of PromoMonster has to sign them out of Toutify too, or
+        // "log out" leaves the account still open on the site that holds it --
+        // and the next click on Log in walks straight back in without asking
+        // for anything, which does not look like logging out at all.
+        if ($area === 'members' && ToutifyAuth::configured()
+            && Csrf::check($_POST['_csrf'] ?? null)) {
+            Request::redirect('/auth/toutify/logout');
+        }
+
         if (Csrf::check($_POST['_csrf'] ?? null)) {
             Auth::logout();
         }

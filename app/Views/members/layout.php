@@ -43,6 +43,7 @@ unset($_SESSION['members_flash']);
         '/members/promomonster-reviews' => 'PromoMonster reviews',
         '/members/templates'            => 'Email templates',
         '/members/playbook'             => 'Your playbook',
+        '/members/profile'              => 'Your details',
         '/members/settings'             => 'Settings',
       ] as $href => $label): ?>
         <a href="<?= $href ?>"<?= $path === $href ? ' aria-current="page"' : '' ?>><?= View::e($label) ?></a>

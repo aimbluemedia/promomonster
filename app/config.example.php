@@ -195,6 +195,46 @@ return [
         ],
     ],
 
+    // Toutify, which holds every member's account and their password.
+    //
+    // PromoMonster never sees a password, never stores one and never asks for
+    // one. A member signs in on Toutify and arrives here carrying a "sub", a
+    // permanent 26-character id, which is the whole link between the two.
+    //
+    // Every value below is also read from the ENVIRONMENT first, under the
+    // names in capitals, so on a host where you can set environment variables
+    // the secret need never be written to a file at all. The environment wins
+    // where both are set. Restart PHP after changing either.
+    //
+    // issuer         TOUTIFY_ISSUER. Normally https://toutify.com. Everything
+    //                else -- authorize, token, userinfo, jwks, end_session --
+    //                is read from its discovery document and cached for an
+    //                hour in storage/cache, so none of it is configured here
+    //                and none of it can drift.
+    //
+    // client_id      TOUTIFY_CLIENT_ID. "promomonster".
+    //
+    // client_secret  TOUTIFY_CLIENT_SECRET, from Toutify. This is a password
+    //                for every member's identity: config.php is gitignored and
+    //                must stay that way.
+    //
+    // webhook_secret TOUTIFY_WEBHOOK_SECRET, from Toutify. Signs the member
+    //                and website change notices posted to
+    //                https://promomonster.com/auth/toutify/webhook. Without
+    //                it that endpoint refuses everything, which is the right
+    //                way round: an unset secret must close the door, not open
+    //                it.
+    //
+    // The redirect URI is built from app_url above and must match what Toutify
+    // has for this client EXACTLY, including the scheme and any trailing path:
+    //                https://promomonster.com/auth/toutify/callback
+    'toutify' => [
+        'issuer'         => 'https://toutify.com',
+        'client_id'      => 'promomonster',
+        'client_secret'  => '',
+        'webhook_secret' => '',
+    ],
+
     // Powers the review comparison (superadmin audits and the public /compare
     // page). Without a key those are disabled; nothing else depends on it.
     'anthropic' => [

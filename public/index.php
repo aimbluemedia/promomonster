@@ -74,6 +74,7 @@ use App\Controllers\PasswordController;
 use App\Controllers\PasswordResetController;
 use App\Controllers\ReviewPageController;
 use App\Controllers\SignupController;
+use App\Controllers\ToutifyController;
 use App\Controllers\PageController;
 use App\Support\Router;
 
@@ -102,6 +103,19 @@ $router->getToken('/r', static fn (string $t) => $mail->click($t));
 $router->getToken('/u', static fn (string $t) => $mail->unsubscribeForm($t));
 $router->postToken('/u', static fn (string $t) => $mail->unsubscribe($t));
 $router->postToken('/webhooks/email', static fn (string $s) => $mail->webhook($s));
+
+// ---- Toutify, which holds every member's account -----------------------
+//
+// Six routes. The first four are a browser's; the last two are Toutify's own
+// server and are listed in bootstrap.php as sessionless, because a signature
+// on the body is their authorisation and a cookie would mean nothing.
+$toutify = new ToutifyController();
+$router->get('/auth/toutify/login',    static fn () => $toutify->login());
+$router->get('/auth/toutify/callback', static fn () => $toutify->callback());
+$router->get('/auth/toutify/initiate', static fn () => $toutify->initiate());
+$router->get('/auth/toutify/logout',   static fn () => $toutify->logout());
+$router->post('/auth/toutify/backchannel-logout', static fn () => $toutify->backchannelLogout());
+$router->post('/auth/toutify/webhook',            static fn () => $toutify->webhook());
 
 // Stripe posting a subscription event. No secret in the path and no CSRF
 // token: the Stripe-Signature header is the authorisation, and only Stripe can
@@ -173,6 +187,7 @@ $router->get('/members/reviews',  static fn () => (new MembersController())->rev
 $router->get('/members/requests', static fn () => (new MembersController())->requests());
 $router->get('/members/playbook', static fn () => (new MembersController())->playbook());
 $router->get('/members/settings', static fn () => (new MembersController())->settings());
+$router->get('/members/profile',  static fn () => (new MembersController())->profile());
 $router->post('/members/plan',   static fn () => (new MembersController())->requestPlan());
 $router->post('/members/trade',  static fn () => (new MembersController())->saveTrade());
 

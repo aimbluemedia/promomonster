@@ -19,6 +19,8 @@ use App\Support\Plans;
 use App\Support\ReviewLink;
 use App\Support\ReviewRequests;
 use App\Support\SendLimit;
+use App\Support\ToutifyAuth;
+use App\Support\ToutifyMembers;
 use App\Support\Trades;
 use App\Support\Request;
 use App\Support\View;
@@ -710,6 +712,31 @@ final class MembersController
             ['vertical' => $before === '' ? null : $before], ['vertical' => $trade]);
 
         $this->backTo($here, 'Saved — you are down as ' . Trades::label($trade) . '.');
+    }
+
+    /**
+     * The member's details, as Toutify holds them.
+     *
+     * Read-only. Two editable copies of one profile is two places to change an
+     * email address and one of them quietly wrong.
+     */
+    public function profile(): void
+    {
+        $user = Auth::user() ?? [];
+        $sub  = (string) ($user['toutify_sub'] ?? '');
+        $home = rtrim((string) Config::get('app_url', 'https://promomonster.com'), '/') . '/';
+        $base = rtrim(ToutifyAuth::issuer(), '/');
+
+        echo View::members('members/profile', [
+            'title'    => 'Your details · PromoMonster',
+            'account'  => Auth::account() ?? [],
+            'user'     => $user,
+            'websites' => $sub === '' ? [] : ToutifyMembers::websitesFor($sub),
+            'editUrl'  => $base . '/members/profile.php?client_id='
+                . rawurlencode(ToutifyAuth::clientId())
+                . '&return_to=' . rawurlencode($home),
+            'sitesUrl' => $base . '/members/websites.php',
+        ]);
     }
 
     /** The plan on the signed-in account, defaulting closed. */

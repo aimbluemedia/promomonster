@@ -10,6 +10,7 @@ use App\Support\Csrf;
 use App\Support\Database;
 use App\Support\RateLimiter;
 use App\Support\Request;
+use App\Support\ToutifyAuth;
 use App\Support\Validator;
 use App\Support\View;
 use Throwable;
@@ -31,28 +32,50 @@ final class SignupController
 {
     private const MIN_PASSWORD = 12;
 
+    /**
+     * Sign up, which is Toutify's form now.
+     *
+     * PromoMonster asks for no password: Toutify holds the account. The old
+     * form is still in this file's store() for one reason, and it refuses to
+     * run -- see there.
+     */
     public function show(): void
     {
-        // Already signed in? There is nothing to sign up for.
-        if (Auth::account() !== null) {
-            Request::redirect('/members');
-        }
-
-        $error = $_SESSION['signup_error'] ?? null;
-        $old   = $_SESSION['signup_old'] ?? [];
-        unset($_SESSION['signup_error'], $_SESSION['signup_old']);
-
-        echo View::page('members/signup', [
-            'title'       => 'Create your account · PromoMonster',
-            'description' => 'Start free. Ask every customer for a review, the right way.',
-            'min'         => self::MIN_PASSWORD,
-            'error'       => $error,
-            'old'         => $old,
+        echo View::page('members/toutify-signup', [
+            'title'       => 'Start free · PromoMonster',
+            'description' => 'One free account for PromoMonster and every other Toutify tool. '
+                . 'No card, no trial clock.',
+            'current'     => '/members/signup',
+            // Passed through to Toutify's form when a page already knows them.
+            'email'       => $this->hint('email'),
+            'name'        => $this->hint('name'),
+            'business'    => $this->hint('business'),
+            'website'     => $this->hint('website'),
         ]);
+    }
+
+    private function hint(string $key): ?string
+    {
+        $value = trim((string) ($_GET[$key] ?? ''));
+
+        return $value === '' ? null : mb_substr($value, 0, 200);
     }
 
     public function store(): void
     {
+        // Closed, not deleted. Accounts are created by Toutify now, and the
+        // one thing worse than an unused code path is an unused code path
+        // that still works: a hand-crafted POST here would mint a member with
+        // a PromoMonster password, who would then have to be migrated by hand
+        // -- the exact job switching to Toutify was meant to remove.
+        //
+        // The body below is left in place because it is also the record of
+        // what an account consists of, and ToutifyMembers::create() mirrors
+        // it. Delete both together or neither.
+        if (ToutifyAuth::configured()) {
+            Request::redirect('/members/signup');
+        }
+
         if (Auth::account() !== null) {
             Request::redirect('/members');
         }
