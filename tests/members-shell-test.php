@@ -273,10 +273,12 @@ $auth = (string) file_get_contents(APP_ROOT . '/Support/Auth.php');
 ok('toutify_sub is indeed not selected', !str_contains(code($auth), 'toutify_sub'));
 ok('so the band does not read it from the user', !str_contains($welcomeCode, "\$me['toutify_sub']"));
 
-// The Toutify link uses the issuer's own origin. A guessed path on somebody
-// else's site is a 404 that only shows up after it ships.
-ok('the Toutify link uses the issuer', str_contains($welcome, 'ToutifyAuth::issuer()'));
-ok('and only when it is configured', str_contains($welcome, 'ToutifyAuth::configured()'));
+// The Toutify link is built from the issuer, never typed. It used to call
+// issuer() here and point at the bare origin; it calls membersUrl() now,
+// which pins the origin and validates the path -- the two checks below, plus
+// the ones in toutify-test.php, cover what this line used to.
+ok('the Toutify link is only shown when configured',
+    str_contains($welcome, 'ToutifyAuth::configured()'));
 
 // Both ways into Toutify from the band: out to the issuer for a session that
 // came through it, and into the sign-in route for one that did not.
@@ -301,6 +303,14 @@ ok('sign-in does not open a new tab',
 // Out to the issuer, though, is a different site, so it does.
 ok('the issuer link opens a new tab and is safe',
     str_contains($welcome, 'target="_blank" rel="noopener"'));
+
+// Through membersUrl(), which pins the origin to the issuer and validates the
+// path. A literal would be a guessed path baked into a view, which is what
+// this link avoided by pointing at the bare origin in the first place.
+ok('the members link is built, not typed',
+    str_contains($welcomeCode, 'ToutifyAuth::membersUrl()'));
+ok('and no toutify.com is hardcoded in the view',
+    !str_contains($welcomeCode, 'toutify.com'));
 foreach (['/dashboard', '/account', '/login'] as $guess) {
     ok("no guessed path: {$guess}", !str_contains($welcomeCode, 'issuer()) ?>' . $guess));
 }

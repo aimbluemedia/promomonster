@@ -233,6 +233,19 @@ return [
         'client_id'      => 'promomonster',
         'client_secret'  => '',
         'webhook_secret' => '',
+
+        // Where the "Toutify members" button on the dashboard points. A path
+        // on the issuer, never a full URL: anything with a scheme, a host, a
+        // query or a '..' in it is ignored and this falls back, because a
+        // setting that could move this link off toutify.com is a setting that
+        // could send a signed-in member somewhere that looks like Toutify.
+        //
+        // The member is already signed in over there -- that is where they
+        // signed in, and Toutify's own cookie carries them. PromoMonster
+        // cannot sign anyone in to Toutify and no setting here will change
+        // that: Toutify is the identity provider, this is the client, and
+        // OpenID Connect does not run in that direction.
+        'members_path'   => '/members',
     ],
 
     // Powers four things, all of which are simply off without a key:

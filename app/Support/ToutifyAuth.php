@@ -93,6 +93,39 @@ final class ToutifyAuth
         return self::cached('discovery', self::issuer() . '/.well-known/openid-configuration');
     }
 
+    /**
+     * Where a member goes to see their Toutify account.
+     *
+     * Not from discovery -- this is a page on Toutify's site, not an OIDC
+     * endpoint, so there is nothing to discover it from. The path is a setting
+     * rather than a literal because the last version of this linked at the
+     * issuer's bare origin precisely to avoid guessing a path, and the right
+     * answer came from the person who runs Toutify rather than from us.
+     *
+     * Built onto the issuer's own origin, and the path is scrubbed of anything
+     * that could leave it. A setting that could point this link at another
+     * site is a setting that could be used to send a signed-in member
+     * somewhere that looks like Toutify.
+     */
+    public static function membersUrl(): string
+    {
+        $raw = trim(self::setting('TOUTIFY_MEMBERS_PATH', 'toutify.members_path', '/members'));
+
+        // Validated as given, BEFORE any tidying. The first version normalised
+        // first and then checked, which let two things through: an empty
+        // setting became the bare origin instead of falling back, and
+        // "//evil.test/members" had its leading slashes collapsed into a
+        // toutify.com path called evil.test. Neither left the issuer, but both
+        // silently produced a link nobody asked for.
+        //
+        // One leading slash, then at least one segment of safe characters.
+        // No scheme, no host, no query, no empty segment, no traversal.
+        $ok = preg_match('~^/[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*/?$~', $raw) === 1
+            && !in_array('..', explode('/', $raw), true);
+
+        return self::issuer() . '/' . trim($ok ? $raw : '/members', '/');
+    }
+
     public static function endpoint(string $name): string
     {
         $found = (string) (self::discover()[$name] ?? '');

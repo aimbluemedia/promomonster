@@ -226,5 +226,50 @@ Config::load(['app_url' => 'https://promomonster.com',
               'toutify' => ['client_id' => 'promomonster', 'client_secret' => '']]);
 ok('no secret means not configured', !ToutifyAuth::configured());
 
+// =====================================================================
+// Where the members button points
+// =====================================================================
+//
+// The path is a setting because the right answer came from the person who
+// runs Toutify, not from us -- the previous version linked at the bare origin
+// precisely to avoid guessing one. What it must never do is leave the issuer.
+
+Config::load(['toutify' => ['issuer' => 'https://toutify.com']]);
+check('the default is the members area',
+    ToutifyAuth::membersUrl(), 'https://toutify.com/members');
+
+foreach ([
+    '/members'      => 'https://toutify.com/members',
+    '/members/'     => 'https://toutify.com/members',
+    '/my/account'   => 'https://toutify.com/my/account',
+    '/members-area' => 'https://toutify.com/members-area',
+] as $set => $want) {
+    Config::load(['toutify' => ['issuer' => 'https://toutify.com', 'members_path' => $set]]);
+    check("'{$set}' becomes {$want}", ToutifyAuth::membersUrl(), $want);
+}
+
+// Anything that could move the link off toutify.com falls back instead. A
+// signed-in member following a link we rendered has to land on Toutify.
+foreach ([
+    'https://evil.test/members',
+    '//evil.test/members',
+    'http://toutify.com.evil.test/members',
+    '/members?next=https://evil.test',
+    '/../admin',
+    '/members/../../etc',
+    '',
+    '   ',
+] as $bad) {
+    Config::load(['toutify' => ['issuer' => 'https://toutify.com', 'members_path' => $bad]]);
+    $got = ToutifyAuth::membersUrl();
+    check("refused: '{$bad}'", $got, 'https://toutify.com/members');
+    ok("and stays on the issuer: '{$bad}'", str_starts_with($got, 'https://toutify.com/'));
+}
+
+// The issuer still decides the origin, so a self-hosted Toutify works.
+Config::load(['toutify' => ['issuer' => 'https://id.example.test', 'members_path' => '/members']]);
+check('the issuer sets the origin',
+    ToutifyAuth::membersUrl(), 'https://id.example.test/members');
+
 echo "\n{$passed} passed, {$failed} failed\n";
 exit($failed === 0 ? 0 : 1);

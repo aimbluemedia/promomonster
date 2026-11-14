@@ -88,7 +88,21 @@ $pills = [
              that leads to one is worse than no button. */ ?>
     <?php if (ToutifyAuth::configured()): ?>
       <?php if ($viaToutify): ?>
-        <a class="hello__btn" href="<?= View::e(ToutifyAuth::issuer()) ?>"
+        <?php /* Straight to Toutify's own members area.
+
+                 They are already signed in there: that is where they signed
+                 in. Toutify set its own session cookie during the login that
+                 brought them here, and this link rides it.
+
+                 PromoMonster cannot sign anybody in to Toutify, and it is
+                 worth being clear about why rather than leaving somebody to
+                 wonder. Toutify is the identity provider and this is the
+                 client -- it tells us who somebody is, and there is no
+                 direction in OpenID Connect that goes the other way. If their
+                 Toutify session has expired, Toutify's own page asks them to
+                 sign in, which is Toutify's to handle and the correct thing
+                 for it to do. */ ?>
+        <a class="hello__btn" href="<?= View::e(ToutifyAuth::membersUrl()) ?>"
            target="_blank" rel="noopener">Toutify members &#8599;</a>
       <?php else: ?>
         <a class="hello__btn" href="/auth/toutify/login">Sign in to Toutify</a>
