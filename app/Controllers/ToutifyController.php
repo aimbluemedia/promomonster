@@ -287,10 +287,24 @@ final class ToutifyController
             $this->plain(200, 'already handled');
         }
 
+        $pdo = Database::connection();
+        $pdo->beginTransaction();
+
         try {
+            // One event, one transaction. website.joined can create a member
+            // AND a website; without this, a failure on the second leaves the
+            // first behind and the retry sees a half-applied event. The spec
+            // asks for a rollback and this is it.
             $note = $this->applyEvent($type, $event);
+            $pdo->commit();
+
+            // Outside the transaction: tidying up must never roll back an
+            // event that applied cleanly.
             ToutifyEvents::prune();
         } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
             // The event id was written before the work, so a retry would be
             // dropped as a duplicate unless it is forgotten again.
             ToutifyEvents::forget($id);

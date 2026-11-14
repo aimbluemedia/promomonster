@@ -78,7 +78,14 @@ final class ToutifyMembers
         [$first, $last] = self::splitName($name !== '' ? $name : $email);
 
         $pdo = Database::connection();
-        $pdo->beginTransaction();
+
+        // The webhook wraps a whole event in a transaction, and PDO throws on
+        // a nested beginTransaction. Join the one that is open rather than
+        // starting another: the caller's rollback then covers this too.
+        $own = !$pdo->inTransaction();
+        if ($own) {
+            $pdo->beginTransaction();
+        }
 
         try {
             Database::run(
@@ -122,9 +129,13 @@ final class ToutifyMembers
                 ['a' => $accountId, 'name' => $business],
             );
 
-            $pdo->commit();
+            if ($own) {
+                $pdo->commit();
+            }
         } catch (Throwable $e) {
-            $pdo->rollBack();
+            if ($own) {
+                $pdo->rollBack();
+            }
             throw $e;
         }
 
