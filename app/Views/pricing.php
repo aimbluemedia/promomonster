@@ -44,8 +44,12 @@ $faqs = [
   <div class="container center">
     <p class="eyebrow">Pricing</p>
     <h1>Straightforward monthly pricing</h1>
-    <p class="lede">Start free. No setup fee, no contract, no sales call.
-      Competitors charge $300–$600 a month for this.</p>
+    <?php /* "Competitors charge $300-$600 a month for this" used to close this
+             line. Nothing sourced it, and a price comparison nobody can check
+             is the same kind of claim as a statistic nobody can check -- it
+             asks to be believed rather than verified. What is left is three
+             facts about our own pricing, every one of them true on this page. */ ?>
+    <p class="lede">Start free. No setup fee, no contract, no sales call.</p>
     <div class="notice" style="margin-top:2rem;max-width:44rem;margin-inline:auto;text-align:left;">
       <strong>Free is open now. Paid plans are set up by hand.</strong>
       <p>Create a Free account and you are in immediately. Card payments are not

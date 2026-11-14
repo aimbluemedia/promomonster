@@ -48,8 +48,12 @@ final class PageController
             'pricing' => [
                 'pricing',
                 'Pricing · PromoMonster',
+                // No competitor price here either. A meta description is the
+                // line that shows up in a search result and in a shared link,
+                // so an unsourced claim here travels further than the page it
+                // came from.
                 'Free to start, then ' . $pro . '/month. No setup fee, no contract, no '
-                    . 'sales call. Competitors charge $300-$600 for this.',
+                    . 'sales call.',
             ],
             'agencies' => [
                 'agencies',

@@ -4,9 +4,18 @@
     <div>
       <p class="eyebrow">For agencies</p>
       <h1>Add reputation management to what you already sell</h1>
+      <?php /* The figure that used to end this line -- "sell for $199-$399 a
+               month" -- is gone with the competitor price on the pricing page,
+               and for a stronger reason. That one asked a buyer to believe an
+               unsourced number about somebody else; this one told a
+               prospective partner what they could earn. An earnings claim we
+               cannot stand behind is the sort a regulator reads back to you,
+               and we have no data on what any agency has charged, because no
+               agency has charged anything yet. What they price it at is
+               theirs to decide. */ ?>
       <p class="lede">Your clients already ask you why competitors outrank them.
         Reviews are a large part of the answer, and this is a service you can
-        sell for $199–$399 a month on top of what you do now.</p>
+        put your own price on, on top of what you do now.</p>
       <ul class="checklist" style="margin-top:1.75rem;">
         <li>Manage every client from one login</li>
         <li>White-label reports with your own branding</li>
