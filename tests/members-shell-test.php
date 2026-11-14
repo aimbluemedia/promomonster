@@ -210,12 +210,14 @@ foreach ([$sidebar, $welcome, $layout, $started, $promo] as $source) {
 foreach ([
     'side__link', 'is-here', 'hello__btn--solid',
     'gs', 'gs--done', 'gs__card', 'is-next', 'is-done', 'gs__btn--go', 'is-full',
-    'step3', 'step3--locked', 'step3__pill--paid',
+    'stepcard', 'stepcard--locked', 'stepcard__pill--paid',
 ] as $name) {
     $classes[$name] = true;
 }
 
 ok('classes were found to check', count($classes) > 15);
+
+$cssCode = code($css);
 
 // Shared with the public pages, defined elsewhere in the stylesheet.
 $elsewhere = ['logo', 'logo--stacked', 'logo__text', 'logo__word', 'logo__accent',
@@ -225,8 +227,13 @@ foreach (array_keys($classes) as $name) {
     if (in_array($name, $elsewhere, true)) {
         continue;
     }
-    // A rule for .side__cta, .side__cta:hover, or .side__cta{ -- any of them.
-    ok("styled: .{$name}", preg_match('~\.' . preg_quote($name, '~') . '(?![\w-])~', $css) === 1);
+    // Against the stylesheet with its comments taken out. A rule for
+    // .side__cta, .side__cta:hover or .side__cta{ all count -- but a class
+    // named only in a comment explaining why it exists does not, which is
+    // exactly what this check would otherwise accept. Third time comments
+    // have fooled an assertion in this suite.
+    ok("styled: .{$name}",
+        preg_match('~\.' . preg_quote($name, '~') . '(?![\w-])~', $cssCode) === 1);
 }
 
 /* ---- The step cards -------------------------------------------------- */
@@ -278,7 +285,7 @@ foreach (['Your review page', 'Put them on your website', 'Add a review yourself
 ok('the page comes first', $order['Your review page'] < $order['Put them on your website']);
 ok('the website second', $order['Put them on your website'] < $order['Add a review yourself']);
 
-ok('they are in one row', str_contains($promo, 'class="steps3"'));
+ok('they are in one stack', str_contains($promo, 'class="steps"'));
 
 // Two pills say "yours already", one says what it costs. The second half of
 // that matters as much as the first: a member on Free should see at a glance
@@ -293,13 +300,63 @@ ok('the paid pill is generated',
 ok('and no plan name is hardcoded beside it',
     !str_contains($promoCode, 'Premium access'));
 
-// The form is full width underneath, not squeezed into a third of the row.
-ok('the form has its own anchor', str_contains($promo, 'id="add-review"'));
-ok('and the card points at it', str_contains($promo, 'href="#add-review"'));
+// The form lives inside step 3 again. It was lifted out when the three were
+// side by side, because eight fields in a third of a row is a form nobody
+// finishes; a full-width card has room for it, so the card that is about
+// adding a review is the card that adds one.
+ok('step 3 is the anchor', str_contains($promo, 'id="add-review"'));
+ok('the form is inside it',
+    strpos($promo, 'id="add-review"') < strpos($promo, '/members/promomonster-reviews/add'));
 
-// Only rendered for a plan that may use it, or the anchor is a dead link and
-// the form is a gate that is not one.
-ok('the form is behind the gate', str_contains($promoCode, "if (\$canAdd):"));
+// Rendered on both plans and compared, rather than matched against the text
+// of the gate. The first version of this looked for "if ($canAdd):" and broke
+// the moment the branch was written the other way round -- a test of how the
+// condition is spelled, not of what it does.
+App\Support\Config::load([
+    'app_url' => 'https://promomonster.test',
+    'app_key' => str_repeat('a', 40),
+]);
+$_SESSION = [];
+$_SERVER['REQUEST_URI'] = '/members/promomonster-reviews';
+
+$renderStep3 = static function (string $plan): string {
+    return App\Support\View::render('members/promo-reviews', [
+        'account'  => ['id' => 1, 'name' => 'Acme Pools', 'plan' => $plan],
+        'ready'    => true,
+        'slug'     => 'acme-pools',
+        'pageUrl'  => 'https://promomonster.test/reviews/acme-pools',
+        'widgetJs' => 'https://promomonster.test/widget/acme-pools.js',
+        'summary'  => ['count' => 0, 'average' => null],
+        'reviews'  => [],
+        'requests' => [],
+        'error'    => null,
+        'canAdd'   => App\Support\Plans::can($plan, App\Support\Plans::ADD_REVIEWS),
+        'branded'  => !App\Support\Plans::can($plan, App\Support\Plans::UNBRANDED),
+        'drafts'   => [],
+        'canDraft' => App\Support\Plans::can($plan, App\Support\Plans::REPLY_DRAFTS),
+        'draftMonth' => ['allowed' => false, 'used' => 0, 'limit' => 0, 'reason' => null],
+    ]);
+};
+
+$asFree    = $renderStep3(App\Support\Plans::FREE);
+$asPremium = $renderStep3(App\Support\Plans::PREMIUM);
+
+ok('both render', $asFree !== '' && $asPremium !== '');
+ok('Premium gets the form',
+    str_contains($asPremium, 'action="/members/promomonster-reviews/add"'));
+ok('Free does not',
+    !str_contains($asFree, 'action="/members/promomonster-reviews/add"'));
+ok('and Free is told the price instead',
+    str_contains($asFree, App\Support\Plans::money(App\Support\Plans::PREMIUM)));
+ok('Free gets the quiet card', str_contains($asFree, 'stepcard--locked'));
+ok('Premium does not', !str_contains($asPremium, 'stepcard--locked'));
+
+// Both see all three steps, whatever the plan. A step that vanished on Free
+// would leave somebody unable to learn the feature exists.
+foreach (['Your review page', 'Put them on your website', 'Add a review yourself'] as $heading) {
+    ok("Free sees: {$heading}", str_contains($asFree, $heading));
+    ok("Premium sees: {$heading}", str_contains($asPremium, $heading));
+}
 
 /* ---- The band says only what it can stand behind --------------------- */
 

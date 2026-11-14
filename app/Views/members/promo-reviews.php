@@ -35,196 +35,183 @@ $draftMonth = $draftMonth ?? ['allowed' => false, 'used' => 0, 'limit' => 0, 're
     <div class="alert" role="alert" style="margin-bottom:1.5rem;"><?= View::e($error) ?></div>
   <?php endif; ?>
 
-  <?php /* ---- The three steps, across ----------------------------------- */ ?>
-  <?php /* In the order somebody does them: get the link, put the reviews on
-           your site, and -- only on Premium -- type in one that came to you
-           some other way. Adding by hand used to sit second, between the two
-           everybody can do, which put the one locked card in the middle of
-           the row for most of the people reading it.
+  <?php /* ---- The three steps ------------------------------------------- */ ?>
+  <?php /* One per row, each laid out across: the numeral on a left rail, the
+           title and what it is for beside it, and who it is for at the far
+           right. Whatever the step actually gives you -- a link, a snippet, a
+           form -- sits underneath, aligned past the numeral.
 
-           Each card says at its foot who it is for. The two that come with
-           any membership say so, which is worth as much as the one that says
-           Premium: a member on Free should be able to see at a glance that
-           two of these three are already theirs. */ ?>
-  <div class="steps3">
+           Three cards side by side made every one of them a narrow column: a
+           URL broke across three lines, a script tag across four, and the
+           eight-field form had to be moved out of its own card to fit. Full
+           width gives each step room to show the thing it is about, and the
+           rail keeps the row scannable.
 
-    <?php /* ---- 1. The page ---------------------------------------------- */ ?>
-    <div class="card step3">
-      <div class="step-head">
-        <span class="step-head__n">1</span>
-        <div>
-          <h2 class="step3__h">Your review page</h2>
-          <p class="muted step3__sub">
-            Send this to a customer, put it on a card, or link it from your site.
-            Anyone who opens it can leave you a review.
-          </p>
-        </div>
-      </div>
+           In the order somebody does them. Adding by hand is the only one a
+           plan can refuse, so it goes last rather than sitting between the
+           two everybody can do. */ ?>
 
-      <p class="review-link step3__link">
-        <a href="<?= View::e($pageUrl) ?>" target="_blank" rel="noopener"><?= View::e($pageUrl) ?></a>
+  <div class="steps">
+
+  <?php /* ---- 1. The page ---------------------------------------------- */ ?>
+  <section class="stepcard">
+    <p class="stepcard__pill">All membership access</p>
+    <span class="stepcard__n" aria-hidden="true">1</span>
+    <div class="stepcard__text">
+      <h2 class="stepcard__h">Your review page</h2>
+      <p class="stepcard__sub">
+        Send this to a customer, put it on a card, or link it from your site.
+        Anyone who opens it can leave you a review.
       </p>
-      <p class="muted step3__note">
+    </div>
+    <div class="stepcard__do">
+      <a class="stepcard__link" href="<?= View::e($pageUrl) ?>" target="_blank" rel="noopener">
+        <span class="stepcard__linkurl"><?= View::e($pageUrl) ?></span>
+        <span class="stepcard__linkgo" aria-hidden="true">&#8599;</span>
+      </a>
+      <p class="stepcard__fine">
         Reviews sent through a personal link from <strong>Google reviews</strong>
         are marked <em>Verified customer</em>. Ones left straight from this page
         are not, which is the honest difference.
       </p>
-
-      <p class="step3__who"><span class="step3__pill">All membership access</span></p>
     </div>
+  </section>
 
-    <?php /* ---- 2. The widget -------------------------------------------- */ ?>
-    <div class="card step3">
-      <div class="step-head">
-        <span class="step-head__n">2</span>
-        <div>
-          <h2 class="step3__h">Put them on your website</h2>
-          <p class="muted step3__sub">
-            Paste this where you want the reviews to appear. Works on any site
-            that lets you add HTML.
-          </p>
-        </div>
-      </div>
-
-      <p class="step3__code">
-        <code>&lt;script src="<?= View::e($widgetJs) ?>" async&gt;&lt;/script&gt;</code>
+  <?php /* ---- 2. The widget -------------------------------------------- */ ?>
+  <section class="stepcard">
+    <?php /* The widget is on every plan. Only our name on it is not, and the
+             line below says so -- which is why this does not quietly become
+             "Premium". */ ?>
+    <p class="stepcard__pill">All membership access</p>
+    <span class="stepcard__n" aria-hidden="true">2</span>
+    <div class="stepcard__text">
+      <h2 class="stepcard__h">Put them on your website</h2>
+      <p class="stepcard__sub">
+        Paste this where you want the reviews to appear. Works on any site
+        that lets you add HTML.
       </p>
-      <p class="muted step3__note">
+    </div>
+    <div class="stepcard__do">
+      <pre class="stepcard__code"><code>&lt;script src="<?= View::e($widgetJs) ?>" async&gt;&lt;/script&gt;</code></pre>
+      <p class="stepcard__fine">
         It shows your latest twelve, your average, and a link to the full page.
         <?php if ($branded): ?>
           The link reads <strong>&ldquo;Every review, on PromoMonster&rdquo;</strong>.
+          <?php /* The link itself stays on every plan, branded or not. It is how
+                   a reader checks these are ALL the reviews rather than a
+                   flattering dozen, and selling the ability to hide that would
+                   be selling the ability to mislead. White-label removes our
+                   name, not the proof. */ ?>
+          <?php $plain = App\Support\Plans::cheapestWith(App\Support\Plans::UNBRANDED); ?>
+          <?php if ($plain !== null): ?>
+            Want it without our name on it? That is
+            <a href="/members#plans"><?= View::e(App\Support\Plans::name($plain)) ?></a>.
+          <?php endif; ?>
         <?php else: ?>
           On your plan it carries no PromoMonster name &mdash; the link back just
           reads <strong>&ldquo;See every review&rdquo;</strong>.
         <?php endif; ?>
       </p>
-      <?php /* The link itself stays on every plan, branded or not. It is how a
-               reader checks these are ALL the reviews rather than a flattering
-               dozen, and selling the ability to hide that would be selling the
-               ability to mislead. White-label removes our name, not the proof. */ ?>
-      <?php if ($branded): ?>
-        <?php $plain = App\Support\Plans::cheapestWith(App\Support\Plans::UNBRANDED); ?>
-        <?php if ($plain !== null): ?>
-          <p class="muted step3__note">
-            Want it without our name on it? That is
-            <a href="/members#plans"><?= View::e(App\Support\Plans::name($plain)) ?></a>.
-          </p>
-        <?php endif; ?>
-      <?php endif; ?>
-
-      <?php /* The widget is on every plan. Only our name on it is not, and
-               the line above says so -- which is why this pill does not
-               quietly become "Premium". */ ?>
-      <p class="step3__who"><span class="step3__pill">All membership access</span></p>
     </div>
+  </section>
 
-    <?php /* ---- 3. By hand, on Premium ------------------------------------ */ ?>
-    <div class="card step3<?= $canAdd ? '' : ' step3--locked' ?>">
-      <div class="step-head">
-        <span class="step-head__n">3</span>
-        <div>
-          <h2 class="step3__h">Add a review yourself</h2>
-          <p class="muted step3__sub">
-            For one a customer gave you in person or on the phone, or one already
-            on your Google listing. Both are labelled as added by you, so nobody
-            reading them is misled about where they came from.
-          </p>
-        </div>
-      </div>
-
-      <?php if ($canAdd): ?>
-        <?php /* The form is underneath at full width rather than squeezed into
-                 a third of the row: eight fields in a narrow column is a form
-                 nobody finishes. */ ?>
-        <p class="step3__act"><a class="btn btn--primary btn--sm" href="#add-review">Add a review</a></p>
-      <?php else: ?>
-        <?php $needed = App\Support\Plans::cheapestWith(App\Support\Plans::ADD_REVIEWS); ?>
-        <?php if ($needed !== null): ?>
-          <p class="muted step3__note">
-            On <?= View::e(App\Support\Plans::name($needed)) ?>,
-            <?= View::e(App\Support\Plans::money($needed)) ?>/month.
-          </p>
-          <p class="step3__act">
-            <a class="btn btn--ghost btn--sm" href="/members#plans">Compare the plans</a>
-          </p>
-        <?php endif; ?>
-      <?php endif; ?>
-
-      <p class="step3__who">
-        <span class="step3__pill step3__pill--paid">
-          <?= View::e(App\Support\Plans::name(
-              (string) App\Support\Plans::cheapestWith(App\Support\Plans::ADD_REVIEWS)
-          )) ?> access
-        </span>
+  <?php /* ---- 3. By hand ------------------------------------------------ */ ?>
+  <?php $needsPlan = App\Support\Plans::cheapestWith(App\Support\Plans::ADD_REVIEWS); ?>
+  <section class="stepcard<?= $canAdd ? '' : ' stepcard--locked' ?>" id="add-review">
+    <p class="stepcard__pill stepcard__pill--paid">
+      <?= View::e(App\Support\Plans::name((string) $needsPlan)) ?> access
+    </p>
+    <span class="stepcard__n" aria-hidden="true">3</span>
+    <div class="stepcard__text">
+      <h2 class="stepcard__h">Add a review yourself</h2>
+      <p class="stepcard__sub">
+        For one a customer gave you in person or on the phone, or one already
+        on your Google listing. Both are labelled as added by you, so nobody
+        reading them is misled about where they came from.
       </p>
     </div>
+
+    <div class="stepcard__do">
+      <?php if (!$canAdd): ?>
+        <?php if ($needsPlan !== null): ?>
+          <p class="stepcard__price">
+            On <strong><?= View::e(App\Support\Plans::name($needsPlan)) ?></strong>,
+            <?= View::e(App\Support\Plans::money($needsPlan)) ?> a month.
+          </p>
+          <p class="stepcard__acts">
+            <a class="btn btn--primary btn--sm" href="/members#plans">
+              Compare the plans
+            </a>
+          </p>
+        <?php endif; ?>
+      <?php else: ?>
+        <form class="form stepcard__form" method="post"
+              action="/members/promomonster-reviews/add">
+          <?= Csrf::field() ?>
+
+          <div class="form__row form__row--2">
+            <div>
+              <label for="author_name">Customer&rsquo;s name</label>
+              <input class="field" id="author_name" name="author_name" type="text" required
+                     maxlength="120" placeholder="Dana Reyes" autocomplete="off">
+            </div>
+            <div>
+              <label for="rating">Rating</label>
+              <select class="field" id="rating" name="rating" required>
+                <option value="">Choose&hellip;</option>
+                <?php foreach ([5 => '5 - excellent', 4 => '4 - good', 3 => '3 - okay',
+                                2 => '2 - poor', 1 => '1 - bad'] as $n => $word): ?>
+                  <option value="<?= $n ?>"><?= View::e($word) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+          </div>
+
+          <div class="form__row form__row--2">
+            <div>
+              <label for="author_city">City, State</label>
+              <input class="field" id="author_city" name="author_city" type="text" required
+                     maxlength="120" placeholder="Mesa, AZ" autocomplete="off">
+            </div>
+            <div>
+              <label for="source_url">Link to it on Google <span class="muted">(optional)</span></label>
+              <input class="field" id="source_url" name="source_url" type="url"
+                     placeholder="https://g.page/..." autocomplete="off" spellcheck="false">
+            </div>
+          </div>
+
+          <div>
+            <label for="body">What they said</label>
+            <textarea class="field" id="body" name="body" rows="3" required maxlength="4000"
+                      placeholder="Their words, as close as you can remember."></textarea>
+          </div>
+
+          <fieldset class="stepcard__from">
+            <legend>Where is it from?</legend>
+            <label>
+              <input type="radio" name="source" value="entered_by_business" checked>
+              A customer gave it to me directly
+            </label>
+            <label>
+              <input type="radio" name="source" value="google">
+              It is already on my Google listing &mdash; shows with a <strong>G</strong>
+            </label>
+          </fieldset>
+
+          <p class="stepcard__fine" style="margin:0;">
+            The Google link is only used for a Google review. It lets a reader
+            check it for themselves, which is what makes the G worth anything.
+          </p>
+
+          <button class="btn btn--primary" type="submit" style="justify-self:start;">
+            Add review
+          </button>
+        </form>
+      <?php endif; ?>
+    </div>
+  </section>
+
   </div>
-
-  <?php /* ---- The form for step 3, full width ---------------------------- */ ?>
-  <?php if ($canAdd): ?>
-  <div class="card" id="add-review" style="margin-bottom:1.5rem;">
-    <h2 style="font-size:1.05rem;margin:0 0 .2rem;">Add a review yourself</h2>
-    <p class="muted" style="margin:0;font-size:.9rem;">
-      Both kinds are labelled as added by you.
-    </p>
-
-    <form class="form" method="post" action="/members/promomonster-reviews/add" style="margin-top:1.25rem;">
-      <?= Csrf::field() ?>
-
-      <div class="form__row form__row--2">
-        <div>
-          <label for="author_name">Customer's name</label>
-          <input class="field" id="author_name" name="author_name" type="text" required
-                 maxlength="120" placeholder="Dana Reyes" autocomplete="off">
-        </div>
-        <div>
-          <label for="rating">Rating</label>
-          <select class="field" id="rating" name="rating" required>
-            <option value="">Choose&hellip;</option>
-            <?php foreach ([5 => '5 - excellent', 4 => '4 - good', 3 => '3 - okay',
-                            2 => '2 - poor', 1 => '1 - bad'] as $n => $word): ?>
-              <option value="<?= $n ?>"><?= View::e($word) ?></option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-      </div>
-
-      <div>
-        <label for="author_city">City, State</label>
-        <input class="field" id="author_city" name="author_city" type="text" required maxlength="120"
-               placeholder="Mesa, AZ" autocomplete="off">
-      </div>
-
-      <div>
-        <label for="body">What they said</label>
-        <textarea class="field" id="body" name="body" rows="4" required maxlength="4000"
-                  placeholder="Their words, as close as you can remember."></textarea>
-      </div>
-
-      <fieldset style="border:0;padding:0;margin:0;">
-        <legend style="font-size:.9rem;font-weight:600;margin-bottom:.4rem;">Where is it from?</legend>
-        <label style="display:block;font-weight:400;font-size:.92rem;">
-          <input type="radio" name="source" value="entered_by_business" checked>
-          A customer gave it to me directly
-        </label>
-        <label style="display:block;font-weight:400;font-size:.92rem;">
-          <input type="radio" name="source" value="google">
-          It is already on my Google listing &mdash; shows with a <strong>G</strong>
-        </label>
-      </fieldset>
-
-      <div>
-        <label for="source_url">Link to it on Google <span class="muted">(optional)</span></label>
-        <input class="field" id="source_url" name="source_url" type="url"
-               placeholder="https://g.page/..." autocomplete="off" spellcheck="false">
-        <p class="form__note">Only used for Google reviews. It lets a reader check it
-          for themselves, which is what makes the G worth anything.</p>
-      </div>
-
-      <button class="btn btn--primary" type="submit" style="justify-self:start;">Add review</button>
-    </form>
-  </div>
-  <?php endif; ?>
 
   <?php /* ---- What is there ------------------------------------------------ */ ?>
   <h2 style="font-size:1.05rem;margin:2rem 0 .9rem;">Your reviews</h2>

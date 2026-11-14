@@ -1741,45 +1741,131 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
 .plans-at-foot > .muted{ margin:0 0 1.1rem; font-size:.9rem; max-width:40rem; }
 
 /* ---- The three steps on the review page -------------------------------- */
-/* Across, not stacked. They are three things to do once, and a column of
-   three full-width cards pushed the reviews themselves below the fold on
-   every visit after the first.
+/* One per row, laid out across.
 
-   Equal height by grid, with the access pill pinned to the foot of each so
-   the three line up along the bottom whatever the card says above them. */
-.steps3{ display:grid; gap:1rem; margin-bottom:1.5rem; }
-@media (min-width:760px){ .steps3{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
-@media (min-width:1180px){ .steps3{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+   Three side by side made every one of them a narrow column -- a URL broke
+   over three lines, a script tag over four, and the eight-field form had to
+   be lifted out of its own card to fit anywhere. Full width gives each step
+   room for the thing it is actually about.
 
-.step3{ display:flex; flex-direction:column; margin:0; }
+   The grid is a left rail and a body: the numeral sits in the rail, the
+   title and the blurb sit beside it, and whatever the step gives you lands
+   underneath, aligned past the numeral rather than under it. That indent is
+   what keeps a stack of three readable as three steps instead of three
+   boxes.
+
+   Restraint is the whole design here. One accent, a hairline, a soft shadow,
+   and a lot of room. Nothing on this page needs to shout: a member is
+   reading it once, to set something up, and then never again. */
+
+.steps{ display:grid; gap:1.1rem; margin-bottom:2rem; }
+
+.stepcard{
+  position:relative;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  column-gap:1.15rem;
+  row-gap:1rem;
+  padding:1.6rem 1.75rem 1.7rem;
+  border:1px solid var(--line);
+  border-radius:16px;
+  background:var(--surface);
+  /* Two shadows, not one: a tight hairline that reads as an edge and a wide,
+     very soft one that lifts the card off the wash. A single blurred shadow
+     at this radius reads as a smudge. */
+  box-shadow:0 1px 2px rgba(10,30,50,.04), 0 8px 24px -12px rgba(10,30,50,.10);
+}
 /* The one the plan does not include goes quiet rather than loud. Nothing has
-   gone wrong; it is simply not theirs yet. */
-.step3--locked{ background:var(--wash); }
+   gone wrong here; it is simply not theirs yet. */
+.stepcard--locked{ background:var(--wash); box-shadow:none; }
 
-.step3__h{ font-size:1.02rem; margin:0; }
-.step3__sub{ margin:.2rem 0 0; font-size:.88rem; line-height:1.5; }
-.step3__note{ font-size:.84rem; margin:.6rem 0 0; line-height:1.5; }
+@media (prefers-color-scheme: dark){
+  .stepcard{ box-shadow:0 1px 2px rgba(0,0,0,.30), 0 8px 24px -12px rgba(0,0,0,.55); }
+  .stepcard--locked{ box-shadow:none; }
+}
 
-/* A URL and a script tag both have to survive a third of a row without
-   dragging the page sideways. */
-.step3__link{ margin:.9rem 0 0; overflow-wrap:anywhere; }
-.step3__code{ margin:.9rem 0 0; }
-.step3__code code{ display:block; padding:.7rem .8rem; font-size:.78rem;
-  line-height:1.5; overflow-wrap:anywhere; background:var(--wash);
-  border:1px solid var(--line); border-radius:8px; }
+/* ---- The rail ---------------------------------------------------------- */
+.stepcard__n{
+  grid-row:1; grid-column:1;
+  display:grid; place-items:center;
+  width:2.5rem; height:2.5rem;
+  border-radius:12px;
+  background:var(--tint); color:var(--brand);
+  font-size:1.05rem; font-weight:800; letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums;
+}
 
-.step3__act{ margin:.9rem 0 0; }
+/* ---- The head ---------------------------------------------------------- */
+.stepcard__text{ grid-row:1; grid-column:2; min-width:0; align-self:center;
+  /* Room for the pill, which is positioned into the card's top-right corner
+     rather than taking a grid column -- a third column would collapse to
+     nothing on a phone and drag the title with it. */
+  padding-right:11rem; }
+.stepcard__h{ font-size:1.15rem; margin:0; letter-spacing:-.022em; }
+.stepcard__sub{ margin:.3rem 0 0; font-size:.92rem; line-height:1.6;
+  color:var(--body); max-width:46rem; }
 
-/* margin-top:auto is what pins this to the bottom of a flex column, so the
-   three pills sit on one line across the row. */
-.step3__who{ margin:auto 0 0; padding-top:1rem; }
-.step3__pill{ display:inline-block; padding:.25rem .6rem; border-radius:999px;
-  font-size:.7rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase;
-  background:var(--tint); color:var(--brand); }
-/* #8a5a12 on #fff4e0, the same deep amber the locked-plan pill already uses:
-   at 11px uppercase this needs 4.5:1 and --star on its own tint does not
-   reach it. */
-.step3__pill--paid{ background:#fff4e0; color:#8a5a12; }
+.stepcard__pill{
+  position:absolute; top:1.6rem; right:1.75rem; margin:0;
+  padding:.3rem .7rem; border-radius:999px;
+  font-size:.68rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+  background:var(--tint); color:var(--brand); white-space:nowrap;
+}
+/* #8a5a12 on #fff4e0, the pair the locked-plan pill already uses: at 11px
+   uppercase this needs 4.5:1 and --star on its own tint does not reach it. */
+.stepcard__pill--paid{ background:#fff4e0; color:#8a5a12; }
+
+/* ---- What the step gives you ------------------------------------------- */
+/* Column 2 only, so it lines up with the title rather than under the rail. */
+.stepcard__do{ grid-row:2; grid-column:2; min-width:0; }
+
+.stepcard__fine{ margin:.7rem 0 0; font-size:.84rem; line-height:1.55;
+  color:var(--muted); max-width:46rem; }
+
+/* The review page link, as a thing to click rather than a line of text. */
+.stepcard__link{
+  display:flex; align-items:center; justify-content:space-between; gap:1rem;
+  padding:.85rem 1rem; border-radius:11px;
+  border:1px solid var(--line-2); background:var(--tint-2);
+  color:var(--brand); font-weight:600; text-decoration:none;
+  transition:background-color .15s, border-color .15s;
+}
+.stepcard__link:hover{ background:var(--tint); border-color:var(--brand); }
+.stepcard__linkurl{ overflow-wrap:anywhere; }
+.stepcard__linkgo{ flex:0 0 auto; font-size:1.05rem; opacity:.7; }
+
+.stepcard__code{
+  margin:0; padding:.9rem 1rem; border-radius:11px;
+  border:1px solid var(--line); background:var(--wash);
+  overflow-x:auto;
+}
+.stepcard__code code{ font-family:var(--mono); font-size:.82rem; line-height:1.6;
+  color:var(--ink); white-space:pre; }
+
+.stepcard__price{ margin:0; font-size:.95rem; color:var(--ink); }
+.stepcard__acts{ margin:.9rem 0 0; }
+
+/* ---- The form, inside step 3 ------------------------------------------- */
+.stepcard__form{ margin:0; }
+.stepcard__from{ border:1px solid var(--line); border-radius:11px;
+  padding:.85rem 1rem; margin:0; }
+.stepcard__from legend{ font-size:.82rem; font-weight:700; color:var(--muted);
+  padding:0 .35rem; text-transform:uppercase; letter-spacing:.06em; }
+.stepcard__from label{ display:block; font-weight:400; font-size:.92rem;
+  line-height:1.9; }
+
+@media (max-width:860px){
+  .stepcard{ padding:1.25rem 1.2rem 1.35rem; border-radius:14px; }
+  /* The pill stops floating and becomes the first line of the card, so it
+     cannot sit on top of a title that has wrapped to two lines. */
+  .stepcard__pill{ position:static; grid-row:1; grid-column:1 / -1;
+    justify-self:start; margin-bottom:.1rem; }
+  .stepcard__n{ grid-row:2; grid-column:1; width:2.1rem; height:2.1rem;
+    border-radius:10px; font-size:.95rem; }
+  .stepcard__text{ grid-row:2; grid-column:2; padding-right:0; }
+  .stepcard__do{ grid-row:3; grid-column:1 / -1; }
+  .stepcard__h{ font-size:1.05rem; }
+}
 
 /* ---- Get started ------------------------------------------------------ */
 /* A card per step that can be finished, in a row, with one of them live.
