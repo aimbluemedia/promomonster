@@ -63,13 +63,20 @@ final class Plans
      * all() would recurse.
      *
      * A null means no limit, and only Partner has one.
+     *
+     * `locations` is 1 on every self-serve plan, and that is not a placeholder.
+     * A location row is created once, at signup, and there is no screen that
+     * adds a second -- so a number above 1 here would be a limit on something
+     * nobody can reach. Premium carried 5 while advertising "up to 5
+     * locations, in build", which is a headline feature resting on a number
+     * nothing reads. Raise it when the screen exists, not before.
      */
     private const LIMITS = [
         self::FREE    => ['locations' => 1,    'requests_per_month' => 5,
                           'burst' => 1,  'burst_days' => 7],
         self::PRO     => ['locations' => 1,    'requests_per_month' => 30,
                           'burst' => 2,  'burst_days' => 1],
-        self::PREMIUM => ['locations' => 5,    'requests_per_month' => 100,
+        self::PREMIUM => ['locations' => 1,    'requests_per_month' => 100,
                           'burst' => 10, 'burst_days' => 1],
         self::PARTNER => ['locations' => null, 'requests_per_month' => null,
                           'burst' => null, 'burst_days' => null],
@@ -257,6 +264,17 @@ final class Plans
                     : 'Website code carries the PromoMonster name',
                 'included' => self::can($key, self::UNBRANDED),
             ],
+            // Not an ability in GRANTS: ReviewRequests reads isPaid() directly
+            // for this one. It is still the most visible thing a member gets
+            // for the first $19 -- the customer stops seeing our name on the
+            // ask -- and it was advertised nowhere, which is the opposite of
+            // the mistake the rest of this card is built to avoid.
+            [
+                'text' => self::isPaid($key)
+                    ? 'Emails go out under your own business name'
+                    : 'Emails go out as "your business (via PromoMonster)"',
+                'included' => self::isPaid($key),
+            ],
         ];
     }
 
@@ -288,7 +306,7 @@ final class Plans
             self::FREE => [
                 'name'     => 'Free',
                 'price'    => 0,
-                'tagline'  => 'One ask a week, by email, for one location. Enough to feel it working.',
+                'tagline'  => 'One ask a week, by email, with our name alongside yours. Enough to feel it working.',
                 'featured' => false,
                 'limits'   => self::LIMITS[self::FREE],
                 'features' => [
@@ -317,20 +335,18 @@ final class Plans
                     ['See who opened your review link', true, self::STATE_NOW],
                     ['Import your customers from a spreadsheet', true, self::STATE_SOON],
                     ['Website code with no PromoMonster name on it', false, null],
-                    ['More than one location', false, null],
                 ],
             ],
             self::PREMIUM => [
                 'name'     => 'Premium',
                 'price'    => 49,
-                'tagline'  => 'Ten asks a day across up to five locations, with a link for each of your people.',
+                'tagline'  => 'Ten asks a day, and the code on your own website with no PromoMonster name on it.',
                 'featured' => false,
                 'limits'   => self::LIMITS[self::PREMIUM],
                 'features' => [
                     ['Everything in Pro', true, null],
                     [self::sendingLimit(self::PREMIUM), true, self::STATE_NOW],
                     ['Website code with no PromoMonster name on it', true, self::STATE_NOW],
-                    ['Up to 5 locations, scored separately', true, self::STATE_SOON],
                     ['A login and an ask link for each of your people', true, self::STATE_SOON],
                     ['Downloadable and white-label reports', true, self::STATE_SOON],
                     ['Priority support', true, self::STATE_NOW],

@@ -14,7 +14,6 @@ $groups = [
   ]],
   ['Put it to work', [
     ['chart','Click tracking','Who opened the link, and when. Your own data, in your own account.','soon'],
-    ['pin','Multi-location','Every location scored separately, and rolled up for whoever owns them all.','soon'],
     ['share','Import from a spreadsheet','Bring a customer list in as a CSV instead of typing it out.','soon'],
     ['megaphone','Promotion network','Put your best content in front of more people. A separate second product, once the first one is working.','soon'],
   ]],

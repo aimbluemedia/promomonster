@@ -1,9 +1,35 @@
 <?php use App\Support\Plans; use App\Support\View;
 $plans = Plans::selectable();
+
+/*
+ * The plan answer is built from the catalogue, not typed beside it.
+ *
+ * It used to be a sentence, and the sentence said Free sent four a month, Pro
+ * sixty and Premium three hundred. The allowances became 5, 30 and 100 some
+ * time later and nothing on this page noticed -- a public pricing page quoting
+ * three wrong numbers, with the right ones in a table three lines down it. It
+ * also sold "up to five locations", which no screen in the product could use.
+ *
+ * Anything here that names a number or a feature reads it from Plans, so the
+ * same edit that moves an allowance moves this paragraph with it.
+ */
+$difference = sprintf(
+    'How many you can send, and how much of it is yours. Free sends %d a month, using our '
+    . 'standard wording, and the email goes out as "your business (via PromoMonster)". '
+    . 'Pro sends %d under your own business name, unlocks your Google review link so a '
+    . 'request opens the review box in one tap, lets you write your own wording and add '
+    . 'reviews by hand. Premium sends %d, and the review code you paste on your own website '
+    . 'carries no PromoMonster name.',
+    (int) Plans::limit(Plans::FREE, 'requests_per_month'),
+    (int) Plans::limit(Plans::PRO, 'requests_per_month'),
+    (int) Plans::limit(Plans::PREMIUM, 'requests_per_month'),
+);
+
 $faqs = [
   ['Can I sign up right now?', 'Yes, on Free — create an account and you are in straight away. Pro and Premium are a different matter: card payments are not switched on yet, so choosing one records your request and we set the subscription up with you directly. Your account works on Free in the meantime and nothing is charged until you agree to it.'],
   ['Do you send review requests by text?', 'No. Texting review requests means registering every single business with the mobile carriers first, at a recurring cost per business that a $19 plan cannot carry honestly. We send by email and put your Google review link in it, which needs nobody\'s permission and costs you nothing extra.'],
-  ['What is the difference between the paid plans and Free?', 'How many you can send, and whose name it goes out under. Free sends four a month from PromoMonster with our footer on it. Pro sends sixty a month under your own business name with no footer, lets you write your own wording, import a customer list and see who opened the link. Premium raises that to three hundred, across up to five locations, with a login and an ask link for each of your people.'],
+  ['What is the difference between the paid plans and Free?', $difference],
+  ['Can I run more than one business or location on one account?', 'Not yet. Every plan covers one business today, and a second one needs a second account. We would rather say that plainly than sell a number the product cannot use.'],
   ['Do you filter out unhappy customers before asking?', 'No, and we never will. That is called review gating: Google prohibits it and the FTC treats it as deceptive. Some tools still do it quietly. It puts the profile you have spent years building at risk.'],
   ['Can I offer a discount for leaving a review?', 'No. Google prohibits any incentive for a review, regardless of what the review says. Our templates keep you on the right side of that automatically.'],
   ['Can you post reviews to Google for me?', 'No, and no tool can — Google has no API that creates reviews, on purpose. A review has to be written and posted by the customer from their own Google account. What we do is make that as close to one tap as possible, then track which request produced which review. Anyone offering to post reviews for you is either fabricating them or misunderstanding how Google works.'],

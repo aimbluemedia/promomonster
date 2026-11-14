@@ -75,7 +75,10 @@ foreach (Plans::all() as $key => $plan) {
 // --- Locations -----------------------------------------------------------
 check('free locations',    Plans::limit(Plans::FREE, 'locations'), 1);
 check('pro locations',     Plans::limit(Plans::PRO, 'locations'), 1);
-check('premium locations', Plans::limit(Plans::PREMIUM, 'locations'), 5);
+// One, on every self-serve plan. A location row is created once at signup and
+// no screen adds a second, so a number above 1 would be a limit on something
+// nobody can reach -- which is what Premium's "up to 5 locations" rested on.
+check('premium locations', Plans::limit(Plans::PREMIUM, 'locations'), 1);
 
 // --- The sentence every page prints -------------------------------------
 check('free sentence',    Plans::sendingLimit(Plans::FREE), '5 review requests a month (one a week)');
@@ -178,8 +181,8 @@ check('white-label is live on Premium',
 // And the things genuinely not built still say so.
 check('spreadsheet import is still in build',
     stateOf(Plans::PRO, 'Import your customers from a spreadsheet'), Plans::STATE_SOON);
-check('multi-location is still in build',
-    stateOf(Plans::PREMIUM, 'Up to 5 locations, scored separately'), Plans::STATE_SOON);
+// Multi-location is gone from the catalogue rather than tagged "in build":
+// every plan is one business, and that is now said rather than implied.
 
 // Both words the pages print must exist, since two views index this map.
 check('now has a label',  isset(Plans::STATE_LABELS[Plans::STATE_NOW]), true);
@@ -246,7 +249,7 @@ $claims = [
 foreach ([Plans::FREE, Plans::PRO, Plans::PREMIUM] as $plan) {
     $card = Plans::card($plan);
 
-    check("{$plan}: card has six lines", count($card), 6);
+    check("{$plan}: card has seven lines", count($card), 7);
 
     foreach ($card as $line) {
         ok("{$plan}: every line has words", trim($line['text']) !== '');
@@ -259,6 +262,24 @@ foreach ([Plans::FREE, Plans::PRO, Plans::PREMIUM] as $plan) {
                     $line['included'], Plans::can($plan, $ability));
             }
         }
+    }
+
+    // The email branding line. Not in GRANTS -- ReviewRequests reads isPaid()
+    // directly -- so it needs its own tie to the thing that really decides it.
+    // Without this, the line is prose nothing checks: a card telling a Free
+    // member their emails go out under their own name would pass every other
+    // test on this page while the customer sees "(via PromoMonster)".
+    $branding = null;
+    foreach ($card as $line) {
+        if (str_contains($line['text'], 'Emails go out')) {
+            $branding = $line;
+        }
+    }
+    ok("{$plan}: the card says how emails are addressed", $branding !== null);
+    if ($branding !== null) {
+        check("{$plan}: and it matches isPaid()", $branding['included'], Plans::isPaid($plan));
+        check("{$plan}: the wording follows the same test",
+            str_contains($branding['text'], 'via PromoMonster'), !Plans::isPaid($plan));
     }
 
     // The monthly figure on the card is the one the sender enforces.
@@ -372,6 +393,96 @@ foreach ([Plans::FREE, Plans::PRO, Plans::PREMIUM] as $plan) {
             !in_array($item, $onCard, true));
     }
 }
+
+// =====================================================================
+// Nothing anywhere sells a second location
+// =====================================================================
+//
+// It was a headline on Premium and a card on the features page, resting on a
+// number nothing read. Taking it out of one place and leaving it in another is
+// how it comes back.
+
+foreach (Plans::SELECTABLE as $plan) {
+    check("{$plan}: one business", Plans::limit($plan, 'locations'), 1);
+
+    $prose = Plans::get($plan)['tagline'] . ' ';
+    foreach (Plans::get($plan)['features'] as [$text, , ]) {
+        $prose .= $text . ' ';
+    }
+    foreach (Plans::card($plan) as $line) {
+        $prose .= $line['text'] . ' ';
+    }
+
+    ok("{$plan}: no location count is advertised",
+        preg_match('/\b(\d+|two|three|four|five|multiple)\s+locations?\b/i', $prose) !== 1);
+    ok("{$plan}: no multi-location wording",
+        preg_match('/multi-?location/i', $prose) !== 1);
+}
+
+// =====================================================================
+// The prose on the public pages agrees with the catalogue
+// =====================================================================
+//
+// The pricing page carried a sentence saying Free sent four a month, Pro sixty
+// and Premium three hundred. The real numbers were 5, 30 and 100, and had been
+// for a while -- three wrong figures on a pricing page, with the right ones in
+// a table a few lines below them. Nobody reads their own pricing page.
+
+define('APP_ROOT', dirname(__DIR__) . '/app');
+define('BASE_PATH', dirname(__DIR__));
+
+spl_autoload_register(static function (string $class): void {
+    if (!str_starts_with($class, 'App\\')) {
+        return;
+    }
+    $file = APP_ROOT . '/' . str_replace('\\', '/', substr($class, 4)) . '.php';
+    if (is_file($file)) {
+        require $file;
+    }
+});
+
+App\Support\Config::load(['app_url' => 'https://promomonster.test', 'app_key' => str_repeat('a', 40)]);
+$_SESSION = [];
+$_SERVER['REQUEST_URI'] = '/pricing';
+
+$page = App\Support\View::render('pricing');
+ok('the pricing page renders', $page !== '');
+
+$allowances = [];
+foreach (Plans::SELECTABLE as $plan) {
+    $allowances[] = (string) Plans::limit($plan, 'requests_per_month');
+}
+
+// Every "<Plan> sends N" on the page has to be the N we actually grant, and
+// no other number may appear in that position. Pinning the phrasing to the
+// catalogue is the whole point: hardcode a figure here and this fails on the
+// next change to an allowance, which is exactly what did not happen last time.
+$text = strip_tags($page);
+foreach (Plans::SELECTABLE as $plan) {
+    $name = Plans::name($plan);
+    $n    = (string) Plans::limit($plan, 'requests_per_month');
+    ok("the page says {$name} sends {$n}", str_contains($text, "{$name} sends {$n}"));
+
+    if (preg_match_all('/' . preg_quote($name, '/') . '\s+sends\s+(\d[\d,]*)/i', $text, $m) > 0) {
+        foreach (array_unique($m[1]) as $quoted) {
+            check("{$name}: the only figure quoted is the real one",
+                str_replace(',', '', $quoted), $n);
+        }
+    }
+}
+
+// Not one of them is a number we no longer grant, however it is written.
+foreach (['four a month', 'sixty a month', 'three hundred'] as $stale) {
+    ok("the old allowance is gone: \"{$stale}\"", !str_contains(strtolower($text), $stale));
+}
+
+ok('the pricing page sells no second location',
+    preg_match('/\b(\d+|two|three|four|five|multiple)\s+locations?\b/i', $text) !== 1);
+
+$features = App\Support\View::render('features');
+ok('the features page renders', $features !== '');
+ok('and sells no second location',
+    preg_match('/multi-?location|\b(\d+|two|three|four|five)\s+locations?\b/i', strip_tags($features)) !== 1);
 
 echo "\n{$passed} passed, {$failed} failed\n";
 exit($failed === 0 ? 0 : 1);
