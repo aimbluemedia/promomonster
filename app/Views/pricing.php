@@ -8,18 +8,20 @@ $plans = Plans::selectable();
  * sixty and Premium three hundred. The allowances became 5, 30 and 100 some
  * time later and nothing on this page noticed -- a public pricing page quoting
  * three wrong numbers, with the right ones in a table three lines down it. It
- * also sold "up to five locations", which no screen in the product could use.
+ * also sold "up to five locations", which no screen in the product could use,
+ * and said a paid plan sends under your own business name -- which the
+ * recipient's mail client overrides with its own "via" line whatever we put
+ * in the From header, so it was never a thing the customer would see.
  *
  * Anything here that names a number or a feature reads it from Plans, so the
  * same edit that moves an allowance moves this paragraph with it.
  */
 $difference = sprintf(
-    'How many you can send, and how much of it is yours. Free sends %d a month, using our '
-    . 'standard wording, and the email goes out as "your business (via PromoMonster)". '
-    . 'Pro sends %d under your own business name, unlocks your Google review link so a '
-    . 'request opens the review box in one tap, lets you write your own wording and add '
-    . 'reviews by hand. Premium sends %d, and the review code you paste on your own website '
-    . 'carries no PromoMonster name.',
+    'How many you can send, and how much of it is yours. Free sends %d a month on our '
+    . 'standard wording. Pro sends %d, unlocks your Google review link so a request opens '
+    . 'the review box in one tap, and lets you write your own wording. Premium sends %d, '
+    . 'lets you add reviews to your page by hand, and the review code you paste on your own '
+    . 'website carries no PromoMonster name.',
     (int) Plans::limit(Plans::FREE, 'requests_per_month'),
     (int) Plans::limit(Plans::PRO, 'requests_per_month'),
     (int) Plans::limit(Plans::PREMIUM, 'requests_per_month'),

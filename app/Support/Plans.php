@@ -127,7 +127,7 @@ final class Plans
         self::PRO => [
             self::GOOGLE_PAGE   => true,
             self::ALL_TEMPLATES => true,
-            self::ADD_REVIEWS   => true,
+            self::ADD_REVIEWS   => false,
             self::UNBRANDED     => false,
         ],
         self::PREMIUM => [
@@ -264,17 +264,14 @@ final class Plans
                     : 'Website code carries the PromoMonster name',
                 'included' => self::can($key, self::UNBRANDED),
             ],
-            // Not an ability in GRANTS: ReviewRequests reads isPaid() directly
-            // for this one. It is still the most visible thing a member gets
-            // for the first $19 -- the customer stops seeing our name on the
-            // ask -- and it was advertised nowhere, which is the opposite of
-            // the mistake the rest of this card is built to avoid.
-            [
-                'text' => self::isPaid($key)
-                    ? 'Emails go out under your own business name'
-                    : 'Emails go out as "your business (via PromoMonster)"',
-                'included' => self::isPaid($key),
-            ],
+            // No line about whose name the email goes out under. One was here
+            // briefly, because ReviewRequests does drop the "(via
+            // PromoMonster)" suffix for paid plans -- but it is not a promise
+            // this product can keep. The mail leaves a PromoMonster domain, so
+            // Gmail and Outlook add their own "via promomonster.com" whatever
+            // we put in the From name, and the customer sees it regardless of
+            // what the member paid. Selling a change the recipient does not
+            // see is the one thing this generated card exists to prevent.
         ];
     }
 
@@ -306,7 +303,7 @@ final class Plans
             self::FREE => [
                 'name'     => 'Free',
                 'price'    => 0,
-                'tagline'  => 'One ask a week, by email, with our name alongside yours. Enough to feel it working.',
+                'tagline'  => 'One ask a week, by email, on our standard wording. Enough to feel it working.',
                 'featured' => false,
                 'limits'   => self::LIMITS[self::FREE],
                 'features' => [
@@ -323,7 +320,7 @@ final class Plans
             self::PRO => [
                 'name'     => 'Pro',
                 'price'    => 19,
-                'tagline'  => 'Two asks a day, under your own name, with the reminder handled for you.',
+                'tagline'  => 'Two asks a day, your Google review link, and your own wording.',
                 'featured' => true,
                 'limits'   => self::LIMITS[self::PRO],
                 'features' => [
@@ -331,21 +328,22 @@ final class Plans
                     [self::sendingLimit(self::PRO), true, self::STATE_NOW],
                     ['Your Google review page', true, self::STATE_NOW],
                     ['Every email template, and your own wording', true, self::STATE_NOW],
-                    ['Add reviews by hand', true, self::STATE_NOW],
                     ['See who opened your review link', true, self::STATE_NOW],
                     ['Import your customers from a spreadsheet', true, self::STATE_SOON],
+                    ['Add reviews by hand', false, null],
                     ['Website code with no PromoMonster name on it', false, null],
                 ],
             ],
             self::PREMIUM => [
                 'name'     => 'Premium',
                 'price'    => 49,
-                'tagline'  => 'Ten asks a day, and the code on your own website with no PromoMonster name on it.',
+                'tagline'  => 'Ten asks a day, reviews you can add yourself, and website code with no PromoMonster name on it.',
                 'featured' => false,
                 'limits'   => self::LIMITS[self::PREMIUM],
                 'features' => [
                     ['Everything in Pro', true, null],
                     [self::sendingLimit(self::PREMIUM), true, self::STATE_NOW],
+                    ['Add reviews by hand', true, self::STATE_NOW],
                     ['Website code with no PromoMonster name on it', true, self::STATE_NOW],
                     ['A login and an ask link for each of your people', true, self::STATE_SOON],
                     ['Downloadable and white-label reports', true, self::STATE_SOON],

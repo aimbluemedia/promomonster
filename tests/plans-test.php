@@ -174,7 +174,7 @@ check('the Google page is live on Pro',
 check('own wording is live on Pro',
     stateOf(Plans::PRO, 'Every email template, and your own wording'), Plans::STATE_NOW);
 check('adding by hand is live on Pro',
-    stateOf(Plans::PRO, 'Add reviews by hand'), Plans::STATE_NOW);
+    stateOf(Plans::PREMIUM, 'Add reviews by hand'), Plans::STATE_NOW);
 check('white-label is live on Premium',
     stateOf(Plans::PREMIUM, 'Website code with no PromoMonster name on it'), Plans::STATE_NOW);
 
@@ -203,7 +203,9 @@ check('free: branded website code', Plans::can(Plans::FREE, Plans::UNBRANDED), f
 
 check('pro: Google page',          Plans::can(Plans::PRO, Plans::GOOGLE_PAGE), true);
 check('pro: all wording',          Plans::can(Plans::PRO, Plans::ALL_TEMPLATES), true);
-check('pro: adding by hand',       Plans::can(Plans::PRO, Plans::ADD_REVIEWS), true);
+// Premium's, not Pro's. Pro buys the Google link and your own wording; the
+// page you curate by hand is the next tier up.
+check('pro: no adding by hand',    Plans::can(Plans::PRO, Plans::ADD_REVIEWS), false);
 // The one thing Pro does not get, and the only reason to go to Premium on this
 // list. If this ever reads true, Premium has nothing to sell.
 check('pro: still branded',        Plans::can(Plans::PRO, Plans::UNBRANDED), false);
@@ -225,7 +227,8 @@ check('an empty plan is refused',       Plans::can('', Plans::GOOGLE_PAGE), fals
 // leave a button pointing at a plan that does not grant it.
 check('Google page is cheapest on Pro',  Plans::cheapestWith(Plans::GOOGLE_PAGE), Plans::PRO);
 check('wording is cheapest on Pro',      Plans::cheapestWith(Plans::ALL_TEMPLATES), Plans::PRO);
-check('adding by hand is cheapest on Pro', Plans::cheapestWith(Plans::ADD_REVIEWS), Plans::PRO);
+check('adding by hand is cheapest on Premium',
+    Plans::cheapestWith(Plans::ADD_REVIEWS), Plans::PREMIUM);
 check('white-label needs Premium',       Plans::cheapestWith(Plans::UNBRANDED), Plans::PREMIUM);
 check('an ability nobody sells is null', Plans::cheapestWith('teleportation'), null);
 
@@ -249,7 +252,7 @@ $claims = [
 foreach ([Plans::FREE, Plans::PRO, Plans::PREMIUM] as $plan) {
     $card = Plans::card($plan);
 
-    check("{$plan}: card has seven lines", count($card), 7);
+    check("{$plan}: card has six lines", count($card), 6);
 
     foreach ($card as $line) {
         ok("{$plan}: every line has words", trim($line['text']) !== '');
@@ -262,24 +265,6 @@ foreach ([Plans::FREE, Plans::PRO, Plans::PREMIUM] as $plan) {
                     $line['included'], Plans::can($plan, $ability));
             }
         }
-    }
-
-    // The email branding line. Not in GRANTS -- ReviewRequests reads isPaid()
-    // directly -- so it needs its own tie to the thing that really decides it.
-    // Without this, the line is prose nothing checks: a card telling a Free
-    // member their emails go out under their own name would pass every other
-    // test on this page while the customer sees "(via PromoMonster)".
-    $branding = null;
-    foreach ($card as $line) {
-        if (str_contains($line['text'], 'Emails go out')) {
-            $branding = $line;
-        }
-    }
-    ok("{$plan}: the card says how emails are addressed", $branding !== null);
-    if ($branding !== null) {
-        check("{$plan}: and it matches isPaid()", $branding['included'], Plans::isPaid($plan));
-        check("{$plan}: the wording follows the same test",
-            str_contains($branding['text'], 'via PromoMonster'), !Plans::isPaid($plan));
     }
 
     // The monthly figure on the card is the one the sender enforces.
@@ -406,8 +391,8 @@ foreach (Plans::SELECTABLE as $plan) {
     check("{$plan}: one business", Plans::limit($plan, 'locations'), 1);
 
     $prose = Plans::get($plan)['tagline'] . ' ';
-    foreach (Plans::get($plan)['features'] as [$text, , ]) {
-        $prose .= $text . ' ';
+    foreach (Plans::get($plan)['features'] as [$label, , ]) {
+        $prose .= $label . ' ';
     }
     foreach (Plans::card($plan) as $line) {
         $prose .= $line['text'] . ' ';
@@ -457,13 +442,18 @@ foreach (Plans::SELECTABLE as $plan) {
 // no other number may appear in that position. Pinning the phrasing to the
 // catalogue is the whole point: hardcode a figure here and this fails on the
 // next change to an allowance, which is exactly what did not happen last time.
-$text = strip_tags($page);
+// $pageText, not $text. The first version of this block called it $text, and
+// two loops below destructure a feature row into [$text, , ] -- so by the time
+// the last check ran, "the page" was the final feature label of the final
+// plan, and the check passed on every mutation. A test that cannot fail is
+// worse than no test: it reports the thing is guarded.
+$pageText = strip_tags($page);
 foreach (Plans::SELECTABLE as $plan) {
     $name = Plans::name($plan);
     $n    = (string) Plans::limit($plan, 'requests_per_month');
-    ok("the page says {$name} sends {$n}", str_contains($text, "{$name} sends {$n}"));
+    ok("the page says {$name} sends {$n}", str_contains($pageText, "{$name} sends {$n}"));
 
-    if (preg_match_all('/' . preg_quote($name, '/') . '\s+sends\s+(\d[\d,]*)/i', $text, $m) > 0) {
+    if (preg_match_all('/' . preg_quote($name, '/') . '\s+sends\s+(\d[\d,]*)/i', $pageText, $m) > 0) {
         foreach (array_unique($m[1]) as $quoted) {
             check("{$name}: the only figure quoted is the real one",
                 str_replace(',', '', $quoted), $n);
@@ -473,16 +463,90 @@ foreach (Plans::SELECTABLE as $plan) {
 
 // Not one of them is a number we no longer grant, however it is written.
 foreach (['four a month', 'sixty a month', 'three hundred'] as $stale) {
-    ok("the old allowance is gone: \"{$stale}\"", !str_contains(strtolower($text), $stale));
+    ok("the old allowance is gone: \"{$stale}\"", !str_contains(strtolower($pageText), $stale));
 }
 
 ok('the pricing page sells no second location',
-    preg_match('/\b(\d+|two|three|four|five|multiple)\s+locations?\b/i', $text) !== 1);
+    preg_match('/\b(\d+|two|three|four|five|multiple)\s+locations?\b/i', $pageText) !== 1);
 
 $features = App\Support\View::render('features');
 ok('the features page renders', $features !== '');
 ok('and sells no second location',
     preg_match('/multi-?location|\b(\d+|two|three|four|five)\s+locations?\b/i', strip_tags($features)) !== 1);
+
+// =====================================================================
+// The public feature list cannot contradict the gate either
+// =====================================================================
+//
+// card() is generated from GRANTS, so the members-area card and the gate can
+// never disagree. all()['features'] -- the list on the public pricing page --
+// is hand-written, and nothing tied it to anything. Moving "add reviews by
+// hand" from Pro to Premium changed the gate and the card together and left
+// the pricing page free to keep selling it to Pro, which is a refund
+// conversation with a receipt attached.
+
+$sold = [
+    'Your Google review page'                      => Plans::GOOGLE_PAGE,
+    'Add reviews by hand'                          => Plans::ADD_REVIEWS,
+    'Website code with no PromoMonster name on it'  => Plans::UNBRANDED,
+    'Every email template, and your own wording'    => Plans::ALL_TEMPLATES,
+];
+
+foreach (Plans::SELECTABLE as $plan) {
+    foreach (Plans::get($plan)['features'] as [$label, $included, ]) {
+        if (!isset($sold[$label])) {
+            continue;
+        }
+        check("{$plan}: the pricing page's \"{$label}\" matches the gate",
+            (bool) $included, Plans::can($plan, $sold[$label]));
+    }
+}
+
+// And a plan that HAS an ability has to say so somewhere on that list, or the
+// page is selling less than the member gets -- which is nobody's complaint,
+// but it is still the two drifting apart.
+foreach (Plans::SELECTABLE as $plan) {
+    $labels = array_column(Plans::get($plan)['features'], 0);
+    $inherits = in_array('Everything in Free', $labels, true)
+        || in_array('Everything in Pro', $labels, true);
+
+    foreach ($sold as $label => $ability) {
+        if (!Plans::can($plan, $ability) || $inherits) {
+            continue;
+        }
+        ok("{$plan}: the page mentions \"{$label}\", which it grants",
+            in_array($label, $labels, true));
+    }
+}
+
+// =====================================================================
+// Nothing sells whose name the email goes out under
+// =====================================================================
+//
+// The mail leaves a PromoMonster domain. Gmail and Outlook add their own
+// "via promomonster.com" from the envelope, whatever we write in the From
+// name -- so "your emails go out under your own business name" describes
+// something the recipient never sees. ReviewRequests does still drop our
+// suffix and our footer for paid plans, but that is a quieter email, not a
+// change of sender, and it is not sold as one anywhere.
+
+foreach (Plans::SELECTABLE as $plan) {
+    $prose = Plans::get($plan)['tagline'] . ' ';
+    foreach (Plans::get($plan)['features'] as [$label, , ]) {
+        $prose .= $label . ' ';
+    }
+    foreach (Plans::card($plan) as $line) {
+        $prose .= $line['text'] . ' ';
+    }
+
+    ok("{$plan}: no claim about the sender's name",
+        preg_match('/(under|as)\s+(your|their)\s+own\s+(business\s+)?name/i', $prose) !== 1);
+    ok("{$plan}: does not mention the via line either way",
+        !str_contains(strtolower($prose), 'via promomonster'));
+}
+
+ok('the pricing page makes no sender-name promise',
+    preg_match('/(under|as)\s+(your|their)\s+own\s+(business\s+)?name/i', $pageText) !== 1);
 
 echo "\n{$passed} passed, {$failed} failed\n";
 exit($failed === 0 ? 0 : 1);
