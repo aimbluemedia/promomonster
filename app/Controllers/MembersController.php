@@ -7,15 +7,18 @@ namespace App\Controllers;
 use App\Support\Audit;
 use App\Support\Auth;
 use App\Support\Billing;
+use App\Support\Claude;
 use App\Support\Config;
 use App\Support\Csrf;
 use App\Support\Database;
+use App\Support\DraftStore;
 use App\Support\EmailTemplates;
 use App\Support\Heartbeat;
 use App\Support\HostedReviews;
 use App\Support\Mailer;
 use App\Support\Onboarding;
 use App\Support\Plans;
+use App\Support\ReplyDrafts;
 use App\Support\ReviewLink;
 use App\Support\ReviewRequests;
 use App\Support\SendLimit;
@@ -24,6 +27,7 @@ use App\Support\ToutifyMembers;
 use App\Support\Trades;
 use App\Support\Request;
 use App\Support\View;
+use Throwable;
 
 final class MembersController
 {
@@ -50,6 +54,18 @@ final class MembersController
             ? (int) (HostedReviews::summary((int) $account['id'])['count'] ?? 0)
             : 0;
 
+        // Counted from hosted_reviews, which is where reviews actually are.
+        //
+        // Both of these read the `reviews` table until now. Nothing in this
+        // product has ever inserted a row into it -- migration 009 creates it
+        // and the only code that mentions it is this query -- so "Reviews you
+        // have got" and "Reviews to reply to" were zero on every dashboard
+        // forever, under a label saying "On Google and on your own page".
+        //
+        // A figure that cannot move is worse than no figure: it reads as
+        // "nobody has ever reviewed you" to a business whose own page has a
+        // dozen, and it is the number the new alerts and the drafted replies
+        // are both about.
         $stats = Database::first(
             'SELECT
                (SELECT COUNT(*) FROM contacts c
@@ -58,12 +74,10 @@ final class MembersController
                (SELECT COUNT(*) FROM review_requests r
                   JOIN locations l ON l.id = r.location_id
                  WHERE l.account_id = :a2)                                AS requests,
-               (SELECT COUNT(*) FROM reviews rv
-                  JOIN locations l ON l.id = rv.location_id
-                 WHERE l.account_id = :a3)                                AS reviews,
-               (SELECT COUNT(*) FROM reviews rv
-                  JOIN locations l ON l.id = rv.location_id
-                 WHERE l.account_id = :a4 AND rv.replied_at IS NULL)      AS unanswered',
+               (SELECT COUNT(*) FROM hosted_reviews hr
+                 WHERE hr.account_id = :a3)                               AS reviews,
+               (SELECT COUNT(*) FROM hosted_reviews hr
+                 WHERE hr.account_id = :a4 AND hr.replied_at IS NULL)     AS unanswered',
             ['a1' => (int) $account['id'], 'a2' => (int) $account['id'],
              'a3' => (int) $account['id'], 'a4' => (int) $account['id']],
         ) ?? [];
@@ -353,6 +367,7 @@ final class MembersController
 
         $slug = HostedReviews::slug($id, (string) ($account['name'] ?? ''));
         $base = rtrim((string) Config::get('app_url', 'https://promomonster.com'), '/');
+        $reviews = HostedReviews::forAccount($id);
 
         echo View::members('members/promo-reviews', [
             'title'    => 'PromoMonster reviews · PromoMonster',
@@ -367,7 +382,11 @@ final class MembersController
             'pageUrl'  => $slug === null ? null : $base . '/reviews/' . $slug,
             'widgetJs' => $slug === null ? null : $base . '/widget/' . $slug . '.js',
             'summary'  => HostedReviews::summary($id),
-            'reviews'  => HostedReviews::forAccount($id),
+            'reviews'  => $reviews,
+            // One query for every review's newest draft, not one per review.
+            'drafts'   => DraftStore::forReviews($id, array_column($reviews, 'id')),
+            'canDraft' => $this->can(Plans::REPLY_DRAFTS),
+            'draftMonth' => DraftStore::month($id, $this->plan()),
             'requests' => ReviewRequests::recent($id, 'promomonster', 25),
             'error'    => $this->takeFlash('promo_review_error'),
         ]);
@@ -570,6 +589,68 @@ final class MembersController
     }
 
     /** The public answer to a review. The only thing that can be done to one. */
+    /**
+     * Draft a reply to one review, and come back to the page with it.
+     *
+     * A POST and a redirect rather than a fetch: the members area loads no
+     * JavaScript, and a button that needs a script is a button that does
+     * nothing on the day the script fails to load. The draft is stored, so
+     * the redirect finds it the same way a later visit will.
+     *
+     * Nothing is published here. The draft lands in the textarea the member
+     * then reads, changes and saves themselves -- and the flash says so,
+     * because a box that fills itself invites a reflex click on Save.
+     */
+    public function draftPromoReply(): void
+    {
+        $this->guardTo('/members/promomonster-reviews');
+        $this->requirePlan(Plans::REPLY_DRAFTS, '/members/promomonster-reviews');
+
+        $account  = Auth::account() ?? [];
+        $id       = (int) $account['id'];
+        $reviewId = (int) ($_POST['review_id'] ?? 0);
+
+        $month = DraftStore::month($id, $this->plan());
+        if (!$month['allowed']) {
+            $this->backTo('/members/promomonster-reviews', (string) $month['reason']);
+        }
+
+        if (!Claude::isConfigured()) {
+            $this->backTo('/members/promomonster-reviews',
+                'Drafting is not switched on yet. Write this one yourself and it will be there soon.');
+        }
+
+        // Fetched through forAccount, so a review id belonging to somebody
+        // else is simply not in the list. No row, no draft, nothing leaked
+        // about whether that id exists.
+        $review = null;
+        foreach (HostedReviews::forAccount($id) as $row) {
+            if ((int) $row['id'] === $reviewId) {
+                $review = $row;
+            }
+        }
+        if ($review === null) {
+            $this->backTo('/members/promomonster-reviews', 'That review is not one of yours.');
+        }
+
+        try {
+            $draft = ReplyDrafts::write(
+                $review,
+                (string) ($account['name'] ?? 'your business'),
+                Trades::label((string) ($review['vertical'] ?? '')) ?: null,
+            );
+        } catch (Throwable $e) {
+            error_log('Reply draft failed: ' . $e->getMessage());
+            $this->backTo('/members/promomonster-reviews', $e->getMessage());
+        }
+
+        DraftStore::save($id, $reviewId, $draft, Claude::model());
+
+        $_SESSION['members_flash'] = 'Here is a draft. Read it, change anything that is not '
+            . 'how you would say it, then press Save reply. Nothing is posted until you do.';
+        Request::redirect('/members/promomonster-reviews#review-' . $reviewId);
+    }
+
     public function replyPromoReview(): void
     {
         $this->guardTo('/members/promomonster-reviews');

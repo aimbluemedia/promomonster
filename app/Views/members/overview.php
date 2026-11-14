@@ -44,7 +44,11 @@ $pageUrl   = $pageUrl ?? null; ?>
   <?php foreach ([
     ['contacts',   'Customers added',        'People on your list'],
     ['requests',   'Customers you asked',    'Review requests you have sent'],
-    ['reviews',    'Reviews you have got',   'On Google and on your own page'],
+    // "On Google and on your own page" was the hint, and the number behind it
+    // counted a table nothing writes to. It counts the review page now, which
+    // is the only place we can actually see a review, so the hint says that
+    // rather than claiming a Google figure we have never had.
+    ['reviews',    'Reviews you have got',   'On your own review page'],
     ['unanswered', 'Reviews to reply to',    'Replying is the bit most people skip'],
   ] as [$key, $label, $hint]): ?>
     <div class="stat-card">

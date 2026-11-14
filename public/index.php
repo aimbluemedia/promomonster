@@ -214,6 +214,8 @@ $router->post('/members/promomonster-reviews/add',
     static fn () => (new MembersController())->addPromoReview());
 $router->post('/members/promomonster-reviews/reply',
     static fn () => (new MembersController())->replyPromoReview());
+$router->post('/members/promomonster-reviews/draft',
+    static fn () => (new MembersController())->draftPromoReply());
 
 // The public side. /reviews/{slug} is a business's page, /widget/{slug}.js is
 // the embed for its own website. Both are open to the world by design.

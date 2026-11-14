@@ -252,7 +252,7 @@ $claims = [
 foreach ([Plans::FREE, Plans::PRO, Plans::PREMIUM] as $plan) {
     $card = Plans::card($plan);
 
-    check("{$plan}: card has six lines", count($card), 6);
+    check("{$plan}: card has eight lines", count($card), 8);
 
     foreach ($card as $line) {
         ok("{$plan}: every line has words", trim($line['text']) !== '');
@@ -490,6 +490,8 @@ $sold = [
     'Add reviews by hand'                          => Plans::ADD_REVIEWS,
     'Website code with no PromoMonster name on it'  => Plans::UNBRANDED,
     'Every email template, and your own wording'    => Plans::ALL_TEMPLATES,
+    'Replies drafted for you'                      => Plans::REPLY_DRAFTS,
+    'A monthly report on how you compare'          => Plans::MONTHLY_REPORT,
 ];
 
 foreach (Plans::SELECTABLE as $plan) {

@@ -64,6 +64,14 @@ final class Plans
      *
      * A null means no limit, and only Partner has one.
      *
+     * `reply_drafts_per_month` is the one limit here that exists for cost
+     * rather than for deliverability. Every draft is a paid API call -- a few
+     * tenths of a cent, so a hundred of them is well under a dollar against
+     * $49 -- but an uncapped AI feature is a bill somebody else writes, and
+     * the cap is why this belongs on the dearest plan rather than the cheap
+     * one. Counted from review_reply_drafts, the way requests are counted from
+     * review_requests: one source of truth, nothing to drift.
+     *
      * `locations` is 1 on every self-serve plan, and that is not a placeholder.
      * A location row is created once, at signup, and there is no screen that
      * adds a second -- so a number above 1 here would be a limit on something
@@ -73,13 +81,17 @@ final class Plans
      */
     private const LIMITS = [
         self::FREE    => ['locations' => 1,    'requests_per_month' => 5,
-                          'burst' => 1,  'burst_days' => 7],
+                          'burst' => 1,  'burst_days' => 7,
+                          'reply_drafts_per_month' => 0],
         self::PRO     => ['locations' => 1,    'requests_per_month' => 30,
-                          'burst' => 2,  'burst_days' => 1],
+                          'burst' => 2,  'burst_days' => 1,
+                          'reply_drafts_per_month' => 0],
         self::PREMIUM => ['locations' => 1,    'requests_per_month' => 100,
-                          'burst' => 10, 'burst_days' => 1],
+                          'burst' => 10, 'burst_days' => 1,
+                          'reply_drafts_per_month' => 100],
         self::PARTNER => ['locations' => null, 'requests_per_month' => null,
-                          'burst' => null, 'burst_days' => null],
+                          'burst' => null, 'burst_days' => null,
+                          'reply_drafts_per_month' => null],
     ];
 
     /* ------------------------------------------------------------ abilities */
@@ -98,10 +110,13 @@ final class Plans
     public const ALL_TEMPLATES = 'all_templates';
     public const ADD_REVIEWS   = 'add_reviews';
     public const UNBRANDED     = 'unbranded_widget';
+    public const REPLY_DRAFTS  = 'reply_drafts';
+    public const MONTHLY_REPORT = 'monthly_report';
 
     /** @var list<string> */
     public const ABILITIES = [
         self::GOOGLE_PAGE, self::ALL_TEMPLATES, self::ADD_REVIEWS, self::UNBRANDED,
+        self::REPLY_DRAFTS, self::MONTHLY_REPORT,
     ];
 
     /**
@@ -114,6 +129,8 @@ final class Plans
         self::ALL_TEMPLATES => 'Writing your own email wording',
         self::ADD_REVIEWS   => 'Adding reviews by hand',
         self::UNBRANDED     => 'The website code without our name on it',
+        self::REPLY_DRAFTS  => 'Drafting a reply for you',
+        self::MONTHLY_REPORT => 'The monthly report on how you compare',
     ];
 
     /** @var array<string,array<string,bool>> */
@@ -123,18 +140,24 @@ final class Plans
             self::ALL_TEMPLATES => false,
             self::ADD_REVIEWS   => false,
             self::UNBRANDED     => false,
+            self::REPLY_DRAFTS  => false,
+            self::MONTHLY_REPORT => false,
         ],
         self::PRO => [
             self::GOOGLE_PAGE   => true,
             self::ALL_TEMPLATES => true,
             self::ADD_REVIEWS   => false,
             self::UNBRANDED     => false,
+            self::REPLY_DRAFTS  => false,
+            self::MONTHLY_REPORT => false,
         ],
         self::PREMIUM => [
             self::GOOGLE_PAGE   => true,
             self::ALL_TEMPLATES => true,
             self::ADD_REVIEWS   => true,
             self::UNBRANDED     => true,
+            self::REPLY_DRAFTS  => true,
+            self::MONTHLY_REPORT => true,
         ],
         // Partner resells Premium to its own clients, so it can do everything
         // Premium can. A missing entry here would read as "cannot", and a
@@ -145,6 +168,8 @@ final class Plans
             self::ALL_TEMPLATES => true,
             self::ADD_REVIEWS   => true,
             self::UNBRANDED     => true,
+            self::REPLY_DRAFTS  => true,
+            self::MONTHLY_REPORT => true,
         ],
     ];
 
@@ -229,6 +254,29 @@ final class Plans
      *
      * @return list<array{text:string, included:bool}>
      */
+    /**
+     * "100 review replies" or "Review replies, uncapped".
+     *
+     * Said in the plural noun the member thinks in, not in the column name.
+     * Only Partner is uncapped, and only because a reseller's volume is agreed
+     * rather than published.
+     */
+    public static function draftLimit(string $key): string
+    {
+        // array_key_exists, not ??. Partner's value IS null, and ?? cannot tell
+        // a null value from a missing key -- so ?? 0 turned "uncapped" into
+        // "0 review replies" on the one plan that has no cap. This project has
+        // been bitten by that twice before; the test that caught it this time
+        // is in reply-drafts-test.php.
+        $limits = self::LIMITS[$key] ?? [];
+        if (!array_key_exists('reply_drafts_per_month', $limits)) {
+            return '0 review replies';
+        }
+        $n = $limits['reply_drafts_per_month'];
+
+        return $n === null ? 'Review replies, uncapped' : (int) $n . ' review replies';
+    }
+
     public static function card(string $key): array
     {
         $month = self::LIMITS[$key]['requests_per_month'] ?? null;
@@ -263,6 +311,20 @@ final class Plans
                     ? 'Website code with no PromoMonster name on it'
                     : 'Website code carries the PromoMonster name',
                 'included' => self::can($key, self::UNBRANDED),
+            ],
+            [
+                // The number, not the feature. "Replies drafted for you" is a
+                // promise; "100 replies drafted for you a month" is one
+                // somebody can hold us to, and it is the figure the button
+                // actually stops at.
+                'text' => self::can($key, self::REPLY_DRAFTS)
+                    ? self::draftLimit($key) . ' drafted for you, to read and change'
+                    : 'Replies drafted for you',
+                'included' => self::can($key, self::REPLY_DRAFTS),
+            ],
+            [
+                'text'     => 'A monthly report on how you compare',
+                'included' => self::can($key, self::MONTHLY_REPORT),
             ],
             // No line about whose name the email goes out under. One was here
             // briefly, because ReviewRequests does drop the "(via
@@ -315,6 +377,8 @@ final class Plans
                     ['Your Google review page', false, null],
                     ['Add reviews by hand', false, null],
                     ['Website code with no PromoMonster name on it', false, null],
+                    ['Replies drafted for you', false, null],
+                    ['A monthly report on how you compare', false, null],
                 ],
             ],
             self::PRO => [
@@ -332,12 +396,14 @@ final class Plans
                     ['Import your customers from a spreadsheet', true, self::STATE_SOON],
                     ['Add reviews by hand', false, null],
                     ['Website code with no PromoMonster name on it', false, null],
+                    ['Replies drafted for you', false, null],
+                    ['A monthly report on how you compare', false, null],
                 ],
             ],
             self::PREMIUM => [
                 'name'     => 'Premium',
                 'price'    => 49,
-                'tagline'  => 'Ten asks a day, reviews you can add yourself, and website code with no PromoMonster name on it.',
+                'tagline'  => 'Ten asks a day, and the part that comes after: replies drafted for you, and a monthly report on how you compare.',
                 'featured' => false,
                 'limits'   => self::LIMITS[self::PREMIUM],
                 'features' => [
@@ -345,6 +411,8 @@ final class Plans
                     [self::sendingLimit(self::PREMIUM), true, self::STATE_NOW],
                     ['Add reviews by hand', true, self::STATE_NOW],
                     ['Website code with no PromoMonster name on it', true, self::STATE_NOW],
+                    ['Replies drafted for you', true, self::STATE_NOW],
+                    ['A monthly report on how you compare', true, self::STATE_NOW],
                     ['A login and an ask link for each of your people', true, self::STATE_SOON],
                     ['Downloadable and white-label reports', true, self::STATE_SOON],
                     ['Priority support', true, self::STATE_NOW],

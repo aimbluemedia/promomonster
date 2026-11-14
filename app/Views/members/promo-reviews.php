@@ -1,9 +1,17 @@
 <?php use App\Support\Csrf; use App\Support\HostedReviews; use App\Support\View;
 /** @var array $account @var bool $ready @var ?string $slug @var ?string $pageUrl
  *  @var ?string $widgetJs @var array $summary @var array $reviews
- *  @var array $requests @var ?string $error @var bool $canAdd @var bool $branded */
+ *  @var array $requests @var ?string $error @var bool $canAdd @var bool $branded
+ *  @var array $drafts @var bool $canDraft @var array $draftMonth */
 $canAdd  = $canAdd ?? true;
 $branded = $branded ?? true;
+
+// Defaults, so the page renders before migration 028 has been run and before
+// anything has ever asked for a draft. A members screen that fatals on a
+// missing key is worse than one with a button temporarily absent.
+$drafts     = $drafts ?? [];
+$canDraft   = $canDraft ?? false;
+$draftMonth = $draftMonth ?? ['allowed' => false, 'used' => 0, 'limit' => 0, 'reason' => null];
 ?>
 <div class="admin-title">
   <h1>PromoMonster reviews</h1>
@@ -175,17 +183,63 @@ $branded = $branded ?? true;
     <p class="empty">Nothing yet. Share your page, or add one above.</p>
   <?php else: ?>
     <?php foreach ($reviews as $r): ?>
-      <div class="card" style="margin-bottom:1rem;">
+      <?php
+        $rid   = (int) $r['id'];
+        $saved = (string) ($r['reply_body'] ?? '');
+        $draft = (string) ($drafts[$rid] ?? '');
+
+        // What goes in the box: their own saved reply if they have one,
+        // otherwise the draft if we made one. Never the draft over the top of
+        // something they wrote -- a box that quietly replaces a member's own
+        // words is the one thing this feature must not do.
+        $inBox = $saved !== '' ? $saved : $draft;
+
+        // Open the panel when there is something to look at, so the draft
+        // they just asked for is on screen rather than behind a click.
+        $open = $draft !== '' && $saved === '';
+      ?>
+      <div class="card" id="review-<?= $rid ?>" style="margin-bottom:1rem;">
         <?= View::render('reviews/_review', ['r' => $r, 'business' => (string) $account['name']]) ?>
 
-        <details style="margin-top:.6rem;">
-          <summary class="link-summary"><?= empty($r['reply_body']) ? 'Reply to this' : 'Change your reply' ?></summary>
+        <details style="margin-top:.6rem;"<?= $open ? ' open' : '' ?>>
+          <summary class="link-summary"><?= $saved === '' ? 'Reply to this' : 'Change your reply' ?></summary>
+
+          <?php /* Two forms, not two buttons in one. A second submit button
+                   inside the reply form would post the textarea along with it,
+                   and a draft request carrying the member's half-written reply
+                   is a draft request that can lose it. */ ?>
+          <?php if ($canDraft && $saved === ''): ?>
+            <form method="post" action="/members/promomonster-reviews/draft" style="margin-top:.8rem;">
+              <?= Csrf::field() ?>
+              <input type="hidden" name="review_id" value="<?= $rid ?>">
+              <button class="btn btn--ghost btn--sm" type="submit"
+                      <?= $draftMonth['allowed'] ? '' : 'disabled' ?>>
+                <?= $draft === '' ? 'Draft one for me' : 'Draft another' ?>
+              </button>
+              <?php if (!$draftMonth['allowed']): ?>
+                <span class="muted" style="font-size:.82rem;margin-left:.5rem;">
+                  <?= View::e((string) $draftMonth['reason']) ?>
+                </span>
+              <?php endif; ?>
+            </form>
+          <?php endif; ?>
+
           <form class="form" method="post" action="/members/promomonster-reviews/reply" style="margin-top:.8rem;">
             <?= Csrf::field() ?>
-            <input type="hidden" name="review_id" value="<?= (int) $r['id'] ?>">
-            <label class="sr-only" for="reply-<?= (int) $r['id'] ?>">Your reply</label>
-            <textarea class="field" id="reply-<?= (int) $r['id'] ?>" name="reply" rows="3"
-                      maxlength="4000"><?= View::e((string) ($r['reply_body'] ?? '')) ?></textarea>
+            <input type="hidden" name="review_id" value="<?= $rid ?>">
+            <label class="sr-only" for="reply-<?= $rid ?>">Your reply</label>
+            <textarea class="field" id="reply-<?= $rid ?>" name="reply" rows="3"
+                      maxlength="4000"><?= View::e($inBox) ?></textarea>
+            <?php if ($draft !== '' && $saved === ''): ?>
+              <?php /* Said every time, right above the button that publishes
+                       it. A box that filled itself invites a reflex click, and
+                       a reply posted in the owner's name that the owner never
+                       read is the failure this whole feature has to avoid. */ ?>
+              <p class="muted" style="font-size:.82rem;margin:.1rem 0 0;">
+                This is a draft, not your words yet. Read it, change what does not
+                sound like you, then save. Nothing is public until you press Save.
+              </p>
+            <?php endif; ?>
             <button class="btn btn--primary" type="submit" style="justify-self:start;">Save reply</button>
           </form>
         </details>
