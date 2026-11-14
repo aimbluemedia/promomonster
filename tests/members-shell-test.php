@@ -210,7 +210,7 @@ foreach ([$sidebar, $welcome, $layout, $started, $promo] as $source) {
 foreach ([
     'side__link', 'is-here', 'hello__btn--solid',
     'gs', 'gs--done', 'gs__card', 'is-next', 'is-done', 'gs__btn--go', 'is-full',
-    'stepcard', 'stepcard--locked', 'stepcard__pill--paid',
+    'stepcard', 'stepcard--paid', 'stepcard--locked',
 ] as $name) {
     $classes[$name] = true;
 }
@@ -350,6 +350,18 @@ ok('and Free is told the price instead',
     str_contains($asFree, App\Support\Plans::money(App\Support\Plans::PREMIUM)));
 ok('Free gets the quiet card', str_contains($asFree, 'stepcard--locked'));
 ok('Premium does not', !str_contains($asPremium, 'stepcard--locked'));
+
+// The amber accent is on the card whether or not the plan has it. It says
+// which step is the paid one, which is as useful to somebody who cannot use
+// it yet as to somebody who can.
+ok('Free marks step 3 as the paid one', str_contains($asFree, 'stepcard--paid'));
+ok('and so does Premium', str_contains($asPremium, 'stepcard--paid'));
+check('only one card is the paid one', substr_count($asFree, 'stepcard--paid'), 1);
+
+// Each card is a band and a body. One flat card per step is what made three
+// of them read as one long panel with lines across it.
+check('three bands', substr_count($asFree, 'stepcard__band'), 3);
+check('three bodies', substr_count($asFree, 'stepcard__body'), 3);
 
 // Both see all three steps, whatever the plan. A step that vanished on Free
 // would leave somebody unable to learn the feature exists.

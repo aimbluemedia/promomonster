@@ -55,16 +55,16 @@ $draftMonth = $draftMonth ?? ['allowed' => false, 'used' => 0, 'limit' => 0, 're
 
   <?php /* ---- 1. The page ---------------------------------------------- */ ?>
   <section class="stepcard">
-    <p class="stepcard__pill">All membership access</p>
-    <span class="stepcard__n" aria-hidden="true">1</span>
-    <div class="stepcard__text">
+    <header class="stepcard__band">
+      <span class="stepcard__n" aria-hidden="true">1</span>
       <h2 class="stepcard__h">Your review page</h2>
+      <p class="stepcard__pill">All membership access</p>
+    </header>
+    <div class="stepcard__body">
       <p class="stepcard__sub">
         Send this to a customer, put it on a card, or link it from your site.
         Anyone who opens it can leave you a review.
       </p>
-    </div>
-    <div class="stepcard__do">
       <a class="stepcard__link" href="<?= View::e($pageUrl) ?>" target="_blank" rel="noopener">
         <span class="stepcard__linkurl"><?= View::e($pageUrl) ?></span>
         <span class="stepcard__linkgo" aria-hidden="true">&#8599;</span>
@@ -82,16 +82,16 @@ $draftMonth = $draftMonth ?? ['allowed' => false, 'used' => 0, 'limit' => 0, 're
     <?php /* The widget is on every plan. Only our name on it is not, and the
              line below says so -- which is why this does not quietly become
              "Premium". */ ?>
-    <p class="stepcard__pill">All membership access</p>
-    <span class="stepcard__n" aria-hidden="true">2</span>
-    <div class="stepcard__text">
+    <header class="stepcard__band">
+      <span class="stepcard__n" aria-hidden="true">2</span>
       <h2 class="stepcard__h">Put them on your website</h2>
+      <p class="stepcard__pill">All membership access</p>
+    </header>
+    <div class="stepcard__body">
       <p class="stepcard__sub">
         Paste this where you want the reviews to appear. Works on any site
         that lets you add HTML.
       </p>
-    </div>
-    <div class="stepcard__do">
       <pre class="stepcard__code"><code>&lt;script src="<?= View::e($widgetJs) ?>" async&gt;&lt;/script&gt;</code></pre>
       <p class="stepcard__fine">
         It shows your latest twelve, your average, and a link to the full page.
@@ -117,21 +117,24 @@ $draftMonth = $draftMonth ?? ['allowed' => false, 'used' => 0, 'limit' => 0, 're
 
   <?php /* ---- 3. By hand ------------------------------------------------ */ ?>
   <?php $needsPlan = App\Support\Plans::cheapestWith(App\Support\Plans::ADD_REVIEWS); ?>
-  <section class="stepcard<?= $canAdd ? '' : ' stepcard--locked' ?>" id="add-review">
-    <p class="stepcard__pill stepcard__pill--paid">
-      <?= View::e(App\Support\Plans::name((string) $needsPlan)) ?> access
-    </p>
-    <span class="stepcard__n" aria-hidden="true">3</span>
-    <div class="stepcard__text">
+  <section class="stepcard stepcard--paid<?= $canAdd ? '' : ' stepcard--locked' ?>"
+           id="add-review">
+    <header class="stepcard__band">
+      <span class="stepcard__n" aria-hidden="true">3</span>
       <h2 class="stepcard__h">Add a review yourself</h2>
+      <?php /* No modifier class. The amber comes from --accent on the card,
+               so a second class here would style nothing -- which is exactly
+               what the styled-class check caught. */ ?>
+      <p class="stepcard__pill">
+        <?= View::e(App\Support\Plans::name((string) $needsPlan)) ?> access
+      </p>
+    </header>
+    <div class="stepcard__body">
       <p class="stepcard__sub">
         For one a customer gave you in person or on the phone, or one already
         on your Google listing. Both are labelled as added by you, so nobody
         reading them is misled about where they came from.
       </p>
-    </div>
-
-    <div class="stepcard__do">
       <?php if (!$canAdd): ?>
         <?php if ($needsPlan !== null): ?>
           <p class="stepcard__price">

@@ -1741,91 +1741,102 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
 .plans-at-foot > .muted{ margin:0 0 1.1rem; font-size:.9rem; max-width:40rem; }
 
 /* ---- The three steps on the review page -------------------------------- */
-/* One per row, laid out across.
+/* One per row, and each one plainly a separate thing.
 
-   Three side by side made every one of them a narrow column -- a URL broke
-   over three lines, a script tag over four, and the eight-field form had to
-   be lifted out of its own card to fit anywhere. Full width gives each step
-   room for the thing it is actually about.
+   Three cards of the same white on the same wash, a gap apart, read as one
+   long panel with lines across it. What separates them is the band: a tinted
+   strip carrying the numeral, the title and who the step is for, with the
+   working part on clean ground underneath. Two materials per card, and the
+   eye finds the edges without being told.
 
-   The grid is a left rail and a body: the numeral sits in the rail, the
-   title and the blurb sit beside it, and whatever the step gives you lands
-   underneath, aligned past the numeral rather than under it. That indent is
-   what keeps a stack of three readable as three steps instead of three
-   boxes.
+   Each card sets its own --accent and the rest of the rules read it, so step
+   3 carries amber all the way through -- badge, band, pill -- because it is
+   the one a plan can refuse. The colour is doing work, not decoration: two
+   blue cards and an amber one says which is which before a word is read.
 
-   Restraint is the whole design here. One accent, a hairline, a soft shadow,
-   and a lot of room. Nothing on this page needs to shout: a member is
-   reading it once, to set something up, and then never again. */
+   Restraint everywhere else. One accent per card, a hairline, and a wide gap
+   that lets each row finish before the next starts. */
 
-.steps{ display:grid; gap:1.1rem; margin-bottom:2rem; }
+.steps{ display:grid; gap:1.75rem; margin-bottom:2.25rem; }
 
 .stepcard{
-  position:relative;
-  display:grid;
-  grid-template-columns:auto minmax(0,1fr);
-  column-gap:1.15rem;
-  row-gap:1rem;
-  padding:1.6rem 1.75rem 1.7rem;
+  --accent:      var(--brand);
+  --accent-band: var(--tint);
+  --accent-edge: var(--line-2);
+
+  /* overflow:hidden so the band's top corners are clipped by the card's
+     radius. Without it the band squares off the two corners it sits in. */
+  overflow:hidden;
   border:1px solid var(--line);
-  border-radius:16px;
+  border-radius:18px;
   background:var(--surface);
-  /* Two shadows, not one: a tight hairline that reads as an edge and a wide,
-     very soft one that lifts the card off the wash. A single blurred shadow
-     at this radius reads as a smudge. */
-  box-shadow:0 1px 2px rgba(10,30,50,.04), 0 8px 24px -12px rgba(10,30,50,.10);
+  /* A tight edge and a wide soft lift. One blurred shadow at this radius
+     reads as a smudge rather than elevation. */
+  box-shadow:0 1px 2px rgba(10,30,50,.05), 0 14px 32px -18px rgba(10,30,50,.22);
+}
+
+/* Amber for the one a plan can refuse. #8a5a12 is the deep amber the
+   locked-plan pill already uses: at 11px uppercase a pill needs 4.5:1 and
+   --star on its own tint does not reach it. */
+.stepcard--paid{
+  --accent:      #8a5a12;
+  --accent-band: #fff4e0;
+  --accent-edge: #f0dcb4;
 }
 /* The one the plan does not include goes quiet rather than loud. Nothing has
    gone wrong here; it is simply not theirs yet. */
-.stepcard--locked{ background:var(--wash); box-shadow:none; }
+.stepcard--locked{ box-shadow:none; }
+.stepcard--locked .stepcard__body{ background:var(--wash); }
 
 @media (prefers-color-scheme: dark){
-  .stepcard{ box-shadow:0 1px 2px rgba(0,0,0,.30), 0 8px 24px -12px rgba(0,0,0,.55); }
+  .stepcard{ box-shadow:0 1px 2px rgba(0,0,0,.35), 0 14px 32px -18px rgba(0,0,0,.7); }
   .stepcard--locked{ box-shadow:none; }
+  /* A light amber on a dark card, so the accent still carries at 4.5:1. The
+     light-mode #8a5a12 on a near-black surface measures under 3. */
+  .stepcard--paid{ --accent:#f3c982; --accent-band:#2b2114; --accent-edge:#453522; }
 }
 
-/* ---- The rail ---------------------------------------------------------- */
+/* ---- The band ---------------------------------------------------------- */
+.stepcard__band{
+  display:flex; align-items:center; gap:.85rem;
+  padding:.95rem 1.5rem;
+  background:var(--accent-band);
+  border-bottom:1px solid var(--accent-edge);
+}
 .stepcard__n{
-  grid-row:1; grid-column:1;
+  flex:0 0 auto;
   display:grid; place-items:center;
-  width:2.5rem; height:2.5rem;
-  border-radius:12px;
-  background:var(--tint); color:var(--brand);
-  font-size:1.05rem; font-weight:800; letter-spacing:-.02em;
+  width:2.1rem; height:2.1rem;
+  border-radius:10px;
+  background:var(--surface);
+  border:1px solid var(--accent-edge);
+  color:var(--accent);
+  font-size:.95rem; font-weight:800; letter-spacing:-.02em;
   font-variant-numeric:tabular-nums;
 }
-
-/* ---- The head ---------------------------------------------------------- */
-.stepcard__text{ grid-row:1; grid-column:2; min-width:0; align-self:center;
-  /* Room for the pill, which is positioned into the card's top-right corner
-     rather than taking a grid column -- a third column would collapse to
-     nothing on a phone and drag the title with it. */
-  padding-right:11rem; }
-.stepcard__h{ font-size:1.15rem; margin:0; letter-spacing:-.022em; }
-.stepcard__sub{ margin:.3rem 0 0; font-size:.92rem; line-height:1.6;
-  color:var(--body); max-width:46rem; }
+.stepcard__h{ flex:1 1 auto; min-width:0; margin:0;
+  font-size:1.12rem; letter-spacing:-.022em; }
 
 .stepcard__pill{
-  position:absolute; top:1.6rem; right:1.75rem; margin:0;
+  flex:0 0 auto; margin:0;
   padding:.3rem .7rem; border-radius:999px;
-  font-size:.68rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
-  background:var(--tint); color:var(--brand); white-space:nowrap;
+  background:var(--surface); color:var(--accent);
+  border:1px solid var(--accent-edge);
+  font-size:.67rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+  white-space:nowrap;
 }
-/* #8a5a12 on #fff4e0, the pair the locked-plan pill already uses: at 11px
-   uppercase this needs 4.5:1 and --star on its own tint does not reach it. */
-.stepcard__pill--paid{ background:#fff4e0; color:#8a5a12; }
 
-/* ---- What the step gives you ------------------------------------------- */
-/* Column 2 only, so it lines up with the title rather than under the rail. */
-.stepcard__do{ grid-row:2; grid-column:2; min-width:0; }
-
-.stepcard__fine{ margin:.7rem 0 0; font-size:.84rem; line-height:1.55;
-  color:var(--muted); max-width:46rem; }
+/* ---- The body ---------------------------------------------------------- */
+.stepcard__body{ padding:1.4rem 1.5rem 1.5rem; }
+.stepcard__sub{ margin:0 0 1rem; font-size:.93rem; line-height:1.6;
+  color:var(--body); max-width:48rem; }
+.stepcard__fine{ margin:.8rem 0 0; font-size:.84rem; line-height:1.55;
+  color:var(--muted); max-width:48rem; }
 
 /* The review page link, as a thing to click rather than a line of text. */
 .stepcard__link{
   display:flex; align-items:center; justify-content:space-between; gap:1rem;
-  padding:.85rem 1rem; border-radius:11px;
+  padding:.9rem 1.05rem; border-radius:12px;
   border:1px solid var(--line-2); background:var(--tint-2);
   color:var(--brand); font-weight:600; text-decoration:none;
   transition:background-color .15s, border-color .15s;
@@ -1834,37 +1845,36 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
 .stepcard__linkurl{ overflow-wrap:anywhere; }
 .stepcard__linkgo{ flex:0 0 auto; font-size:1.05rem; opacity:.7; }
 
+/* Scrolls rather than wraps: a script tag broken over four lines is one a
+   member copies wrong. */
 .stepcard__code{
-  margin:0; padding:.9rem 1rem; border-radius:11px;
-  border:1px solid var(--line); background:var(--wash);
-  overflow-x:auto;
+  margin:0; padding:.95rem 1.05rem; border-radius:12px;
+  border:1px solid var(--line); background:var(--wash); overflow-x:auto;
 }
 .stepcard__code code{ font-family:var(--mono); font-size:.82rem; line-height:1.6;
   color:var(--ink); white-space:pre; }
 
 .stepcard__price{ margin:0; font-size:.95rem; color:var(--ink); }
-.stepcard__acts{ margin:.9rem 0 0; }
+.stepcard__acts{ margin:1rem 0 0; }
 
 /* ---- The form, inside step 3 ------------------------------------------- */
 .stepcard__form{ margin:0; }
-.stepcard__from{ border:1px solid var(--line); border-radius:11px;
-  padding:.85rem 1rem; margin:0; }
-.stepcard__from legend{ font-size:.82rem; font-weight:700; color:var(--muted);
+.stepcard__from{ border:1px solid var(--line); border-radius:12px;
+  padding:.9rem 1.05rem; margin:0; background:var(--surface); }
+.stepcard__from legend{ font-size:.8rem; font-weight:700; color:var(--muted);
   padding:0 .35rem; text-transform:uppercase; letter-spacing:.06em; }
 .stepcard__from label{ display:block; font-weight:400; font-size:.92rem;
   line-height:1.9; }
 
-@media (max-width:860px){
-  .stepcard{ padding:1.25rem 1.2rem 1.35rem; border-radius:14px; }
-  /* The pill stops floating and becomes the first line of the card, so it
-     cannot sit on top of a title that has wrapped to two lines. */
-  .stepcard__pill{ position:static; grid-row:1; grid-column:1 / -1;
-    justify-self:start; margin-bottom:.1rem; }
-  .stepcard__n{ grid-row:2; grid-column:1; width:2.1rem; height:2.1rem;
-    border-radius:10px; font-size:.95rem; }
-  .stepcard__text{ grid-row:2; grid-column:2; padding-right:0; }
-  .stepcard__do{ grid-row:3; grid-column:1 / -1; }
-  .stepcard__h{ font-size:1.05rem; }
+@media (max-width:720px){
+  .steps{ gap:1.25rem; }
+  .stepcard{ border-radius:15px; }
+  /* The band wraps rather than squeezing the title to nothing: the pill drops
+     to its own line under the numeral and the title. */
+  .stepcard__band{ flex-wrap:wrap; gap:.65rem .8rem; padding:.85rem 1.1rem; }
+  .stepcard__h{ flex:1 1 60%; font-size:1.02rem; }
+  .stepcard__pill{ order:3; }
+  .stepcard__body{ padding:1.1rem 1.1rem 1.2rem; }
 }
 
 /* ---- Get started ------------------------------------------------------ */
