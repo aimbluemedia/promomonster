@@ -390,7 +390,7 @@ if (!is_file($configPath)) {
     }
 }
 
-// --- Claude / competitor comparison ----------------------------------------
+// --- Claude: comparison, score notes, drafted replies, monthly report -------
 // Three separate things can be wrong here and they need different fixes: the
 // code is not uploaded, the key is not in config.php, or the key is wrong.
 $claudeFiles = [
@@ -421,12 +421,13 @@ if ($missingClaude !== []) {
         // costs money to run, so never configuring it is a decision, not a
         // fault -- and listing a decision under "problems found" is how a
         // report trains you to stop reading it.
-        add($checks, 'Competitor comparison', 'todo',
-            "No 'anthropic' => ['api_key' => '...'] entry in app/config.php, so the competitor "
-            . 'comparison stays switched off. Nothing else depends on it, and it is the only '
-            . 'feature here that costs money per use.');
+        add($checks, 'Claude features', 'todo',
+            "No 'anthropic' => ['api_key' => '...'] entry in app/config.php. Four things stay "
+            . 'switched off: the competitor comparison, the plain-English note on /score, '
+            . "Premium's drafted replies, and Premium's monthly report. Everything else works "
+            . 'without it. These are the only features here that cost money per use.');
     } elseif (!extension_loaded('curl')) {
-        add($checks, 'Competitor comparison', 'fail',
+        add($checks, 'Claude features', 'fail',
             'A key is set, but the curl PHP extension is off. Enable it in hPanel → PHP Configuration.');
     } else {
         add($checks, 'Competitor comparison', 'pass',
@@ -468,7 +469,9 @@ if ($missingClaude !== []) {
                     'The key was rejected (401). Check for a stray space or a truncated paste.');
             } elseif ($code === 200) {
                 add($checks, 'Claude live check', 'pass',
-                    'Claude answered. The comparison tool is ready to use.');
+                    'Claude answered. The comparison tool, the drafted replies and the monthly '
+                    . 'report are all ready to use. The reports and the drafts only go out to '
+                    . 'accounts on a plan that includes them.');
             } else {
                 $body = json_decode((string) $raw, true);
                 add($checks, 'Claude live check', 'fail',

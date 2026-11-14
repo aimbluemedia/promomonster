@@ -135,6 +135,42 @@ TXT;
             throw new RuntimeException('There is nothing in this review to reply to.');
         }
 
+        // Low effort and a small ceiling: this is a two-sentence job, and the
+        // ceiling is what keeps the per-draft cost a known number rather than
+        // whatever the model felt like writing.
+        $text = Claude::ask(self::SYSTEM, self::prompt($review, $business, $trade), null, 'low', 400);
+        if (!is_string($text)) {
+            throw new RuntimeException('Claude returned something other than a reply.');
+        }
+
+        return self::clean($text);
+    }
+
+    /**
+     * What we tell Claude about the review.
+     *
+     * Public and separate from the call so it can be asserted without a
+     * network request -- the contents of this string is the part most likely
+     * to drift, and the most consequential when it does.
+     *
+     * The reviewer's FIRST NAME only, never the surname. A review on a public
+     * page carries whatever name the customer typed, but the person who wrote
+     * it did not choose to have their full name sent to a third party so the
+     * business could be helped to answer them. The first name is what a reply
+     * needs; the rest is nobody else's.
+     *
+     * Nothing else about the customer goes either -- not their email, not the
+     * town, not which request produced the review, all of which sit on the
+     * same row.
+     *
+     * @param array<string,mixed> $review
+     */
+    public static function prompt(array $review, string $business, ?string $trade = null): string
+    {
+        $rating = (int) ($review['rating'] ?? 0);
+        $body   = trim((string) ($review['body'] ?? ''));
+        $name   = trim((string) ($review['author_name'] ?? ''));
+
         $prompt  = 'BUSINESS: ' . $business . "\n";
         if ($trade !== null && $trade !== '') {
             $prompt .= 'TRADE: ' . $trade . "\n";
@@ -144,15 +180,7 @@ TXT;
         $prompt .= "WHAT THEY WROTE:\n" . ($body !== '' ? $body : '(they left a rating and no words)') . "\n\n";
         $prompt .= 'Write the reply.';
 
-        // Low effort and a small ceiling: this is a two-sentence job, and the
-        // ceiling is what keeps the per-draft cost a known number rather than
-        // whatever the model felt like writing.
-        $text = Claude::ask(self::SYSTEM, $prompt, null, 'low', 400);
-        if (!is_string($text)) {
-            throw new RuntimeException('Claude returned something other than a reply.');
-        }
-
-        return self::clean($text);
+        return $prompt;
     }
 
     /**

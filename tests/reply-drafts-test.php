@@ -244,6 +244,54 @@ check('the card names the real allowance',
     Plans::limit(Plans::PREMIUM, 'reply_drafts_per_month') . ' review replies');
 ok('an uncapped plan says so', str_contains(Plans::draftLimit(Plans::PARTNER), 'uncapped'));
 
+/* ---- What we send about the customer ----------------------------------- */
+
+// A review on a public page carries whatever name the customer typed. The
+// person who wrote it did not choose to have their full name sent to a third
+// party so the business could be helped to answer them. The first name is
+// what a reply needs; the rest is nobody else's.
+
+$review = [
+    'id'           => 11,
+    'account_id'   => 4,
+    'rating'       => 2,
+    'body'         => 'Waited in all day and nobody came.',
+    'author_name'  => 'Dave Patterson',
+    'author_city'  => 'Mesa',
+    'author_email' => 'dave@example.test',
+    'contact_id'   => 88,
+    'submitted_ip' => '198.51.100.9',
+];
+
+$prompt = ReplyDrafts::prompt($review, 'Acme Pools', 'Pool care');
+
+ok('the business is named', str_contains($prompt, 'Acme Pools'));
+ok('the trade is named', str_contains($prompt, 'Pool care'));
+ok('the rating goes', str_contains($prompt, '2 out of 5'));
+ok('what they wrote goes', str_contains($prompt, 'Waited in all day'));
+ok('the first name goes', str_contains($prompt, 'Dave'));
+
+// Everything else on that row stays here.
+foreach ([
+    'the surname'    => 'Patterson',
+    'the email'      => 'dave@example.test',
+    'the town'       => 'Mesa',
+    'the IP address' => '198.51.100.9',
+    'the contact id' => '88',
+] as $what => $value) {
+    ok("{$what} is not sent", !str_contains($prompt, $value));
+}
+
+// A missing name must not produce "REVIEWER FIRST NAME: " with nothing after
+// it, which reads to a model as a name it failed to catch.
+$anon = ReplyDrafts::prompt(['rating' => 5, 'body' => 'Spotless.', 'author_name' => ''], 'Acme Pools');
+ok('no name says so plainly', str_contains($anon, 'FIRST NAME: not given'));
+ok('and the trade line is simply absent', !str_contains($anon, 'TRADE:'));
+
+// A rating with no words still has to produce something answerable.
+$silent = ReplyDrafts::prompt(['rating' => 5, 'body' => '', 'author_name' => 'Sam'], 'Acme Pools');
+ok('a wordless review says so', str_contains($silent, 'rating and no words'));
+
 /* ---- Nothing in this class can publish --------------------------------- */
 
 // The one structural guarantee. A draft goes into a box the member then saves

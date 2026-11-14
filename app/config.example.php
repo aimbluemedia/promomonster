@@ -235,8 +235,16 @@ return [
         'webhook_secret' => '',
     ],
 
-    // Powers the review comparison (superadmin audits and the public /compare
-    // page). Without a key those are disabled; nothing else depends on it.
+    // Powers four things, all of which are simply off without a key:
+    //
+    //   the competitor comparison (superadmin audits and the public /compare)
+    //   the plain-English note on /score
+    //   Premium's drafted replies   -- 100 a month per account, capped
+    //   Premium's monthly report    -- one per account per 30 days
+    //
+    // These are the only features in the product that cost money per use, so
+    // the two member-facing ones are capped per account rather than per key:
+    // an uncapped AI feature is a bill somebody else writes.
     'anthropic' => [
         'api_key' => '',
 
@@ -250,6 +258,10 @@ return [
         //   claude-opus-5     $5 / $25   best judgement, for when a report
         //                                goes straight to a customer unread
         // Roughly $0.02 a comparison on Sonnet 5, $0.01 on Haiku, $0.05 on Opus.
+        // A drafted reply is a much smaller job -- about 600 tokens in and 250
+        // out -- so it is around $0.004 on Sonnet 5. A Premium account that
+        // spent its whole 100 drafts in a month would cost about $0.40, plus
+        // $0.02 for its report, against $49.
         // An unrecognised value falls back to the default rather than failing.
         'model' => 'claude-sonnet-5',
 
