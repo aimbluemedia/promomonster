@@ -229,17 +229,31 @@ ok('replies go to the business, not to us', $message['reply_to'] === 'mike@acmep
 ok('no merge field is left unrendered', !str_contains($message['text'], '{{'));
 ok('tagged as a request', $message['tag'] === 'review-request');
 
-// --- Free carries the branding, paid does not -------------------------
+// --- Every plan sends the same email ----------------------------------
+//
+// It did not, once: a paid plan dropped the "(via PromoMonster)" suffix and
+// the footer block. The suffix half could not be delivered -- the mail leaves
+// a PromoMonster domain, so Gmail and Outlook add their own "via" line from
+// the envelope whatever the From header says -- so rather than keep half a
+// difference that nothing advertises, the email is identical on every plan.
+//
+// These run on all three plans, not just two. A difference that creeps back
+// on the tier nobody tested is a difference nobody finds.
 ok('free says who sent it', str_contains($message['text'], 'Sent with PromoMonster'));
 ok('free From carries the suffix', str_contains((string) $message['from_name'], '(via PromoMonster)'));
 
-seed('pro');
-$proId  = (int) ReviewRequests::queue(location(), contact(), null)['id'];
-$proMsg = ReviewRequests::compose(ReviewRequests::due(10)[0]);
-ok('paid drops the branding', !str_contains($proMsg['text'], 'Sent with PromoMonster'));
-ok('paid From is just the business', !str_contains((string) $proMsg['from_name'], '(via'));
-ok('paid still carries the unsubscribe link', str_contains($proMsg['text'], '/u/'));
-ok('paid still carries the postal address', str_contains($proMsg['text'], '12 Canal Street'));
+foreach (['pro', 'premium'] as $paid) {
+    seed($paid);
+    ReviewRequests::queue(location(), contact(), null);
+    $paidMsg = ReviewRequests::compose(ReviewRequests::due(10)[0]);
+
+    ok("{$paid}: says who sent it, same as Free",
+        str_contains($paidMsg['text'], 'Sent with PromoMonster'));
+    ok("{$paid}: From carries the suffix, same as Free",
+        str_contains((string) $paidMsg['from_name'], '(via PromoMonster)'));
+    ok("{$paid}: carries the unsubscribe link", str_contains($paidMsg['text'], '/u/'));
+    ok("{$paid}: carries the postal address", str_contains($paidMsg['text'], '12 Canal Street'));
+}
 
 // =====================================================================
 // Sending
@@ -389,7 +403,12 @@ seed();
 $limit = SendLimit::check(1, Plans::FREE);
 ok('a fresh account may send', $limit['allowed']);
 check('nothing used yet', $limit['month_used'], 0);
-check('the month allowance is the plan\'s', $limit['month_limit'], 4);
+// From the catalogue, not typed here. This line said 4 and the catalogue
+// said 5 -- it had been wrong since the allowances moved, and the suite
+// skips itself without a test database, so it sat red and silent. The same
+// stale figure was on the public pricing page.
+check('the month allowance is the plan\'s', $limit['month_limit'],
+    Plans::limit(Plans::FREE, 'requests_per_month'));
 check('so is the burst', $limit['burst_limit'], 1);
 
 $countedId = (int) ReviewRequests::queue(location(), contact(), null)['id'];
@@ -413,7 +432,8 @@ check('nor does a cancelled one', SendLimit::check(1, Plans::FREE)['month_used']
 
 // Pro's allowance is bigger and its pace is per-day.
 seed('pro');
-check('pro month allowance', SendLimit::check(1, Plans::PRO)['month_limit'], 60);
+check('pro month allowance', SendLimit::check(1, Plans::PRO)['month_limit'],
+    Plans::limit(Plans::PRO, 'requests_per_month'));
 check('pro burst', SendLimit::check(1, Plans::PRO)['burst_limit'], 2);
 ReviewRequests::queue(location(), contact(), null);
 ok('one send leaves pro under its pace', SendLimit::check(1, Plans::PRO)['allowed']);
