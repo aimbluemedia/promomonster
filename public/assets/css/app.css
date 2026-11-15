@@ -1,0 +1,2179 @@
+/* PromoMonster — Reviews. Reputation. Growth.
+   Hand-written: shared hosting has no Node, so there is no build step here.
+
+   Every pair below was computed, not eyeballed (see the palette note in the
+   commit). The short version:
+     --brand  #006CB8  5.47:1 on white, 5.24 on wash, 4.77 on tint, and white
+                       on it is 5.47 — so it is safe for text, links and button
+                       labels on every surface the site uses.
+     --vivid  #009FE0  2.98:1. Decorative ONLY: gradients and large fills that
+                       carry no information. Never text, never a lone icon.
+     --star   #C2760A  3.57:1 on white, 3.11 on tint. Stars are large glyphs, so
+                       3.0 is the bar — and the rating is always printed as a
+                       number beside them, so colour is never the only carrier. */
+
+:root {
+  --paper:  #ffffff;
+  --wash:   #f5fbff;
+  --surface:#ffffff;
+  --tint:   #e0f2fe;
+  --tint-2: #f0f9ff;
+  --ink:    #0a0a0a;
+  --body:   #4b5563;
+  --muted:  #5b6876;
+  --line:   #e2e8f0;
+  --line-2: #cfe6f5;
+  --brand:  #006cb8;
+  --brand-hover: #005694;
+  --vivid:  #009fe0;
+  --star:   #c2760a;
+  --good:   #15803d;
+
+  --radius: 14px;
+  --radius-sm: 9px;
+  --max: 74rem;
+  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --ease: cubic-bezier(.22,.61,.36,1);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { color-scheme: light; scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--font); font-size: 16px; line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+img { max-width: 100%; height: auto; display: block; }
+::selection { background: var(--tint); color: var(--ink); }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration:.01ms !important; transition-duration:.01ms !important; }
+}
+
+/* Layout ----------------------------------------------------------------- */
+.container { width:100%; max-width:var(--max); margin-inline:auto; padding-inline:1.25rem; }
+@media (min-width:640px){ .container{ padding-inline:2rem; } }
+
+.section { padding-block: 4.5rem; }
+@media (min-width:768px){ .section{ padding-block:6rem; } }
+.section--wash { background: var(--wash); }
+.section--top  { border-top: 1px solid var(--line); }
+
+.skip-link{ position:absolute; left:-9999px; top:0; z-index:100; background:var(--brand);
+  color:#fff; padding:.6rem 1rem; border-radius:var(--radius-sm); font-weight:600; }
+.skip-link:focus{ left:1rem; top:1rem; }
+
+/* Header ----------------------------------------------------------------- */
+.site-header{ position:sticky; top:0; z-index:50; background:var(--paper);
+  border-bottom:1px solid var(--line); }
+.site-header__inner{ display:flex; align-items:center; justify-content:space-between;
+  gap:1rem; height:4.5rem; }
+.logo{ display:inline-flex; align-items:center; gap:.55rem; text-decoration:none;
+  color:var(--ink); font-weight:800; font-size:1.15rem; letter-spacing:-.02em; }
+.logo__word{ white-space:nowrap; }
+/* Two nav items and a button need more of the bar than one button did, and at
+   320px the three of them plus a full-size wordmark ran 46px past the edge.
+   The wordmark shrinks first and only disappears on the very narrowest
+   screens, where the mark alone still says whose site this is. */
+@media (max-width:420px){
+  .site-header__inner{ gap:.6rem; }
+  .logo{ font-size:1rem; gap:.4rem; }
+  .logo svg{ width:26px; height:26px; }
+  .site-nav .btn{ padding:.7rem 1rem; }
+  .site-nav a{ padding:.5rem .55rem; }
+}
+/* Same method: the shrunk wordmark plus Login plus the button stops fitting at
+   371px, so it goes at 379 and the mark alone carries the brand below that. */
+@media (max-width:379px){ .logo__word{ display:none; } }
+.logo__accent{ color:var(--brand); }
+
+/* nowrap on all three. As a flex item in a tight bar the button was being
+   squeezed until "Join FREE" broke across two lines, which pushed the whole
+   header taller and read as a layout bug. */
+.site-nav{ display:flex; align-items:center; gap:.15rem; font-size:.95rem;
+  flex-shrink:0; white-space:nowrap; }
+.site-nav .btn{ flex-shrink:0; white-space:nowrap; }
+.site-nav a{ padding:.5rem .8rem; border-radius:var(--radius-sm); color:var(--body);
+  text-decoration:none; font-weight:500; }
+.site-nav a:hover{ color:var(--ink); }
+.site-nav a[aria-current="page"]{ color:var(--brand); font-weight:600; }
+/* `.site-nav a` (0,1,1) outranks `.btn--primary` (0,1,0), which silently turned
+   the header CTA into grey-on-blue at 1.7:1. Restate it at matching weight. */
+.site-nav a.btn--primary{ color:#fff; }
+.site-nav a.btn--primary:hover{ color:#fff; }
+/* The bar is three items now, so the breakpoint is about fitting rather than
+   about hiding a menu. Login never hides: a returning customer on a phone has
+   to be able to get in. The score link is the first to go, because it repeats
+   the hero button a few inches below it. */
+.site-nav__link{ display:none; }
+.site-nav__link--always{ display:block; }
+/* 600, not a round guess: with nothing wrapping, the logo plus all three items
+   stops fitting at 569px. Measured by stepping the viewport down a pixel at a
+   time, with a little headroom for a font that renders wider than this one. */
+@media (min-width:600px){ .site-nav__link{ display:block; } }
+
+/* Type ------------------------------------------------------------------- */
+h1,h2,h3{ margin:0; color:var(--ink); letter-spacing:-.025em; line-height:1.12; font-weight:800; }
+h1{ font-size:clamp(2.1rem,4.6vw,3.5rem); }
+h2{ font-size:clamp(1.65rem,3vw,2.35rem); }
+h3{ font-size:1.0625rem; font-weight:700; letter-spacing:-.01em; }
+
+.eyebrow{ margin:0 0 .9rem; font-size:.78rem; font-weight:700; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--brand); }
+.lede{ margin:1.25rem 0 0; max-width:38rem; font-size:1.1rem; line-height:1.65; color:var(--body); }
+.prose{ max-width:44rem; }
+.prose p{ color:var(--body); margin:1rem 0 0; }
+.muted{ color:var(--body); }
+.center{ text-align:center; }
+.center .lede{ margin-inline:auto; }
+
+/* Buttons ---------------------------------------------------------------- */
+/* color is declared here, not left to the browser. Without it a .btn with no
+   variant -- there is one, in the locked step on the dashboard -- took the
+   user agent's link colour, which goes purple once visited. In dark mode that
+   was a purple "Upgrade to Pro or Premium" on a near-black card. */
+.btn{ display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
+  padding:.85rem 1.5rem; border-radius:var(--radius-sm); border:1px solid transparent;
+  font:inherit; font-size:.95rem; font-weight:700; text-decoration:none; cursor:pointer;
+  color:var(--ink);
+  transition:background-color .15s,color .15s; }
+.btn--primary{ background:var(--brand); color:#fff; }
+.btn--primary:hover{ background:var(--brand-hover); }
+/* In dark mode --brand is a light blue, and white on it is 1.98:1 — the
+   label all but disappears. The fill is the one surface on the page that
+   does not follow the scheme, so the label has to: --paper on --brand is
+   9.57:1, and 11.71:1 on the hover shade. */
+.btn--ghost{ background:var(--surface); color:var(--ink); border-color:var(--line); }
+.btn--ghost:hover{ background:var(--wash); }
+.btn--block{ width:100%; }
+.btn:disabled{ opacity:.5; cursor:not-allowed; }
+.btn-row{ display:flex; flex-wrap:wrap; gap:.75rem; margin-top:2rem; }
+
+/* Cards, grids ----------------------------------------------------------- */
+.card{ background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--radius); padding:1.6rem; }
+.grid{ display:grid; gap:1.25rem; }
+@media (min-width:640px){ .grid--2{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (min-width:860px){ .grid--3{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media (min-width:640px){ .grid--4{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (min-width:1000px){ .grid--4{ grid-template-columns:repeat(4,minmax(0,1fr)); } }
+
+.split{ display:grid; gap:3rem; align-items:center; }
+@media (min-width:900px){ .split{ grid-template-columns:1fr 1fr; gap:4rem; } }
+.split--form{ align-items:start; }
+
+/* Icon chip — the tinted rounded square from the reference layout */
+.chip{ width:2.75rem; height:2.75rem; border-radius:10px; background:var(--tint);
+  display:inline-flex; align-items:center; justify-content:center; color:var(--brand); }
+/* The icon paths are outlines, so they must be stroked and not filled. This
+   lives on the icon itself rather than on .chip, so an icon used anywhere else
+   is right by default. */
+.icon{ stroke:currentColor; fill:none; stroke-width:1.9;
+  stroke-linecap:round; stroke-linejoin:round;
+  /* A default size as well. An <svg> with no intrinsic dimensions expands to
+     fill its container, so an icon placed somewhere that forgot to size it
+     rendered a screen-high shield. Every deliberate size below is a descendant
+     selector, so it still outranks this. */
+  width:1.25rem; height:1.25rem; }
+.chip svg{ width:1.35rem; height:1.35rem; }
+
+/* Numbered step card */
+.step{ background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--radius); padding:1.5rem; text-align:center; }
+.step .chip{ margin-bottom:.9rem; }
+.step__num{ font-family:var(--mono); font-size:.8rem; color:var(--muted); margin-bottom:.3rem; }
+.step h3{ margin-bottom:.35rem; }
+.step p{ margin:0; font-size:.92rem; color:var(--body); }
+
+/* Feature card */
+.feature .chip{ margin-bottom:1rem; }
+.feature h3{ margin-bottom:.4rem; }
+.feature p{ margin:0; font-size:.94rem; color:var(--body); }
+
+/* Hero — photo left, content right, mirroring the reference layout */
+.hero{ display:grid; gap:2.5rem; align-items:center; }
+@media (min-width:960px){
+  /* Stretch, not centre: the right column is taller than a 5:4 image, and
+     centring left dead space above and below the photo. */
+  .hero{ grid-template-columns:0.92fr 1.08fr; gap:3.5rem; align-items:stretch; }
+  .hero__media{ display:flex; }
+  /* Desktop: fill the column height and let object-fit crop, so the photo
+     matches the taller text column beside it. */
+  .hero__media img{ height:100%; aspect-ratio:auto; min-height:34rem; }
+}
+
+.hero__media{ position:relative; }
+/* 4/5 matches the photograph. A landscape box here crops a portrait subject to
+   a horizontal band across the chest, which is what 5/4 was doing. */
+.hero__media img{ width:100%; aspect-ratio:4/5; object-fit:cover;
+  border-radius:var(--radius); border:1px solid var(--line);
+  /* If the file is missing the tinted panel shows through rather than a bare
+     broken-image box. */
+  background:var(--tint) url("/assets/img/hero-placeholder.svg") center/60% no-repeat; }
+
+/* Floating proof card. Stays useful once a real photograph replaces the
+   placeholder, which is the point of overlapping it rather than insetting it. */
+.hero__float{ position:absolute; left:1rem; bottom:-1.35rem; right:1rem;
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-sm);
+  box-shadow:0 12px 28px rgba(11,27,43,.10); padding:.85rem 1rem;
+  display:flex; align-items:center; gap:.85rem; }
+@media (min-width:520px){ .hero__float{ right:auto; max-width:22rem; } }
+.hero__float .stars{ font-size:1rem; }
+.hero__float p{ margin:.1rem 0 0; font-size:.82rem; color:var(--body); }
+.hero__float strong{ font-size:.9rem; color:var(--ink); }
+
+/* Compact numbered card for the hero row */
+.step--sm{ padding:1.15rem .85rem; }
+.step--sm .chip{ width:2.4rem; height:2.4rem; margin-bottom:.65rem; }
+.step--sm .chip svg{ width:1.2rem; height:1.2rem; }
+.step--sm h3{ font-size:.98rem; }
+.step--sm p{ font-size:.84rem; line-height:1.45; }
+.hero__cards{ display:grid; gap:.85rem; margin-top:2rem; }
+@media (min-width:560px){ .hero__cards{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+
+.hero__note{ margin:1.5rem 0 0; font-size:.9rem; color:var(--body); }
+
+/* Availability tag — never let a roadmap item read as a shipped one */
+.tag{ display:inline-block; font-size:.68rem; font-weight:800; letter-spacing:.07em;
+  text-transform:uppercase; border-radius:999px; padding:.2rem .55rem; margin-left:.5rem;
+  vertical-align:middle;
+  /* Two short words that must never become two lines: inside a narrow plan
+     column the tag was breaking after "IN", which reads as a defect. */
+  white-space:nowrap; }
+.tag--now{ background:var(--tint); color:var(--brand); }
+.tag--soon{ background:var(--wash); color:var(--muted); border:1px solid var(--line); }
+
+.notice{ border:1px solid var(--line); border-left:3px solid var(--brand);
+  border-radius:var(--radius-sm); background:var(--wash); padding:1.1rem 1.25rem; }
+.notice strong{ color:var(--ink); }
+.notice p{ margin:.35rem 0 0; font-size:.94rem; color:var(--body); }
+
+/* Pill chips */
+.pills{ display:flex; flex-wrap:wrap; gap:.6rem; margin-top:1.75rem; padding:0; list-style:none; }
+.pills li{ border:1px solid var(--line); border-radius:999px; padding:.5rem 1.05rem;
+  font-size:.9rem; font-weight:600; color:var(--ink); background:var(--surface); }
+
+/* Media panel — stands in for photography */
+.media{ border-radius:var(--radius); border:1px solid var(--line); overflow:hidden;
+  background:var(--wash); }
+.media__bar{ display:flex; align-items:center; gap:.4rem; padding:.7rem .9rem;
+  border-bottom:1px solid var(--line); background:var(--surface); }
+.media__dot{ width:.55rem; height:.55rem; border-radius:50%; background:var(--line); }
+.media__body{ padding:1.4rem; display:grid; gap:.9rem; }
+
+.review{ background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--radius-sm); padding:.95rem 1.1rem; }
+.review__top{ display:flex; align-items:center; justify-content:space-between; gap:1rem; }
+.review__who{ font-weight:700; font-size:.92rem; }
+.stars{ color:var(--star); font-size:.9rem; letter-spacing:.06em; }
+.review p{ margin:.4rem 0 0; font-size:.9rem; color:var(--body); }
+
+/* Score meter */
+.score{ display:flex; align-items:baseline; gap:.5rem; }
+.score__val{ font-size:2.6rem; font-weight:800; letter-spacing:-.03em; color:var(--ink); }
+.score__max{ color:var(--muted); font-weight:600; }
+.meter{ height:.5rem; border-radius:999px; background:var(--line); margin-top:.75rem; overflow:hidden; }
+.meter span{ display:block; height:100%; border-radius:999px; background:var(--brand); }
+
+.checklist{ list-style:none; margin:1.25rem 0 0; padding:0; display:grid; gap:.6rem;
+  font-size:.94rem; color:var(--body); }
+.checklist li{ display:flex; gap:.65rem; align-items:flex-start; }
+.checklist li::before{ content:"✓"; color:var(--brand); font-weight:800; flex-shrink:0; }
+/* A tag belongs to the sentence, not beside it. Wrapping the label and its tag
+   in one span makes them a single flex item, so the tag trails the last word
+   and wraps with it instead of being squeezed into its own column. */
+.checklist li > span{ min-width:0; }
+.checklist li.is-off::before{ content:"○"; color:var(--muted); font-weight:400; }
+
+/* Pricing ---------------------------------------------------------------- */
+.plan{ display:flex; flex-direction:column; }
+.plan--featured{ border-color:var(--brand); box-shadow:0 0 0 1px var(--brand); }
+.plan__badge{ display:inline-block; background:var(--tint); color:var(--brand);
+  font-size:.72rem; font-weight:800; letter-spacing:.09em; text-transform:uppercase;
+  border-radius:999px; padding:.25rem .7rem; margin-bottom:.8rem; align-self:flex-start; }
+.plan__price{ font-size:2.3rem; font-weight:800; letter-spacing:-.03em; }
+.plan__per{ color:var(--muted); font-weight:600; font-size:.95rem; }
+.plan .checklist{ flex:1; }
+.plan .btn{ margin-top:1.5rem; }
+
+/* Forms ------------------------------------------------------------------ */
+.form{ display:grid; gap:.8rem; }
+.form__row{ display:grid; gap:.8rem; }
+@media (min-width:520px){ .form__row--2{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+.field{ width:100%; padding:.75rem .95rem; border-radius:var(--radius-sm);
+  border:1px solid var(--line); background:var(--surface); color:var(--ink);
+  font:inherit; font-size:.95rem; }
+.field::placeholder{ color:var(--muted); }
+.field:focus-visible{ outline:2px solid var(--brand); outline-offset:1px; border-color:var(--brand); }
+textarea.field{ resize:vertical; min-height:5.5rem; }
+select.field{ appearance:none; background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+  background-position:calc(100% - 1.1rem) 1.15rem,calc(100% - .75rem) 1.15rem;
+  background-size:.36rem .36rem,.36rem .36rem; background-repeat:no-repeat; padding-right:2.5rem; }
+.form__note{ margin:0; font-size:.8rem; color:var(--muted); }
+.honeypot{ position:absolute; width:0; height:0; overflow:hidden; }
+
+/* Show-password toggle. Both the wrapper and the button are created by app.js,
+   so none of this applies unless the script ran -- which is the point: a reveal
+   button that cannot reveal anything should not be on the page at all. The
+   padding lives on .pw .field rather than .field so an ordinary text box keeps
+   its own spacing. */
+.pw{ position:relative; display:block; }
+.pw .field{ padding-right:2.9rem; }
+.pw__eye{ position:absolute; top:50%; right:.35rem; transform:translateY(-50%);
+  display:inline-flex; align-items:center; justify-content:center;
+  width:2.1rem; height:2.1rem; padding:0; border:0; border-radius:var(--radius-sm);
+  background:none; color:var(--muted); cursor:pointer; }
+.pw__eye:hover{ color:var(--ink); }
+.pw__eye[aria-pressed="true"]{ color:var(--brand); }
+.pw__eye .icon{ width:1.15rem; height:1.15rem; }
+.alert{ border-radius:var(--radius-sm); padding:.8rem 1rem; font-size:.9rem;
+  background:#fdecea; color:#9b2c1f; border:1px solid #f5c6c0; }
+
+/* FAQ -------------------------------------------------------------------- */
+.faq{ border-top:1px solid var(--line); }
+.faq details{ border-bottom:1px solid var(--line); padding:1.15rem 0; }
+.faq summary{ cursor:pointer; font-weight:700; color:var(--ink); list-style:none;
+  display:flex; justify-content:space-between; gap:1rem; align-items:center; }
+.faq summary::-webkit-details-marker{ display:none; }
+.faq summary::after{ content:"+"; color:var(--brand); font-weight:800; font-size:1.25rem; }
+.faq details[open] summary::after{ content:"–"; }
+.faq p{ margin:.75rem 0 0; color:var(--body); font-size:.95rem; max-width:52rem; }
+
+/* Footer ----------------------------------------------------------------- */
+/* ---- Membership band + footer ----------------------------------------- */
+/*
+ * These two carry their own colours rather than the theme's. They are dark in
+ * light mode and dark in dark mode, like the band they are modelled on, so
+ * var(--ink) and friends would invert them into a light block in dark mode and
+ * lose the separation from the page above. Every pair below was checked for
+ * contrast rather than eyeballed.
+ *
+ * --pm-deep is the brand hue taken most of the way to black, so the footer
+ * reads as this product's dark rather than as a generic one.
+ */
+.membership, .site-footer{
+  --pm-deep:  #071824;
+  --pm-deep2: #0c2435;
+  --pm-sky:   #7fd2f7;
+  --pm-dim:   #9fb3c4;
+}
+
+/* Nothing in this gradient is lighter than #0a4f87. The first version ran up
+   to the full brand blue, where 85% white text measured 4.05:1 and the small
+   sky-blue eyebrow 3.25:1 -- both below AA. Same hue, held darker. */
+.membership{ background:linear-gradient(160deg, #073f6b 0%, #0a4f87 55%, #06375d 100%);
+  color:#fff; padding-block:4rem; }
+.membership__eyebrow{ margin:0 0 .9rem; font-size:.72rem; font-weight:800;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--pm-sky); }
+.membership__title{ margin:0; font-size:clamp(1.65rem, 3.4vw, 2.5rem); line-height:1.15;
+  letter-spacing:-.02em; color:#fff; max-width:22ch; }
+.membership__accent{ color:var(--pm-sky); }
+.membership__lead{ margin:1rem 0 0; max-width:46rem; font-size:1rem; line-height:1.6;
+  color:rgba(255,255,255,.90); }
+
+.membership__act{ display:flex; flex-wrap:wrap; align-items:center; gap:.9rem 1.4rem;
+  margin-top:1.75rem; }
+/* White on blue: the page's own primary button is blue and would vanish. */
+.membership .btn--primary{ background:#fff; color:#06395f; border-color:#fff; }
+.membership .btn--primary:hover{ background:var(--pm-sky); border-color:var(--pm-sky);
+  color:#06293f; }
+.membership__already{ font-size:.92rem; color:rgba(255,255,255,.90); }
+.membership__already a{ color:#fff; font-weight:700; }
+
+.membership__promises{ list-style:none; display:flex; flex-wrap:wrap; gap:.5rem 1.5rem;
+  margin:1.5rem 0 0; padding:0; font-size:.88rem; color:rgba(255,255,255,.95); }
+.membership__promises li{ display:inline-flex; align-items:center; gap:.4rem; }
+.membership__promises .icon{ width:16px; height:16px; color:var(--pm-sky); flex:none; }
+
+.membership__label{ margin:2.75rem 0 1rem; font-size:.72rem; font-weight:800;
+  letter-spacing:.14em; text-transform:uppercase; color:rgba(255,255,255,.85); }
+
+.membership__grid{ display:grid; gap:.8rem; }
+@media (min-width:640px){ .membership__grid{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (min-width:980px){ .membership__grid{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+
+.tout{ display:flex; gap:.8rem; padding:.95rem 1rem; border-radius:12px;
+  background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14);
+  text-decoration:none; color:inherit; }
+a.tout:hover{ background:rgba(255,255,255,.15); border-color:rgba(255,255,255,.3); }
+/* The one you are already on is stated, not sold. */
+.tout--here{ background:rgba(255,255,255,.17); border-color:var(--pm-sky); }
+.tout__icon{ flex:none; display:flex; align-items:center; justify-content:center;
+  width:34px; height:34px; border-radius:9px; background:rgba(255,255,255,.16); }
+.tout__icon .icon{ width:18px; height:18px; color:#fff; }
+.tout__body{ display:flex; flex-direction:column; gap:.1rem; min-width:0; }
+.tout__name{ font-weight:700; font-size:.95rem; color:#fff;
+  display:flex; flex-wrap:wrap; align-items:center; gap:.45rem; }
+.tout__here{ font-size:.62rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase;
+  padding:.12rem .4rem; border-radius:999px; background:var(--pm-sky); color:#06293f; }
+.tout__by{ font-size:.72rem; font-weight:600; color:rgba(255,255,255,.78); }
+.tout__what{ margin-top:.2rem; font-size:.84rem; line-height:1.45;
+  color:rgba(255,255,255,.88); }
+
+/* ---- The footer proper ------------------------------------------------- */
+.site-footer{ background:var(--pm-deep); color:var(--pm-dim); padding-block:3.25rem 2rem; }
+.site-footer__top{ display:grid; gap:2.25rem; }
+@media (min-width:760px){
+  .site-footer__top{ grid-template-columns:minmax(0,1.6fr) repeat(4, minmax(0,1fr)); gap:2rem; }
+}
+.site-footer__brand p{ max-width:30rem; margin:1rem 0 0; font-size:.88rem; line-height:1.6;
+  color:var(--pm-dim); }
+/* The logo is dark-on-light everywhere else, so it needs its own colours here
+   or "Promo" disappears into the background. */
+.site-footer .logo{ color:#fff; }
+.site-footer .logo__accent{ color:var(--pm-sky); }
+.site-footer .logo__by{ color:rgba(255,255,255,.6); }
+
+.site-footer__col{ display:flex; flex-direction:column; gap:.55rem; }
+.site-footer__col h2{ margin:0 0 .3rem; font-size:.72rem; font-weight:800;
+  letter-spacing:.1em; text-transform:uppercase; color:#fff; }
+.site-footer__col a{ font-size:.88rem; color:var(--pm-dim); text-decoration:none; }
+.site-footer__col a:hover{ color:#fff; text-decoration:underline; }
+
+.site-footer__legal{ display:flex; flex-wrap:wrap; justify-content:space-between;
+  gap:.5rem 2rem; margin-top:2.75rem; padding-top:1.5rem;
+  border-top:1px solid rgba(255,255,255,.12); font-size:.78rem; color:rgba(255,255,255,.7); }
+.site-footer__legal span:last-child{ max-width:42rem; }
+
+.sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+a:focus-visible, button:focus-visible, summary:focus-visible{
+  outline:2px solid var(--brand); outline-offset:2px; border-radius:4px; }
+
+/* Admin ------------------------------------------------------------------ */
+/* The members area is a sidebar and a page, not a header and a page.
+
+   What it replaces: a header, a row of eight links that scrolled sideways,
+   and three plan cards above every page. Eight links in a row means the last
+   three are off the edge of a phone and behind a drag on a laptop -- the two
+   screens most used, "Your playbook" and "Settings", were the two hardest to
+   reach. A column shows all eight at once, with room for an icon and for the
+   grouping that says which half of the product you are in.
+
+   No JavaScript: the members area loads no script at all, and a menu that
+   needs one is a menu that is shut when the script fails. Below 1000px the
+   same markup becomes a bar across the top, with the links wrapped onto two
+   or three rows rather than scrolled sideways -- the whole point was to stop
+   hiding half of them, and a scrolling row on a phone hides exactly the same
+   three the old header did. */
+body.members{ background:var(--wash); }
+
+.shell{ min-height:100vh; }
+.shell__main{ min-width:0; }
+.shell__inner{ width:100%; max-width:66rem; margin-inline:auto;
+  padding:1.5rem 1.25rem 4rem; }
+
+@media (min-width:1000px){
+  .shell{ display:grid; grid-template-columns:17rem minmax(0,1fr); }
+  .shell__inner{ padding:2rem 2.25rem 4.5rem; }
+
+  /* The sidebar is 100vh and sticky, so on a long page its own background
+     stops one screen down and the column below it shows the page's wash --
+     a white panel floating in a blue-grey gutter. This paints the column
+     itself, for the full height of whichever side is taller, and draws the
+     dividing line in the same stroke. */
+  .shell{ background-image:linear-gradient(to right,
+      var(--surface) 0 17rem,
+      var(--line) 17rem calc(17rem + 1px),
+      transparent calc(17rem + 1px)); }
+}
+
+/* ---- The sidebar ------------------------------------------------------- */
+.side{ display:flex; flex-direction:column; gap:.2rem;
+  background:var(--surface); border-bottom:1px solid var(--line);
+  padding:.9rem 1rem 1rem; }
+
+@media (min-width:1000px){
+  /* No border-right: the column's own gradient below draws that line, for
+     the full height of the page. Both at once put two 1px strokes a pixel
+     apart, which reads as a seam where the sticky panel ends. */
+  .side{ position:sticky; top:0; height:100vh; gap:.35rem;
+    border-bottom:0; background:transparent;
+    padding:1.25rem 1rem 1rem; }
+  /* The nav scrolls, the brand, the plan and the signed-in row do not. A
+     sidebar where the way out scrolls off the bottom is a sidebar with no way
+     out on a short window. */
+  .side__scroll{ flex:1 1 auto; overflow-y:auto; min-height:0;
+    margin-inline:-.25rem; padding-inline:.25rem; }
+}
+
+.side__brand{ padding:.1rem .25rem .25rem; }
+.side__brand .logo{ font-size:1.05rem; }
+
+/* The one primary action on the page, and it is what the product is for. */
+.side__cta{ display:flex; align-items:center; justify-content:center; gap:.5rem;
+  margin:.75rem 0 1rem; padding:.7rem .9rem; border-radius:10px;
+  background:var(--brand); color:#fff; font-weight:700; font-size:.92rem;
+  text-decoration:none; }
+.side__cta:hover{ background:var(--brand-hover); color:#fff; }
+.side__cta .icon{ width:1.05rem; height:1.05rem; }
+/* In dark mode --brand is a light blue and white on it is 1.98:1. The mark
+   cannot follow the scheme, so the label has to -- the same trick .btn--primary
+   already uses. */
+
+.side__group{ margin:.9rem .55rem .3rem; font-size:.68rem; font-weight:800;
+  letter-spacing:.09em; text-transform:uppercase; color:var(--muted); }
+.side__group:first-of-type{ margin-top:0; }
+
+.side__nav{ display:flex; flex-direction:column; gap:.1rem; }
+.side__link{ display:flex; align-items:center; gap:.6rem;
+  padding:.52rem .55rem; border-radius:9px; font-size:.91rem; font-weight:500;
+  color:var(--body); text-decoration:none; }
+.side__link .icon{ width:1.05rem; height:1.05rem; flex:0 0 auto; color:var(--muted); }
+.side__link:hover{ background:var(--wash); color:var(--ink); }
+.side__link:hover .icon{ color:var(--brand); }
+.side__link.is-here{ background:var(--tint); color:var(--brand); font-weight:700; }
+.side__link.is-here .icon{ color:var(--brand); }
+
+/* ---- Plan and allowance ------------------------------------------------ */
+/* The only selling on the page, and it is a number rather than a pitch:
+   "3 / 5" is a reason to do something, where "Free plan" on its own is a
+   label. It is the same count the sender enforces, from the same source, so
+   the figure here and the figure that blocks a send cannot disagree. */
+.side__plan{ margin-top:1rem; padding:.8rem .85rem .85rem; border-radius:11px;
+  background:var(--tint-2); border:1px solid var(--line-2); }
+.side__planhead{ display:flex; align-items:baseline; justify-content:space-between;
+  gap:.5rem; }
+.side__planhead strong{ font-size:.92rem; color:var(--ink); }
+.side__planhead span{ font-size:.82rem; font-weight:700; color:var(--brand);
+  font-variant-numeric:tabular-nums; }
+.side__meter{ height:5px; margin:.5rem 0 .45rem; border-radius:999px;
+  background:var(--line); overflow:hidden; }
+.side__meter span{ display:block; height:100%; border-radius:999px;
+  background:var(--brand); }
+.side__plan p{ margin:0; font-size:.78rem; color:var(--muted); line-height:1.35; }
+.side__plan a{ display:inline-block; margin-top:.5rem; font-size:.8rem;
+  font-weight:700; color:var(--brand); }
+
+/* ---- Who is signed in -------------------------------------------------- */
+.side__me{ display:flex; align-items:center; gap:.55rem; margin-top:.85rem;
+  padding-top:.85rem; border-top:1px solid var(--line); }
+.side__avatar{ flex:0 0 auto; width:2rem; height:2rem; border-radius:50%;
+  display:grid; place-items:center; background:var(--brand); color:#fff;
+  font-weight:800; font-size:.85rem; }
+.side__who{ min-width:0; display:flex; flex-direction:column; line-height:1.25; }
+.side__who strong{ font-size:.85rem; color:var(--ink);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.side__who span{ font-size:.74rem; color:var(--muted);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.side__me form{ margin:0 0 0 auto; }
+.side__me button{ background:none; border:0; padding:.2rem; cursor:pointer;
+  font:inherit; font-size:.76rem; font-weight:700; color:var(--brand);
+  white-space:nowrap; }
+.side__me button:hover{ color:var(--brand-hover); text-decoration:underline; }
+
+/* ---- The same sidebar, across the top of a phone ----------------------- */
+@media (max-width:999px){
+  .side__cta{ margin:.6rem 0 .5rem; }
+  /* Headings off: two words of label above two rows of links is most of a
+     phone screen spent on furniture. */
+  .side__group{ display:none; }
+  /* Wrapped, not scrolled. Eight links in a row that scrolls means the last
+     three are off the edge, which is the bug this layout exists to fix. Two
+     or three short rows cost about 90px and hide nothing. */
+  .side__scroll{ display:flex; flex-wrap:wrap; gap:.3rem; }
+  .side__nav{ flex-direction:row; flex-wrap:wrap; gap:.3rem; }
+  .side__link{ white-space:nowrap; padding:.42rem .7rem;
+    border:1px solid var(--line); border-radius:999px; font-size:.86rem; }
+  .side__link.is-here{ border-color:var(--brand); }
+  /* The allowance keeps its number and loses its bar and its caption: the
+     figure is the part that matters and it fits on one line beside the plan. */
+  .side__plan{ display:flex; align-items:center; gap:.6rem;
+    margin-top:.55rem; padding:.55rem .75rem; }
+  .side__plan .side__meter, .side__plan p{ display:none; }
+  .side__planhead{ gap:.45rem; }
+  .side__plan a{ margin:0 0 0 auto; }
+  .side__me{ margin-top:.55rem; padding-top:.6rem; }
+}
+/* ---- The band at the top of the dashboard ------------------------------ */
+/* Whose account, what plan, how much is set up -- before anything has to be
+   read. The dashboard used to open with a price list and put its heading a
+   third of the way down.
+
+   The gradient stops short of full --brand on purpose: at #006cb8 the pill
+   text measured 4.05:1 and the eyebrow 3.25:1, both under AA. Capping the
+   lightest stop at #0a4f87 brings the worst pair on the band to 5.14:1. */
+.hello{ display:flex; flex-wrap:wrap; align-items:flex-end; gap:1.25rem;
+  justify-content:space-between; margin-bottom:1.75rem;
+  padding:1.5rem 1.6rem 1.6rem; border-radius:16px; color:#fff;
+  background:linear-gradient(135deg,#0a4f87,#083b66 55%,#062c4d); }
+.hello__text{ min-width:min(100%,19rem); }
+.hello__eyebrow{ margin:0 0 .4rem; font-size:.7rem; font-weight:800;
+  letter-spacing:.11em; text-transform:uppercase; color:#b7dcf5; }
+.hello__h{ margin:0; font-size:1.65rem; color:#fff; letter-spacing:-.025em; }
+.hello__sub{ margin:.4rem 0 0; font-size:.93rem; color:#d6e9f7; }
+.hello__sub strong{ color:#fff; font-weight:700; }
+
+.hello__pills{ list-style:none; display:flex; flex-wrap:wrap; gap:.45rem;
+  margin:1.05rem 0 0; padding:0; }
+.hello__pills li{ display:flex; align-items:baseline; gap:.4rem;
+  padding:.3rem .7rem; border-radius:999px; font-size:.8rem;
+  background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.22); }
+.hello__pills span{ color:#dceaf6; }
+.hello__pills strong{ color:#fff; font-weight:700; }
+
+.hello__acts{ display:flex; flex-wrap:wrap; gap:.55rem; }
+.hello__btn{ display:inline-flex; align-items:center; padding:.6rem 1rem;
+  border-radius:9px; font-size:.88rem; font-weight:700; text-decoration:none;
+  color:#fff; background:rgba(255,255,255,.14);
+  border:1px solid rgba(255,255,255,.3); }
+.hello__btn:hover{ background:rgba(255,255,255,.22); color:#fff; }
+/* White on the dark band, and it stays white in dark mode: the band sets its
+   own background, so it does not follow the scheme. */
+.hello__btn--solid{ background:#fff; color:#0a4f87; border-color:#fff; }
+.hello__btn--solid:hover{ background:#e8f3fb; color:#083b66; }
+
+@media (max-width:620px){
+  .hello{ padding:1.25rem 1.1rem 1.3rem; border-radius:14px; }
+  .hello__h{ font-size:1.35rem; }
+  .hello__acts{ width:100%; }
+  .hello__btn{ flex:1 1 auto; justify-content:center; }
+}
+
+/* ---- Header and link row: superadmin only ------------------------------ */
+/* The members area no longer uses these -- it is the sidebar above. The
+   superadmin screens still do, and they are not a shop window, so they keep
+   the plain header. Deleting these rules with the members header is how the
+   staff screens lose their nav without anybody noticing for a month. */
+.admin-header{ border-bottom:1px solid var(--line); background:var(--surface); }
+.admin-header__top{ display:flex; align-items:center; justify-content:space-between;
+  gap:1rem; height:3.75rem; }
+.admin-header__who{ display:flex; align-items:center; gap:.9rem; font-size:.88rem; color:var(--body); }
+.admin-nav{ display:flex; gap:.15rem; overflow-x:auto; font-size:.9rem;
+  border-top:1px solid var(--line); padding:.4rem 0; }
+.admin-nav a{ white-space:nowrap; padding:.45rem .8rem; border-radius:var(--radius-sm);
+  color:var(--body); text-decoration:none; font-weight:500; }
+.admin-nav a:hover{ background:var(--wash); color:var(--ink); }
+.admin-nav a[aria-current="page"]{ background:var(--tint); color:var(--brand); font-weight:700; }
+
+.admin-main{ padding-block:2rem 4rem; }
+.admin-title{ display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between;
+  gap:1rem; margin-bottom:1.5rem; }
+.admin-title h1{ font-size:1.6rem; }
+
+.stat-grid{ display:grid; gap:1rem; grid-template-columns:repeat(2,minmax(0,1fr)); }
+@media (min-width:820px){ .stat-grid{ grid-template-columns:repeat(4,minmax(0,1fr)); } }
+.stat-card{ border:1px solid var(--line); border-radius:var(--radius); background:var(--surface);
+  padding:1.1rem 1.25rem; }
+.stat-card__v{ font-size:1.9rem; font-weight:800; letter-spacing:-.03em; }
+.stat-card__l{ font-size:.82rem; color:var(--muted); margin-top:.15rem; }
+/* The hint under the label. It had no rule at all, so it rendered at body
+   size in full ink -- louder than the label it explains. */
+.stat-card__h{ font-size:.76rem; color:var(--body); margin-top:.35rem; line-height:1.4; }
+
+/* position:relative is load-bearing, not decoration.
+   overflow-x:auto makes this a scroll container, but it only clips descendants
+   whose containing block is inside it. A position:absolute child of a static
+   wrapper resolves against the page instead, so it lands at its static offset
+   in PAGE coordinates -- for a 1px .sr-only label in the last column of a
+   704px table on a 390px screen, that is x=603, outside the viewport, and it
+   drags the whole document 214px wide. Giving the wrapper a containing block
+   fixes it for every table at once. */
+.table-wrap{ border:1px solid var(--line); border-radius:var(--radius);
+  background:var(--surface); overflow-x:auto; position:relative; }
+table.data{ width:100%; border-collapse:collapse; font-size:.9rem; min-width:44rem; }
+table.data th{ text-align:left; font-size:.7rem; text-transform:uppercase; letter-spacing:.09em;
+  color:var(--muted); padding:.7rem .9rem; border-bottom:1px solid var(--line); font-weight:700; }
+table.data td{ padding:.75rem .9rem; border-bottom:1px solid var(--line); vertical-align:top; }
+table.data tr:last-child td{ border-bottom:0; }
+table.data td.wrap{ white-space:normal; max-width:22rem; }
+
+.pill-status{ display:inline-block; font-size:.7rem; font-weight:800; letter-spacing:.05em;
+  text-transform:uppercase; border-radius:999px; padding:.2rem .55rem; white-space:nowrap; }
+.st-new{ background:var(--tint); color:var(--brand); }
+.st-in_progress,.st-contacted{ background:#fff4e0; color:#8a5a12; }
+.st-delivered{ background:#eef0f3; color:#455260; }
+.st-converted,.st-approved{ background:#e3f3ec; color:#0b6b5b; }
+.st-declined{ background:#fbe6da; color:#a34a12; }
+
+.row-form{ display:flex; flex-wrap:wrap; gap:.4rem; align-items:center; }
+.row-form select, .row-form input[type=text]{ padding:.4rem .55rem; font-size:.84rem;
+  border:1px solid var(--line); border-radius:6px; background:var(--surface); color:var(--ink); font-family:inherit; }
+.row-form input[type=text]{ min-width:11rem; }
+.row-form button{ padding:.42rem .8rem; font-size:.82rem; font-weight:700; border-radius:6px;
+  border:1px solid transparent; background:var(--brand); color:#fff; cursor:pointer; font-family:inherit; }
+.row-form button:hover{ background:var(--brand-hover); }
+
+.filters{ display:flex; flex-wrap:wrap; gap:.4rem; margin-bottom:1.1rem; }
+.filters a{ font-size:.82rem; font-weight:600; padding:.35rem .75rem; border-radius:999px;
+  border:1px solid var(--line); color:var(--body); text-decoration:none; background:var(--surface); }
+.filters a[aria-current="page"]{ background:var(--brand); border-color:var(--brand); color:#fff; }
+/* The count beside a filter. It is the useful half of the tab -- "Pro 0" saves
+   a click that "Pro" does not. Inherits colour so it stays legible when the
+   tab is the selected one and has gone brand-blue underneath. */
+.filters__n{ display:inline-block; margin-left:.35rem; padding:0 .4rem;
+  border-radius:999px; background:rgba(0,0,0,.07); color:inherit;
+  font-size:.74rem; font-variant-numeric:tabular-nums; }
+.filters a[aria-current="page"] .filters__n{ background:rgba(255,255,255,.22); }
+
+/* Handing an account back by hand. Loud on purpose: it is shown once, and
+   somebody has to read it out correctly down a phone line. */
+.handover{ border:1px solid var(--line); border-left:3px solid var(--good);
+  background:var(--surface); border-radius:var(--radius-sm);
+  padding:1rem 1.15rem; margin-bottom:1.5rem; }
+.handover strong{ color:var(--ink); }
+.handover p{ margin:.4rem 0 0; font-size:.9rem; color:var(--body); }
+.handover__code{ margin:.65rem 0 .5rem !important; }
+.handover__code code{ display:inline-block; font-family:var(--mono);
+  font-size:1.35rem; font-weight:700; letter-spacing:.06em; color:var(--ink);
+  background:var(--wash); border:1px solid var(--line); border-radius:var(--radius-sm);
+  padding:.5rem .8rem; user-select:all; }
+.handover__warn{ color:var(--muted) !important; font-size:.82rem !important; }
+
+/* A submit button that reads as a link. For a row action that is a verb rather
+   than a destination -- it has to POST, so it cannot be an <a>.
+
+   Qualified with .row-form because .row-form button above is a full primary
+   button (0,1,1) and would otherwise win on specificity, which is exactly what
+   it did: a loud blue button with an underline through it, shouting over the
+   plan control it sits next to. */
+.row-form button.linkish{ background:none; border:0; padding:0; font:inherit;
+  font-size:.78rem; font-weight:600; color:var(--brand); cursor:pointer;
+  text-decoration:underline; }
+.row-form button.linkish:hover{ background:none; color:var(--brand-hover); }
+
+/* Hosted reviews ---------------------------------------------------------- */
+.stars{ letter-spacing:.06em; white-space:nowrap; }
+.stars__s{ color:var(--line); }
+.stars__s.is-on{ color:var(--star); }
+.rev-summary{ display:flex; align-items:center; gap:.55rem; flex-wrap:wrap;
+  margin:0 0 2rem; color:var(--body); }
+.rev-summary strong{ font-size:1.25rem; color:var(--ink); }
+
+.rev{ border-top:1px solid var(--line); padding:1.1rem 0; }
+.rev:first-of-type{ border-top:0; }
+.card .rev{ border-top:0; padding:0; }
+.rev__head{ display:flex; align-items:center; gap:.55rem; flex-wrap:wrap; margin-bottom:.45rem; }
+.rev__who{ color:var(--ink); }
+.rev__city{ color:var(--muted); font-size:.86rem; }
+.rev__when{ margin-left:auto; color:var(--muted); font-size:.82rem; }
+.rev__body{ margin:0; color:var(--body); }
+.rev__source{ margin:.5rem 0 0; font-size:.8rem; color:var(--muted); }
+.rev__source a{ color:var(--brand); }
+.rev__reply{ margin-top:.75rem; padding-left:.85rem; border-left:3px solid var(--line); }
+.rev__reply strong{ font-size:.86rem; color:var(--ink); }
+.rev__reply p{ margin:.2rem 0 0; font-size:.92rem; color:var(--body); }
+
+/* A letter, not Google's logo: their mark on a third-party page implies an
+   endorsement nobody gave, and their brand rules do not allow it. */
+.rev__badge{ display:inline-block; min-width:1.15rem; padding:0 .45rem; border-radius:99px;
+  font-size:.68rem; font-weight:800; letter-spacing:.04em; line-height:1.5rem; height:1.5rem;
+  text-align:center; background:#e3f3ec; color:#0b6b5b; }
+.rev__badge--g{ background:var(--wash); color:var(--body); border:1px solid var(--line);
+  font-family:var(--mono); font-size:.8rem; }
+
+.rating-pick{ border:0; padding:0; margin:0 0 .3rem; }
+.rating-pick legend{ font-size:.9rem; font-weight:600; color:var(--ink); padding:0; margin:0 0 .5rem; }
+.rating-pick label{ display:flex; align-items:center; gap:.6rem; padding:.3rem 0;
+  font-weight:400; font-size:.95rem; cursor:pointer; }
+.rating-pick__word{ color:var(--muted); font-size:.88rem; }
+
+.flash{ border:1px solid #a6d3c6; background:#e3f3ec; color:#0b6b5b; border-radius:var(--radius-sm);
+  padding:.7rem 1rem; font-size:.88rem; margin-bottom:1.25rem; font-weight:600; }
+
+.empty{ padding:2.5rem 1.25rem; text-align:center; color:var(--muted); font-size:.92rem; }
+
+.login-wrap{ min-height:100vh; display:flex; align-items:center; justify-content:center;
+  padding:2rem 1.25rem; background:var(--wash); }
+.login-card{ width:100%; max-width:24rem; background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--radius); padding:2rem; }
+.login-card h1{ font-size:1.3rem; margin-bottom:.35rem; }
+.login-card .logo{ margin-bottom:1.5rem; }
+
+/* --- Signup: plan picker ------------------------------------------------- */
+/* Radio-driven cards. The input stays in the DOM (and focusable) rather than
+   display:none, so keyboard and screen-reader users get a real radio group. */
+.plan-picker{ border:0; padding:0; margin:0 0 1.75rem; }
+.plan-picker legend{ font-weight:700; color:var(--ink); font-size:1rem;
+  padding:0; margin:0 0 .85rem; }
+.plan-picker__grid{ display:grid; gap:.85rem; }
+@media (min-width:720px){ .plan-picker__grid{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+
+.plan-option{ position:relative; display:block; cursor:pointer;
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+  padding:1.1rem 1.1rem 1.25rem; transition:border-color .12s, box-shadow .12s; }
+.plan-option:hover{ border-color:var(--brand); }
+.plan-option input{ position:absolute; top:1.1rem; right:1.1rem; accent-color:var(--brand);
+  width:1.05rem; height:1.05rem; margin:0; }
+.plan-option:has(input:checked){ border-color:var(--brand); box-shadow:0 0 0 2px var(--brand) inset; }
+.plan-option:has(input:focus-visible){ outline:2px solid var(--brand); outline-offset:2px; }
+/* :has() is widely supported, but the server also marks the chosen card so the
+   selection is never invisible if it is not. */
+.plan-option.is-selected{ border-color:var(--brand); }
+
+.plan-option__head{ display:block; padding-right:1.75rem; }
+.plan-option__name{ display:block; font-weight:700; color:var(--ink); font-size:1.05rem; }
+.plan-option__price{ display:block; font-size:1.55rem; font-weight:800; color:var(--ink);
+  line-height:1.2; margin-top:.15rem; }
+.plan-option__price small{ font-size:.8rem; font-weight:600; color:var(--muted); }
+.plan-option__blurb{ display:block; margin:.5rem 0 0; font-size:.86rem;
+  color:var(--body); line-height:1.5; }
+.plan-option .checklist{ margin-top:.85rem; gap:.4rem; }
+.checklist--sm li{ font-size:.82rem; }
+
+/* Terms checkbox: the label wraps the control, so the whole line is clickable. */
+/* The three reassurances above the signup form. The objections a small
+   business owner has before typing anything are "what will this cost me" and
+   "are you about to ask for my card", so they are answered before the first
+   field rather than in small print under the button. */
+.signup-facts{ list-style:none; margin:1.75rem 0 0; padding:0;
+  display:flex; flex-wrap:wrap; justify-content:center; gap:.65rem 1.5rem; }
+.signup-facts li{ display:inline-flex; align-items:flex-start; gap:.45rem;
+  font-size:.92rem; font-weight:600; color:var(--ink); }
+/* flex-start with a nudge, not center: on a narrow screen a fact wraps to two
+   lines and a centred tick floats between them instead of marking where the
+   line starts. */
+.signup-facts .icon{ width:1.05rem; height:1.05rem; color:var(--good);
+  stroke-width:2.6; flex-shrink:0; margin-top:.15rem; }
+
+.consent{ display:flex; gap:.65rem; align-items:flex-start; font-size:.88rem;
+  color:var(--body); margin:.35rem 0 .25rem; cursor:pointer; }
+.consent input{ margin:.2rem 0 0; accent-color:var(--brand); flex-shrink:0;
+  width:1rem; height:1rem; }
+.consent a{ color:var(--brand); font-weight:600; }
+
+/* --- Get reviews: the two-step screen ------------------------------------ */
+.step-head{ display:flex; gap:.9rem; align-items:flex-start; }
+.step-head__n{ flex-shrink:0; width:2rem; height:2rem; border-radius:50%;
+  display:inline-flex; align-items:center; justify-content:center;
+  background:var(--tint); color:var(--brand); font-weight:800; font-size:.9rem; }
+.step-head__n .icon{ width:1.1rem; height:1.1rem; stroke-width:2.6; color:var(--good); }
+/* A step that cannot be used yet is dimmed rather than hidden: seeing what
+   comes next is what makes the step you are on feel worth finishing. */
+.card.is-waiting{ opacity:.6; }
+
+.review-link{ display:flex; align-items:center; flex-wrap:wrap; gap:.5rem;
+  margin:1.1rem 0 0; padding:.7rem .9rem; border-radius:var(--radius-sm);
+  background:var(--wash); border:1px solid var(--line); font-size:.9rem; }
+.review-link .icon{ width:1.05rem; height:1.05rem; color:var(--star); flex-shrink:0; }
+.review-link a{ color:var(--brand); font-weight:600; word-break:break-all; }
+
+.link-summary{ cursor:pointer; font-weight:600; color:var(--brand); font-size:.92rem; }
+.link-summary::marker{ color:var(--muted); }
+
+.how-to{ margin:1rem 0 0; padding-left:1.25rem; font-size:.92rem;
+  color:var(--body); line-height:1.6; }
+/* The example URLs are longer than a phone is wide, and a <code> run will not
+   break on its own -- it pushed the whole page 17px sideways at 390. */
+code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
+  background:var(--wash); border:1px solid var(--line); border-radius:5px;
+  padding:.05em .3em; }
+.how-to li{ margin-bottom:.35rem; }
+.how-to strong{ color:var(--ink); }
+
+/* Status pills for the request states the sender produces. */
+.st-queued,.st-scheduled{ background:var(--wash); color:var(--muted); border:1px solid var(--line); }
+.st-sent{ background:var(--tint); color:var(--brand); }
+.st-clicked,.st-review_detected{ background:#e3f3ec; color:#0b6b5b; }
+.st-failed,.st-cancelled{ background:#fbe6da; color:#a34a12; }
+
+/* Current-plan strip in the members area. */
+.plan-strip{ display:flex; flex-wrap:wrap; gap:1rem; align-items:center;
+  justify-content:space-between; background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--radius); padding:1.1rem 1.25rem; }
+.plan-strip__now{ font-size:1.15rem; font-weight:800; color:var(--ink); }
+.plan-strip__meta{ margin:.2rem 0 0; font-size:.86rem; color:var(--muted); }
+
+/* ========================================================================
+   Long-form landing page components
+   ======================================================================== */
+
+/* --- Accent ticker strip, used as a section divider ---------------------- */
+.ticker{ background:var(--brand); color:#fff; overflow:hidden;
+  padding:.65rem 0; position:relative; }
+.ticker__track{ display:flex; width:max-content; gap:0;
+  animation:ticker-scroll 38s linear infinite; }
+.ticker:hover .ticker__track{ animation-play-state:paused; }
+.ticker__group{ display:flex; gap:0; flex-shrink:0; }
+.ticker span{ display:inline-flex; align-items:center; gap:.7rem;
+  padding:0 1.4rem; font-size:.8rem; font-weight:700; letter-spacing:.04em;
+  text-transform:uppercase; white-space:nowrap; }
+.ticker span::after{ content:"★"; color:#fff; opacity:.55; font-size:.7rem; }
+@keyframes ticker-scroll{ from{ transform:translateX(0); } to{ transform:translateX(-50%); } }
+@media (prefers-reduced-motion: reduce){
+  /* Stop the marquee outright: a slowed one still moves, and movement is the
+     thing being opted out of. */
+  .ticker__track{ animation:none; width:100%; justify-content:center;
+    flex-wrap:wrap; gap:.5rem 0; }
+  .ticker__group:nth-child(2){ display:none; }
+}
+
+/* --- Big display headline with an accent phrase -------------------------- */
+.display{ font-size:clamp(2rem,5.2vw,3.4rem); line-height:1.08; letter-spacing:-.025em;
+  font-weight:800; margin:0 0 1rem; color:var(--ink); }
+.display em{ font-style:normal; color:var(--brand); }
+.display--tight{ max-width:24ch; }
+
+/* --- Benefit strip: small icon + label, in a row ------------------------- */
+.benefits{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:.25rem; border:1px solid var(--line); border-radius:var(--radius);
+  background:var(--surface); overflow:hidden; }
+@media (min-width:700px){ .benefits{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media (min-width:1000px){ .benefits{ grid-template-columns:repeat(6,minmax(0,1fr)); } }
+.benefit{ display:flex; flex-direction:column; align-items:center; gap:.5rem;
+  text-align:center; padding:1.35rem .85rem; position:relative; }
+.benefit + .benefit::before{ content:""; position:absolute; left:0; top:18%; bottom:18%;
+  width:1px; background:var(--line); }
+@media (max-width:999px){ .benefit + .benefit::before{ display:none; } }
+.benefit svg{ width:1.5rem; height:1.5rem; color:var(--brand); }
+.benefit strong{ font-size:.84rem; color:var(--ink); line-height:1.3; }
+.benefit span{ font-size:.74rem; color:var(--muted); }
+
+/* ========================================================================
+   The close — dark band at the foot of the home page
+   Dark in both colour schemes, so the colours here are literal, not tokens.
+   Measured against the WORST case, not the darkest: the light stop of the
+   gradient (#0e2a45) with the cyan glow at .16 and the card wash at .06 on
+   top of it. Against that background: white 8.6:1, --cb-body 5.0:1,
+   --cb-accent 5.1:1. The button is dark ink on the accent fill, 8.4:1.
+   ======================================================================== */
+.close-band{
+  --cb-body:#b6c9db;
+  --cb-accent:#7dd3fc;
+  --cb-line:rgba(255,255,255,.13);
+  --cb-wash:rgba(255,255,255,.06);
+  position:relative; overflow:hidden; color:var(--cb-body);
+  background:
+    radial-gradient(900px 460px at 18% 14%, rgba(56,189,248,.16), transparent 60%),
+    radial-gradient(820px 480px at 88% 88%, rgba(0,108,184,.26), transparent 66%),
+    linear-gradient(200deg, #0a1a2b 0%, #0e2a45 55%, #081726 100%);
+}
+
+/* --- Head ---------------------------------------------------------------- */
+.close-head{ max-width:44rem; margin-inline:auto; text-align:center; }
+
+.close-tag{ display:inline-flex; align-items:center; gap:.5rem; margin:0 0 1.25rem;
+  padding:.45rem 1rem; border-radius:999px;
+  background:rgba(56,189,248,.13); border:1px solid rgba(125,211,252,.34);
+  color:var(--cb-accent); font-size:.74rem; font-weight:800;
+  letter-spacing:.11em; text-transform:uppercase; }
+.close-tag .icon{ width:.95rem; height:.95rem; }
+
+.close-title{ margin:0; color:#fff; font-weight:800; letter-spacing:-.025em;
+  font-size:clamp(2.1rem,5.4vw,3.5rem); line-height:1.06; }
+.close-title em{ font-style:normal; color:var(--cb-accent); white-space:nowrap; }
+
+.close-lede{ margin:1.35rem auto 0; max-width:38rem;
+  font-size:1.08rem; line-height:1.65; color:var(--cb-body); }
+
+/* --- The nine reasons ---------------------------------------------------- */
+.close-grid{ display:grid; gap:1rem; margin-top:3rem; }
+@media (min-width:680px){ .close-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (min-width:1000px){ .close-grid{ grid-template-columns:repeat(3,minmax(0,1fr)); gap:1.15rem; } }
+
+.close-card{ padding:1.6rem 1.5rem 1.65rem; border-radius:16px;
+  background:var(--cb-wash); border:1px solid var(--cb-line);
+  transition:border-color .16s, background-color .16s, transform .16s; }
+@media (prefers-reduced-motion: no-preference){
+  .close-card:hover{ transform:translateY(-3px); }
+}
+.close-card:hover{ border-color:rgba(125,211,252,.45); background:rgba(255,255,255,.085); }
+
+.close-card__tile{ display:inline-flex; align-items:center; justify-content:center;
+  width:2.7rem; height:2.7rem; margin-bottom:1rem; border-radius:12px;
+  background:rgba(56,189,248,.15); border:1px solid rgba(125,211,252,.30);
+  color:var(--cb-accent); }
+.close-card__tile .icon{ width:1.3rem; height:1.3rem; }
+
+.close-card h3{ margin:0 0 .45rem; color:#fff; font-size:1.04rem; line-height:1.35; }
+.close-card p{ margin:0; font-size:.93rem; line-height:1.62; color:var(--cb-body); }
+
+/* The free-tools card is the one that answers "what do I actually get", so it
+   is lit rather than left to look like the other eight. */
+.close-card--lead{ background:rgba(56,189,248,.12);
+  border-color:rgba(125,211,252,.58);
+  box-shadow:0 0 0 1px rgba(125,211,252,.20), 0 16px 38px rgba(0,0,0,.30); }
+.close-card--lead:hover{ background:rgba(56,189,248,.17);
+  border-color:rgba(125,211,252,.72); }
+.close-card--lead .close-card__tile{ background:rgba(56,189,248,.24);
+  border-color:rgba(125,211,252,.46); }
+
+/* --- The ask ------------------------------------------------------------- */
+.close-act{ max-width:46rem; margin:2.75rem auto 0; text-align:center; }
+
+.close-rule{ display:flex; gap:.9rem; align-items:flex-start; text-align:left;
+  margin:0 0 2.25rem; padding:1.15rem 1.35rem; border-radius:14px;
+  background:rgba(0,0,0,.22); border:1px solid var(--cb-line);
+  font-size:.92rem; line-height:1.6; color:var(--cb-body); }
+.close-rule .icon{ flex-shrink:0; width:1.4rem; height:1.4rem;
+  color:var(--cb-accent); margin-top:.1rem; }
+.close-rule strong{ color:#fff; }
+
+.close-btn{ display:inline-flex; align-items:center; justify-content:center; gap:.65rem;
+  padding:1.1rem 2.2rem; border-radius:12px; border:1px solid transparent;
+  background:#38bdf8; color:#081726;
+  font:inherit; font-size:1.06rem; font-weight:800; letter-spacing:-.01em;
+  text-decoration:none; cursor:pointer;
+  box-shadow:0 14px 34px rgba(56,189,248,.28);
+  transition:background-color .15s, box-shadow .15s, transform .15s; }
+.close-btn:hover{ background:#7dd3fc; box-shadow:0 18px 40px rgba(56,189,248,.36); }
+@media (prefers-reduced-motion: no-preference){
+  .close-btn:hover{ transform:translateY(-2px); }
+}
+.close-btn:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
+.close-btn .icon{ width:1.15rem; height:1.15rem; }
+
+.close-facts{ list-style:none; margin:1.5rem 0 0; padding:0;
+  display:flex; flex-wrap:wrap; justify-content:center; gap:.6rem 1.6rem; }
+.close-facts li{ display:inline-flex; align-items:center; gap:.45rem;
+  font-size:.86rem; font-weight:600; color:var(--cb-body); }
+.close-facts .icon{ width:1rem; height:1rem; color:var(--cb-accent); stroke-width:2.6; }
+
+.close-alt{ margin:1.5rem 0 0; font-size:.94rem; }
+.close-alt a{ color:var(--cb-accent); text-decoration:underline;
+  text-underline-offset:3px; }
+.close-alt a:hover{ color:#fff; }
+
+/* --- Calculator ---------------------------------------------------------- */
+.calc{ display:grid; gap:1.25rem; }
+/* stretch, not start. The inputs panel sizes to its content and the result
+   panel to its own, so side by side they ended on different lines and the row
+   finished in a step. Equal height is the whole reason the left panel now has
+   a header on it. */
+@media (min-width:900px){ .calc{ grid-template-columns:1.05fr .95fr; gap:1.75rem; align-items:stretch; } }
+
+.calc__panel{ background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--radius); padding:1.5rem; }
+.calc__panel h3{ font-size:1.25rem; margin:.15rem 0 0; color:var(--ink);
+  letter-spacing:-.01em; }
+.calc__head{ margin-bottom:1.4rem; padding-bottom:1.1rem;
+  border-bottom:1px solid var(--line); }
+.calc__head .calc__eyebrow{ margin:0; }
+.calc__intro{ margin:.5rem 0 0; font-size:.88rem; line-height:1.55; color:var(--body); }
+
+.calc__field{ margin-bottom:1.5rem; }
+.calc__field:last-child{ margin-bottom:0; }
+.calc__label{ display:flex; justify-content:space-between; align-items:baseline;
+  gap:1rem; margin-bottom:.6rem; }
+.calc__label span{ font-size:.88rem; font-weight:600; color:var(--ink); }
+.calc__out{ font-variant-numeric:tabular-nums; font-weight:800; font-size:1.05rem;
+  color:var(--brand); }
+.calc__hint{ margin:.45rem 0 0; font-size:.78rem; color:var(--muted); }
+
+/* Range input. Styled on both engines; the thumb is 24px so it is a real
+   touch target, and focus is visible because the browser default is removed. */
+.calc input[type=range]{ -webkit-appearance:none; appearance:none; width:100%;
+  height:24px; background:transparent; cursor:pointer; margin:0; display:block; }
+.calc input[type=range]:focus-visible{ outline:2px solid var(--brand); outline-offset:4px; border-radius:4px; }
+.calc input[type=range]::-webkit-slider-runnable-track{ height:6px; border-radius:99px;
+  background:linear-gradient(90deg, var(--brand) var(--pct,50%), var(--line) var(--pct,50%)); }
+.calc input[type=range]::-moz-range-track{ height:6px; border-radius:99px; background:var(--line); }
+.calc input[type=range]::-moz-range-progress{ height:6px; border-radius:99px; background:var(--brand); }
+.calc input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; appearance:none;
+  width:22px; height:22px; margin-top:-8px; border-radius:50%; background:#fff;
+  border:3px solid var(--brand); box-shadow:0 1px 4px rgba(0,0,0,.2); }
+.calc input[type=range]::-moz-range-thumb{ width:16px; height:16px; border-radius:50%;
+  background:#fff; border:3px solid var(--brand); box-shadow:0 1px 4px rgba(0,0,0,.2); }
+
+/* Result side */
+.calc__result{ background:linear-gradient(165deg, var(--tint-2), var(--tint));
+  border:1px solid var(--line-2); border-radius:var(--radius); padding:1.75rem 1.5rem; }
+.calc__eyebrow{ font-size:.72rem; font-weight:800; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--brand); margin:0 0 .5rem; }
+.calc__hero{ font-size:clamp(3rem,9vw,4.5rem); font-weight:800; line-height:1;
+  letter-spacing:-.03em; color:var(--ink); font-variant-numeric:tabular-nums;
+  margin:0; }
+.calc__hero-unit{ font-size:.95rem; font-weight:700; color:var(--body);
+  margin:.4rem 0 0; }
+.calc__impossible{ font-size:1.15rem; font-weight:700; color:var(--ink);
+  margin:.35rem 0 0; line-height:1.4; }
+
+.calc__rows{ margin:1.5rem 0 0; padding:1.25rem 0 0; border-top:1px solid var(--line-2);
+  display:grid; gap:.8rem; }
+.calc__row{ display:flex; justify-content:space-between; align-items:baseline; gap:1rem;
+  font-size:.9rem; }
+.calc__row dt{ color:var(--body); margin:0; }
+.calc__row dd{ margin:0; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums;
+  text-align:right; }
+.calc__row dd .up{ color:var(--good); font-weight:800; }
+
+/* Before / after rating, as two star rows. The number is always printed, so the
+   comparison never rests on the star colour alone. */
+.rating-pair{ display:grid; gap:.7rem; margin:1.5rem 0 0; padding:1.25rem 0 0;
+  border-top:1px solid var(--line-2); }
+.rating-line{ display:flex; align-items:center; gap:.75rem; flex-wrap:wrap; }
+.rating-line__label{ font-size:.78rem; font-weight:700; text-transform:uppercase;
+  letter-spacing:.06em; color:var(--muted); min-width:3.6rem; }
+.rating-line__val{ font-size:1.15rem; font-weight:800; color:var(--ink);
+  font-variant-numeric:tabular-nums; min-width:2.6rem; }
+.rating-line--now .rating-line__val{ color:var(--body); }
+
+/* Star meter: a 5-wide track with a clipped gold overlay, so a 4.3 shows as
+   4.3 stars rather than being rounded to a whole one. */
+.stars-meter{ position:relative; display:inline-block; line-height:1;
+  font-size:1.15rem; letter-spacing:.12em; }
+.stars-meter__bg{ color:var(--line-2); }
+.stars-meter__fg{ position:absolute; inset:0; overflow:hidden; white-space:nowrap;
+  color:var(--star); width:var(--fill,0%); }
+@media (prefers-reduced-motion: no-preference){
+  .stars-meter__fg{ transition:width .5s var(--ease); }
+}
+
+/* --- Comparison cards ---------------------------------------------------- */
+.compare{ display:grid; gap:1.1rem; }
+@media (min-width:640px){ .compare{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (min-width:1000px){ .compare{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+
+/* --- Proof band ---------------------------------------------------------- */
+.band{ background:linear-gradient(180deg, var(--tint-2), var(--paper)); }
+.band__grid{ display:grid; gap:1.5rem; text-align:center;
+  grid-template-columns:repeat(2,minmax(0,1fr)); }
+@media (min-width:760px){ .band__grid{ grid-template-columns:repeat(4,minmax(0,1fr)); } }
+.band__n{ font-size:clamp(2rem,5vw,2.9rem); font-weight:800; line-height:1;
+  color:var(--brand); font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
+.band__l{ margin:.5rem 0 0; font-size:.86rem; color:var(--body); }
+
+/* --- Scroll reveal ------------------------------------------------------- */
+/* Applied by JS only (the .js-reveal class is added by script), so with
+   JavaScript off or broken nothing is ever left invisible. */
+@media (prefers-reduced-motion: no-preference){
+  .js-reveal [data-reveal]{ opacity:0; transform:translateY(14px);
+    transition:opacity .55s var(--ease), transform .55s var(--ease); }
+  .js-reveal [data-reveal].is-in{ opacity:1; transform:none; }
+  .js-reveal [data-reveal][data-reveal-delay="1"]{ transition-delay:.08s; }
+  .js-reveal [data-reveal][data-reveal-delay="2"]{ transition-delay:.16s; }
+  .js-reveal [data-reveal][data-reveal-delay="3"]{ transition-delay:.24s; }
+}
+
+/* --- Motion on existing pieces ------------------------------------------- */
+@media (prefers-reduced-motion: no-preference){
+  .card, .step{ transition:transform .22s var(--ease), box-shadow .22s var(--ease),
+    border-color .22s var(--ease); }
+  .card:hover, .step:hover{ transform:translateY(-3px);
+    box-shadow:0 14px 32px rgba(10,40,70,.09); border-color:var(--line-2); }
+  .btn{ transition:transform .16s var(--ease), background .16s var(--ease); }
+  .btn--primary:hover{ transform:translateY(-1px); }
+}
+
+/* The hero headline takes the same accent-phrase treatment as the section
+   headings, so the page reads as one system. */
+.hero h1 em{ font-style:normal; color:var(--brand); }
+
+/* Superadmin: competitor comparison form */
+.compare-block{ border:1px solid var(--line); border-radius:var(--radius);
+  padding:1.1rem 1.25rem 1.25rem; margin:0 0 1.1rem; }
+.compare-block legend{ font-size:.8rem; font-weight:800; text-transform:uppercase;
+  letter-spacing:.06em; color:var(--brand); padding:0 .45rem; }
+.compare-block label{ display:block; font-size:.82rem; font-weight:600;
+  color:var(--ink); margin-bottom:.35rem; }
+.compare-block textarea.field{ font-family:inherit; line-height:1.5; resize:vertical; }
+
+/* ========================================================================
+   Free Review Score
+   ======================================================================== */
+
+/* The band under the hero. Tinted so it reads as the page's one call to
+   action rather than another content section. */
+.score-band{ background:linear-gradient(180deg, var(--tint-2), var(--paper));
+  border-block:1px solid var(--line-2); }
+
+.score-card{ padding:1.75rem; }
+@media (min-width:640px){ .score-card{ padding:2rem 2.25rem; } }
+.score-card--hero{ box-shadow:0 18px 44px rgba(10,40,70,.10); }
+
+.score-form__fields{ display:grid; gap:1rem; }
+@media (min-width:700px){ .score-form__fields{ grid-template-columns:1fr 1fr; gap:1.1rem; } }
+.score-form__field label{ display:block; font-size:.82rem; font-weight:700;
+  color:var(--ink); margin-bottom:.45rem; }
+
+/* Deliberately large: this is the one input that matters on the page. */
+.field--xl{ font-size:1.05rem; padding:1rem 1.1rem; border-radius:var(--radius-sm);
+  border-width:1.5px; }
+.btn--xl{ font-size:1.05rem; padding:1.05rem 1.6rem; margin-top:1.25rem; }
+.score-form__note{ margin:.9rem 0 0; text-align:center; font-size:.84rem; color:var(--muted); }
+
+/* --- The dial ------------------------------------------------------------
+   Colour supports the number, it never replaces it: the score is printed in
+   the middle and the band is written out beside it, so the readout works in
+   greyscale and for a colourblind reader. */
+.score-readout{ display:grid; gap:1.5rem; align-items:center; justify-items:center;
+  text-align:center; }
+@media (min-width:640px){
+  .score-readout{ grid-template-columns:auto 1fr; text-align:left; justify-items:start; }
+}
+.dial{ position:relative; width:11rem; height:11rem; flex-shrink:0; }
+.dial svg{ width:100%; height:100%; display:block; }
+.dial__track{ stroke:var(--line); }
+.dial--good .dial__value{ stroke:#15803d; }   /* 5.02:1 on white */
+.dial--mid  .dial__value{ stroke:#b45309; }   /* 5.02:1 */
+.dial--low  .dial__value{ stroke:#b3261e; }   /* 6.54:1 */
+@media (prefers-reduced-motion: no-preference){
+  .dial__value{ transition:stroke-dasharray .9s var(--ease); }
+}
+.dial__centre{ position:absolute; inset:0; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; line-height:1; }
+.dial__num{ font-size:3rem; font-weight:800; color:var(--ink);
+  font-variant-numeric:tabular-nums; letter-spacing:-.03em; }
+.dial__max{ font-size:.85rem; font-weight:700; color:var(--muted); margin-top:.2rem; }
+
+.score-readout__band{ margin:0; font-size:1.35rem; font-weight:800; color:var(--ink); }
+.score-readout__url{ margin:.2rem 0 0; font-size:.86rem; color:var(--muted);
+  word-break:break-all; }
+.score-readout__summary{ margin:.9rem 0 0; color:var(--body); }
+.score-readout .form__note{ margin-top:.7rem; }
+
+/* --- The seven checks ---------------------------------------------------- */
+.score-checks{ list-style:none; margin:1.75rem 0 0; padding:1.5rem 0 0;
+  border-top:1px solid var(--line); display:grid; gap:1rem; }
+.score-check{ display:flex; gap:.85rem; align-items:flex-start; }
+.score-check__mark{ flex-shrink:0; width:1.5rem; height:1.5rem; border-radius:50%;
+  display:inline-flex; align-items:center; justify-content:center;
+  font-size:.8rem; font-weight:800; background:var(--line); color:var(--muted); }
+.score-check.is-on .score-check__mark{ background:#15803d; color:#fff; }
+.score-check strong{ color:var(--ink); font-size:.95rem; }
+.score-check__pts{ display:inline-block; margin-left:.4rem; font-size:.75rem;
+  font-weight:800; color:var(--muted); font-variant-numeric:tabular-nums; }
+.score-check.is-on .score-check__pts{ color:#15803d; }
+.score-check__detail{ display:block; margin-top:.15rem; font-size:.88rem;
+  color:var(--body); line-height:1.5; }
+
+/* Superadmin: review score list */
+.score-pill{ display:inline-block; min-width:2.6rem; text-align:center;
+  padding:.3rem .5rem; border-radius:8px; font-weight:800; font-size:1rem;
+  font-variant-numeric:tabular-nums; color:#fff; }
+/* Same three tones as the public dial, and the band is printed underneath, so
+   the number never depends on the colour being seen. */
+.score-pill--good{ background:#15803d; }
+.score-pill--mid{  background:#b45309; }
+.score-pill--low{  background:#b3261e; }
+
+.pager{ display:flex; align-items:center; justify-content:center; gap:1.25rem;
+  margin-top:1.5rem; font-size:.9rem; }
+.pager a{ color:var(--brand); font-weight:700; padding:.5rem .9rem;
+  border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--surface); }
+.pager a:hover{ border-color:var(--brand); }
+.pager .is-off{ color:var(--muted); padding:.5rem .9rem; border:1px solid transparent; }
+.pager__at{ color:var(--body); font-variant-numeric:tabular-nums; }
+
+/* ========================================================================
+   Dark hero band
+   Sits between the nav and the photograph hero. Dark in both colour schemes
+   by design, so the colours here are literal, not tokens. Measured against
+   the darkest end of the gradient: white 17.6:1, accent 8.2:1, body 8.4:1.
+   ======================================================================== */
+.hero-band{
+  --band-ink:#ffffff;
+  --band-body:#9fb6cd;
+  --band-accent:#38bdf8;
+  --band-line:rgba(255,255,255,.12);
+  background:
+    radial-gradient(1100px 520px at 72% 30%, rgba(56,189,248,.20), transparent 62%),
+    radial-gradient(760px 420px at 12% 88%, rgba(0,108,184,.28), transparent 68%),
+    linear-gradient(160deg, #0a1a2b 0%, #0e2a45 58%, #0a1a2b 100%);
+  color:var(--band-body);
+  position:relative; overflow:hidden;
+}
+
+/* Announcement strip */
+.hero-band__strip{ border-bottom:1px solid var(--band-line);
+  background:rgba(255,255,255,.04); }
+.hero-band__strip-inner{ display:flex; flex-wrap:wrap; gap:.5rem 1.5rem;
+  align-items:center; justify-content:space-between;
+  padding-block:.6rem; font-size:.78rem; color:#dbe9f5; }
+.hero-band__strip-inner span{ display:inline-flex; align-items:center; gap:.5rem; }
+.hero-band__strip .icon{ width:.95rem; height:.95rem; color:var(--band-accent); }
+.hero-band__strip-right{ color:#8aa2ba; }
+@media (max-width:700px){ .hero-band__strip-right{ display:none; } }
+
+/* Layout */
+.hero-band__inner{ display:grid; gap:2.5rem; padding-block:3.25rem 2.5rem; }
+@media (min-width:980px){
+  /* The copy gets the wider share: the art is a circle that shrinks happily,
+     while the headline, the two buttons and the chip row all break badly a few
+     pixels early. */
+  .hero-band__inner{ grid-template-columns:1.14fr .86fr; gap:2.5rem;
+    align-items:center; padding-block:4rem 3rem; }
+}
+
+.hero-band__eyebrow{ display:inline-block; margin:0 0 1.1rem;
+  padding:.4rem .9rem; border-radius:99px; font-size:.72rem; font-weight:800;
+  letter-spacing:.09em; text-transform:uppercase; color:#cdeafc;
+  background:rgba(56,189,248,.14); border:1px solid rgba(56,189,248,.35); }
+
+.hero-band__title{ margin:0; color:var(--band-ink); font-weight:800;
+  font-size:clamp(2.4rem,6.2vw,4.1rem); line-height:1.03; letter-spacing:-.03em; }
+.hero-band__title em{ font-style:normal; color:var(--band-accent); }
+/* Capped so "Start Free. No Credit Card. No Subscription." holds one line on a
+   desktop column instead of orphaning the last word. */
+.hero-band__sub{ margin:.5rem 0 0; color:var(--band-ink); font-weight:800;
+  font-size:clamp(1.05rem,2.1vw,1.35rem); letter-spacing:-.02em; }
+.hero-band__lede{ margin:1.15rem 0 0; max-width:34rem; font-size:1rem;
+  line-height:1.65; color:var(--band-body); }
+/* The second paragraph is the "so we do this" turn, so it sits closer to the
+   first and in a brighter ink than the argument above it. */
+.hero-band__lede--tight{ margin-top:.75rem; color:#c5d8ea; }
+
+.hero-band__cta{ display:flex; flex-wrap:wrap; gap:.75rem; margin-top:1.75rem; }
+/* Trim the shared xl padding here so both buttons sit on one row in this
+   column; they wrapped at 1280px with the global value. */
+.hero-band__cta .btn--xl{ margin-top:0; padding:.95rem 1.25rem; font-size:1rem; }
+.hero-band__ghost{ background:rgba(255,255,255,.06); color:#ffffff;
+  border:1px solid rgba(255,255,255,.28); display:inline-flex; align-items:center; gap:.55rem; }
+.hero-band__ghost:hover{ background:rgba(255,255,255,.12); border-color:rgba(255,255,255,.45); }
+.hero-band__ghost .icon{ width:1.05rem; height:1.05rem; }
+.hero-band__note{ margin:.85rem 0 0; font-size:.8rem; color:#8aa2ba; }
+
+.hero-band__chips{ display:flex; flex-wrap:wrap; align-items:center; gap:.55rem;
+  margin-top:1.9rem; }
+.hero-band__chips-label{ font-size:.8rem; color:#8aa2ba; margin-right:.2rem; }
+.hero-chip{ display:inline-flex; align-items:center; gap:.4rem;
+  padding:.42rem .7rem; border-radius:99px; font-size:.79rem; font-weight:700;
+  color:#dbe9f5; background:rgba(255,255,255,.07); border:1px solid var(--band-line); }
+.hero-chip .icon{ width:.95rem; height:.95rem; color:var(--band-accent); }
+
+/* --- The globe ----------------------------------------------------------
+   Geometry is projected in PHP; this only has to place and light it. Sized to
+   bleed past its column the way the reference does — the band clips it, so the
+   sphere reads as bigger than the space it is given.
+   ------------------------------------------------------------------------ */
+.hero-band__art{ display:flex; flex-direction:column; align-items:center;
+  justify-content:center; }
+.globe-wrap{ position:relative; width:min(132%, 43rem); aspect-ratio:1;
+  margin-inline:-6%; }
+.globe{ width:100%; height:100%; display:block; }
+@media (prefers-reduced-motion: no-preference){
+  /* A slow breath on the halo only. Spinning a projected graticule would need
+     real 3D; rotating the group makes the latitude rings tumble. */
+  .globe{ animation:globe-breathe 9s ease-in-out infinite; }
+}
+@keyframes globe-breathe{ 0%,100%{ opacity:.94; } 50%{ opacity:1; } }
+
+/* Clear of the lowest card, so the label that keeps these honest is never
+   half-hidden behind one of the things it is labelling. */
+.hero-band__art-note{ margin:.9rem 0 0; font-size:.72rem; letter-spacing:.06em;
+  text-transform:uppercase; color:#7e97b0; text-align:center; }
+
+/* Illustrative review cards. Deliberately small and plain — they show the shape
+   of what arrives, and the caption below the globe says they are examples. */
+.globe__review{ position:absolute; margin:0; width:13.5rem;
+  padding:.7rem .85rem .75rem; border-radius:12px;
+  background:rgba(10,28,46,.94); border:1px solid rgba(255,255,255,.16);
+  box-shadow:0 14px 34px rgba(0,0,0,.45);
+  backdrop-filter:blur(2px); }
+.globe__stars{ display:block; color:#fbbf24; font-size:.8rem; letter-spacing:.1em;
+  line-height:1; }
+.globe__review blockquote{ margin:.4rem 0 0; font-size:.78rem; line-height:1.45;
+  color:#eaf4fd; font-weight:600; }
+.globe__review figcaption{ margin-top:.35rem; font-size:.7rem; color:#8aa2ba; }
+
+/* Kept inside the wrap on the right: the wrap already hangs 6% past its column
+   and the band clips, so a card at a negative right offset gets its edge cut
+   off — which reads as a mistake rather than as a bleed. */
+/* Pushed towards the edges so the cards frame the globe rather than sitting on
+   top of the Americas, which is the half of it a visitor recognises fastest. */
+/* Clear of where the headline's first line actually ends — measured at glyph
+   level, not from the element box, which runs the full column width. */
+.globe__review--n1{ top:0%;   left:6%; }
+.globe__review--n2{ top:17%;  right:2%; }
+.globe__review--n3{ top:52%;  left:-7%; }
+.globe__review--n4{ bottom:20%; right:3%; }
+.globe__review--n5{ bottom:2%; left:9%; }
+
+@media (prefers-reduced-motion: no-preference){
+  .globe__review{ animation:node-float 7s ease-in-out infinite; }
+  .globe__review--n2{ animation-delay:-1.4s; }
+  .globe__review--n3{ animation-delay:-2.8s; }
+  .globe__review--n4{ animation-delay:-4.2s; }
+  .globe__review--n5{ animation-delay:-5.6s; }
+}
+@keyframes node-float{ 0%,100%{ margin-top:0; } 50%{ margin-top:-7px; } }
+
+/* Narrow: the cards would cover the sphere entirely, so show two and shrink. */
+@media (max-width:1100px){
+  .globe__review{ width:11.5rem; }
+  .globe__review--n3, .globe__review--n5{ display:none; }
+}
+@media (max-width:760px){
+  .globe-wrap{ width:min(100%,22rem); margin-inline:0; }
+  .globe__review{ display:none; }
+}
+
+/* --- The panel at the foot of the band ---------------------------------- */
+.hero-panel{ margin-bottom:2.5rem; padding:1.5rem 1.6rem;
+  background:rgba(8,24,40,.66); border:1px solid rgba(255,255,255,.12);
+  border-radius:18px; backdrop-filter:blur(3px);
+  box-shadow:0 18px 44px rgba(0,0,0,.30); }
+.hero-panel__label{ margin:0 0 1.25rem; text-align:center; font-size:.7rem;
+  font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:#8aa2ba; }
+.hero-panel__grid{ display:grid; gap:1.25rem; }
+@media (min-width:760px){ .hero-panel__grid{ grid-template-columns:repeat(3,1fr); gap:1.5rem; } }
+
+.hero-stat{ display:flex; align-items:center; gap:.9rem; }
+.hero-stat__tile{ flex-shrink:0; width:2.6rem; height:2.6rem; border-radius:11px;
+  display:inline-flex; align-items:center; justify-content:center;
+  background:rgba(56,189,248,.14); border:1px solid rgba(56,189,248,.30); }
+.hero-stat__tile .icon{ width:1.2rem; height:1.2rem; color:#7dd3fc; }
+.hero-stat__v{ display:block; color:#fff; font-size:1.5rem; font-weight:800;
+  line-height:1.1; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
+.hero-stat__l{ display:block; margin-top:.1rem; font-size:.82rem; color:#9fb6cd;
+  line-height:1.45; }
+
+/* --- Email templates ---------------------------------------------------- */
+/* A small button, for the row of actions under each template. The default .btn
+   is sized for "Send the request" and three of them in a row under a card is a
+   wall of buttons rather than a set of choices. */
+.btn--sm{ padding:.45rem .8rem; font-size:.85rem; }
+.btn--quiet{ background:transparent; color:var(--muted); border-color:var(--line); }
+.btn--quiet:hover{ background:var(--wash); color:var(--ink); }
+
+.checkline{ display:flex; align-items:center; gap:.55rem; font-size:.92rem; color:var(--body); }
+.checkline input{ width:1rem; height:1rem; accent-color:var(--brand); }
+
+/* The merge fields. Two columns where there is room, because the name and what
+   it becomes are read together and a wrapped pair reads as two entries. */
+.merge-fields{ display:grid; gap:.35rem .9rem; margin:0; font-size:.86rem; }
+@media (min-width:620px){ .merge-fields{ grid-template-columns:auto 1fr; } }
+.merge-fields dt{ font-weight:600; }
+.merge-fields dt code{ background:var(--wash); border:1px solid var(--line);
+  border-radius:5px; padding:.1rem .35rem; font-size:.84rem; white-space:nowrap; }
+.merge-fields dd{ margin:0 0 .35rem; color:var(--muted); }
+@media (min-width:620px){ .merge-fields dd{ margin-bottom:0; } }
+
+.tmpl{ border-top:1px solid var(--line); padding:1.1rem 0; }
+.tmpl:first-of-type{ border-top:0; padding-top:0; }
+.tmpl--default{ border-left:3px solid var(--brand); padding-left:.9rem; }
+.tmpl__head{ display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
+.tmpl__tag{ font-size:.72rem; font-weight:700; letter-spacing:.03em;
+  text-transform:uppercase; color:var(--brand); background:var(--wash);
+  border:1px solid var(--line); border-radius:99px; padding:.12rem .5rem; }
+.tmpl__tag--muted{ color:var(--muted); }
+.tmpl__subject{ margin:.3rem 0 0; color:var(--body); font-size:.92rem; }
+.tmpl__actions{ display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.8rem; }
+
+/* The preview is the email, so it keeps the email's line breaks. pre-wrap
+   rather than pre: the stored text is wrapped for a mail client, not for a
+   column this narrow, and a horizontal scrollbar on a phone hides the end of
+   every line. */
+.tmpl__body{ margin:.7rem 0 0; padding:.9rem 1rem; background:var(--wash);
+  border:1px solid var(--line); border-radius:9px; color:var(--body);
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.85rem;
+  line-height:1.65; white-space:pre-wrap; word-break:break-word; }
+
+/* --- Choosing where a review request points ----------------------------- */
+/* Two cards, not a dropdown. It is the first decision on the page and it
+   changes what the customer sees when they click, so it gets the room a
+   decision needs. */
+.dest{ border:0; padding:0; margin:0; display:grid; gap:1rem; }
+@media (min-width:760px){ .dest{ grid-template-columns:1fr 1fr; } }
+
+.dest__card{ position:relative; display:block; cursor:pointer;
+  background:var(--surface); border:2px solid var(--line); border-radius:12px;
+  padding:1.15rem 1.25rem; transition:border-color .12s, background .12s; }
+.dest__card:hover{ border-color:var(--brand); }
+
+/* The radio stays in the accessibility tree and keeps keyboard focus; it is
+   just not where the eye goes. Clipped rather than display:none, which would
+   take it out of the tab order and out of the form. */
+.dest__card input{ position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+.dest__card:has(input:checked){ border-color:var(--brand); background:var(--wash); }
+.dest__card:has(input:focus-visible){ outline:2px solid var(--brand); outline-offset:2px; }
+
+/* :has() is young enough that a browser without it must still show which one is
+   selected -- otherwise the page offers a choice and never says what was
+   chosen. The checkmark is drawn from the input itself, which every browser
+   that renders a radio can do. */
+.dest__card input:checked + .dest__body .dest__title::after{ content:" ✓"; color:var(--brand); }
+
+.dest__body{ display:block; }
+.dest__title{ display:flex; align-items:center; gap:.5rem; font-weight:700;
+  color:var(--ink); line-height:1.35; }
+.dest__title .icon{ width:1.1rem; height:1.1rem; color:var(--brand); flex-shrink:0; }
+.dest__blurb{ display:block; margin-top:.45rem; color:var(--muted);
+  font-size:.88rem; line-height:1.5; }
+.dest__problem{ display:block; margin-top:.6rem; color:var(--ink);
+  font-size:.84rem; line-height:1.5; font-weight:600; }
+
+/* Who each destination is for, at the foot of its card.
+   
+   The cards become a flex column so margin-top:auto can pin these to the
+   bottom: the two cards are different heights -- one carries a reason it is
+   unavailable, the other does not -- and pills that floated at different
+   heights would read as two unrelated labels rather than one comparison. */
+.dest__card{ display:flex; }
+.dest__body{ display:flex; flex-direction:column; flex:1 1 auto; }
+
+/* margin-top:auto is what pins the pill to the bottom of its card, and it is
+   the ONLY margin-top this rule may set: a second one overrides the auto and
+   the pills drift back to wherever the text happens to end. The gap above
+   comes from the elements before it instead. */
+.dest__blurb, .dest__problem{ margin-bottom:1rem; }
+.dest__access{
+  display:inline-block; align-self:flex-start;
+  margin:auto 0 0;
+  padding:.28rem .65rem; border-radius:999px;
+  background:var(--tint); color:var(--brand);
+  font-size:.67rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+  white-space:nowrap;
+}
+/* The same deep amber the locked panels and the review-page steps use, so a
+   member learns the colour once. #8a5a12 on #fff4e0 carries 11px uppercase
+   at 4.5:1, which --star on its own tint does not. */
+.dest__access--paid{ background:#fff4e0; color:#8a5a12; }
+
+.dest__card--off{ cursor:not-allowed; opacity:.72; background:var(--wash); }
+.dest__card--off:hover{ border-color:var(--line); }
+
+/* Which destination a sent request pointed at. */
+.dest-tag{ display:inline-block; font-size:.75rem; font-weight:700;
+  border:1px solid var(--line); border-radius:99px; padding:.1rem .5rem;
+  white-space:nowrap; }
+.dest-tag--promomonster{ color:var(--brand); }
+.dest-tag--google{ color:var(--muted); }
+
+/* The three numbers above a request list. */
+.req-tally{ margin:0 0 .75rem; color:var(--muted); font-size:.88rem; }
+.req-tally strong{ color:var(--ink); font-variant-numeric:tabular-nums; }
+
+/* --- Is the sender running? --------------------------------------------- */
+/* A line, not a notice. When the runner is healthy this is reassurance, and
+   reassurance that shouts is indistinguishable from a warning. */
+.runner{ display:flex; align-items:center; gap:.55rem; flex-wrap:wrap;
+  margin:0 0 1.5rem; padding:.6rem .9rem; border-radius:9px;
+  background:var(--wash); border:1px solid var(--line);
+  color:var(--muted); font-size:.88rem; }
+.runner strong{ color:var(--ink); font-weight:600; }
+.runner__dot{ width:.55rem; height:.55rem; border-radius:50%; flex-shrink:0;
+  background:#16a34a; box-shadow:0 0 0 3px rgba(22,163,74,.18); }
+@media (prefers-reduced-motion:no-preference){
+  .runner--ok .runner__dot{ animation:runner-pulse 2.4s ease-in-out infinite; }
+}
+@keyframes runner-pulse{
+  0%,100%{ box-shadow:0 0 0 3px rgba(22,163,74,.18); }
+  50%    { box-shadow:0 0 0 5px rgba(22,163,74,.08); }
+}
+
+/* --- Acting on a sent request ------------------------------------------- */
+.req-act{ white-space:nowrap; vertical-align:middle; }
+/* The reminder opens in place rather than on its own screen: the row is the
+   context, and losing it to pick wording would be the wrong trade. */
+.req-remind{ display:inline-block; position:relative; }
+.req-remind summary{ list-style:none; cursor:pointer; }
+.req-remind summary::-webkit-details-marker{ display:none; }
+.req-remind__form{ position:absolute; right:0; z-index:5; width:15rem;
+  margin-top:.4rem; padding:.85rem; display:grid; gap:.5rem;
+  background:var(--surface); border:1px solid var(--line); border-radius:10px;
+  box-shadow:0 10px 28px rgba(16,24,40,.14); }
+.req-remind__form .form__note{ font-size:.76rem; line-height:1.45; }
+@media (max-width:620px){
+  .req-remind__form{ position:static; width:auto; box-shadow:none; }
+}
+
+/* --- What actually went out --------------------------------------------- */
+/* "Sent" means a server accepted it. When somebody says it never arrived, this
+   is the difference between a guess and evidence. */
+.sent-proof{ margin-top:.4rem; }
+.sent-proof summary{ cursor:pointer; color:var(--brand); font-size:.78rem; font-weight:600; }
+.sent-proof__body{ margin-top:.5rem; padding:.75rem .85rem; max-width:34rem;
+  background:var(--wash); border:1px solid var(--line); border-radius:9px; }
+.sent-proof dl{ display:grid; grid-template-columns:auto 1fr; gap:.2rem .7rem;
+  margin:0 0 .6rem; font-size:.8rem; }
+.sent-proof dt{ color:var(--muted); }
+.sent-proof dd{ margin:0; color:var(--ink); word-break:break-word; }
+.sent-proof pre{ margin:0 0 .5rem; padding:.6rem .7rem; background:var(--surface);
+  border:1px solid var(--line); border-radius:7px; color:var(--body);
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.76rem;
+  line-height:1.6; white-space:pre-wrap; word-break:break-word;
+  max-height:18rem; overflow:auto; }
+.sent-proof .form__note{ font-size:.76rem; line-height:1.5; }
+
+/* --- Choosing the wording ------------------------------------------------ */
+/* Cards, not a dropdown: the thing worth knowing before pressing Send is what
+   the customer will read, and a select shows only a name. */
+.pick{ border:0; padding:0; margin:0; display:grid; gap:.75rem; }
+.pick__legend{ padding:0; margin:0 0 .15rem; font-size:.9rem; font-weight:600; color:var(--ink); }
+
+.pick__card{ background:var(--surface); border:2px solid var(--line);
+  border-radius:11px; transition:border-color .12s, background .12s; }
+.pick__card:hover{ border-color:var(--brand); }
+/* is-on is rendered server-side, so the selected card is marked even where
+   :has() is not supported. :has() then keeps it live as the radio changes. */
+.pick__card.is-on,
+.pick__card:has(input:checked){ border-color:var(--brand); background:var(--wash); }
+.pick__card:has(input:focus-visible){ outline:2px solid var(--brand); outline-offset:2px; }
+
+.pick__choose{ display:flex; gap:.7rem; align-items:flex-start; cursor:pointer;
+  padding:.85rem 1rem .7rem; }
+.pick__choose input{ margin:.2rem 0 0; width:1rem; height:1rem;
+  accent-color:var(--brand); flex-shrink:0; }
+.pick__body{ display:block; min-width:0; }
+.pick__name{ display:flex; align-items:center; gap:.45rem; flex-wrap:wrap;
+  font-weight:700; color:var(--ink); line-height:1.35; }
+.pick__tag{ font-size:.68rem; font-weight:700; letter-spacing:.03em;
+  text-transform:uppercase; color:var(--brand); background:var(--surface);
+  border:1px solid var(--line); border-radius:99px; padding:.08rem .45rem; }
+.pick__subject{ display:block; margin-top:.2rem; color:var(--muted);
+  font-size:.86rem; line-height:1.45; }
+
+/* Outside the label, so reading the message cannot change the selection. */
+.pick__tools{ display:flex; align-items:center; gap:1rem; flex-wrap:wrap;
+  padding:0 1rem .75rem 2.7rem; }
+.pick__peek summary{ cursor:pointer; color:var(--brand); font-size:.8rem; font-weight:600; }
+.pick__peek pre{ margin:.6rem 0 0; padding:.75rem .85rem; background:var(--wash);
+  border:1px solid var(--line); border-radius:8px; color:var(--body);
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.8rem;
+  line-height:1.65; white-space:pre-wrap; word-break:break-word; }
+.pick__edit{ color:var(--brand); font-size:.8rem; font-weight:600; }
+@media (max-width:620px){ .pick__tools{ padding-left:1rem; } }
+
+/* --- The playbook: how to ask, and where ---------------------------------- */
+.dos{ list-style:none; margin:0; padding:0; display:grid; gap:.9rem; max-width:46rem; }
+.dos__item{ display:flex; gap:.9rem; align-items:flex-start;
+  background:var(--surface); border:1px solid var(--line); border-radius:11px;
+  padding:1rem 1.15rem; }
+.dos__n{ flex-shrink:0; width:1.65rem; height:1.65rem; border-radius:50%;
+  display:inline-flex; align-items:center; justify-content:center;
+  background:var(--wash); border:1px solid var(--line); color:var(--brand);
+  font-size:.82rem; font-weight:800; font-variant-numeric:tabular-nums; }
+.dos__do{ display:block; color:var(--ink); line-height:1.4; }
+.dos__why{ margin:.3rem 0 0; color:var(--muted); font-size:.9rem; line-height:1.6; }
+
+.where{ max-width:46rem; background:var(--surface); border:1px solid var(--line);
+  border-radius:11px; margin-bottom:.6rem; }
+.where[open]{ border-color:var(--brand); }
+.where__head{ display:flex; align-items:center; gap:.6rem; cursor:pointer;
+  padding:.85rem 1.15rem; font-weight:700; color:var(--ink); }
+.where__name{ flex:1; }
+.where__count{ flex-shrink:0; min-width:1.6rem; text-align:center;
+  background:var(--wash); border:1px solid var(--line); border-radius:99px;
+  padding:.05rem .45rem; color:var(--muted); font-size:.76rem; font-weight:700;
+  font-variant-numeric:tabular-nums; }
+.where__note{ margin:0 1.15rem .75rem; padding-top:.1rem; color:var(--muted);
+  font-size:.86rem; line-height:1.55; }
+.where__list{ display:grid; gap:.1rem .9rem; margin:0; padding:0 1.15rem 1rem; }
+@media (min-width:640px){ .where__list{ grid-template-columns:13rem 1fr; } }
+.where__list dt{ font-weight:600; color:var(--ink); font-size:.88rem; }
+.where__list dd{ margin:0 0 .55rem; color:var(--muted); font-size:.86rem; line-height:1.5; }
+@media (min-width:640px){ .where__list dd{ margin-bottom:.25rem; } }
+
+/* ---- A section the plan does not include ------------------------------ */
+/* The badge is the point of this panel.
+
+   A member who opens a screen and finds it closed has one question, and it
+   is not "what is this feature". It is "what would it cost me". So the first
+   thing on the panel is a plain statement of which plan opens it, set big
+   enough to read from across the room, and everything else -- what the thing
+   is, what it costs, the button -- comes after.
+
+   "Premium only" and "Pro and above" are both generated from the catalogue.
+   Two of the three gates that render this panel are Pro gates, so a
+   hardcoded "Premium only" would be telling a member the cheaper plan will
+   not do: false, and expensive for them. */
+
+.locked{
+  --accent:      var(--brand);
+  --accent-ink:  #fff;
+  --accent-band: var(--tint);
+  --accent-edge: var(--line-2);
+
+  overflow:hidden;
+  border:1px solid var(--line);
+  border-radius:18px;
+  background:var(--surface);
+  box-shadow:0 1px 2px rgba(10,30,50,.05), 0 14px 32px -18px rgba(10,30,50,.22);
+  margin-bottom:1.75rem;
+}
+
+/* Amber when one plan holds it, brand blue when more than one do -- the same
+   two accents the steps on the review page use, meaning the same two things.
+   #8a5a12 is the deep amber that carries small uppercase type at 4.5:1. */
+.locked--only{ --accent:#8a5a12; --accent-band:#fff4e0; --accent-edge:#f0dcb4; }
+
+.locked__band{
+  display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between;
+  gap:.75rem 1rem;
+  padding:1.1rem 1.5rem;
+  background:var(--accent-band);
+  border-bottom:1px solid var(--accent-edge);
+}
+
+/* The callout. Deliberately larger than a pill: this is the sentence the
+   member came for. */
+.locked__badge{
+  margin:0;
+  padding:.5rem 1.1rem;
+  border-radius:999px;
+  background:var(--accent); color:var(--accent-ink);
+  font-size:.92rem; font-weight:800; letter-spacing:.09em;
+  text-transform:uppercase; white-space:nowrap;
+}
+.locked__on{ margin:0; font-size:.88rem; color:var(--body); }
+.locked__on strong{ color:var(--ink); }
+
+.locked__body{ padding:1.4rem 1.5rem 1.5rem; }
+.locked__title{ font-size:1.12rem; margin:0; letter-spacing:-.022em; }
+.locked__blurb{ margin:.55rem 0 0; font-size:.93rem; line-height:1.6;
+  color:var(--body); max-width:48rem; }
+
+/* Each plan as a chip, so two prices do not read as one run-on sentence. */
+.locked__price{ display:flex; flex-wrap:wrap; align-items:center; gap:.5rem;
+  margin:1.1rem 0 0; }
+.locked__plan{ display:inline-flex; align-items:baseline; gap:.4rem;
+  padding:.4rem .75rem; border-radius:10px;
+  background:var(--wash); border:1px solid var(--line);
+  font-size:.9rem; color:var(--body); }
+.locked__plan strong{ color:var(--ink); }
+.locked__or{ font-size:.85rem; color:var(--muted); }
+
+.locked__act{ display:flex; flex-wrap:wrap; gap:.6rem; margin-top:1.25rem;
+  align-items:center; }
+.locked__act form{ margin:0; }
+
+@media (max-width:720px){
+  .locked{ border-radius:15px; }
+  .locked__band{ padding:.95rem 1.1rem; }
+  .locked__badge{ font-size:.82rem; padding:.45rem .9rem; }
+  .locked__body{ padding:1.1rem 1.1rem 1.2rem; }
+}
+
+/* ---- The plans, at the foot of the dashboard -------------------------- */
+/* ---- The three steps on the review page -------------------------------- */
+/* One per row, and each one plainly a separate thing.
+
+   Three cards of the same white on the same wash, a gap apart, read as one
+   long panel with lines across it. What separates them is the band: a tinted
+   strip carrying the numeral, the title and who the step is for, with the
+   working part on clean ground underneath. Two materials per card, and the
+   eye finds the edges without being told.
+
+   Each card sets its own --accent and the rest of the rules read it, so step
+   3 carries amber all the way through -- badge, band, pill -- because it is
+   the one a plan can refuse. The colour is doing work, not decoration: two
+   blue cards and an amber one says which is which before a word is read.
+
+   Restraint everywhere else. One accent per card, a hairline, and a wide gap
+   that lets each row finish before the next starts. */
+
+.steps{ display:grid; gap:1.75rem; margin-bottom:2.25rem; }
+
+.stepcard{
+  --accent:      var(--brand);
+  --accent-band: var(--tint);
+  --accent-edge: var(--line-2);
+
+  /* overflow:hidden so the band's top corners are clipped by the card's
+     radius. Without it the band squares off the two corners it sits in. */
+  overflow:hidden;
+  border:1px solid var(--line);
+  border-radius:18px;
+  background:var(--surface);
+  /* A tight edge and a wide soft lift. One blurred shadow at this radius
+     reads as a smudge rather than elevation. */
+  box-shadow:0 1px 2px rgba(10,30,50,.05), 0 14px 32px -18px rgba(10,30,50,.22);
+}
+
+/* Amber for the one a plan can refuse. #8a5a12 is the deep amber the
+   locked-plan pill already uses: at 11px uppercase a pill needs 4.5:1 and
+   --star on its own tint does not reach it. */
+.stepcard--paid{
+  --accent:      #8a5a12;
+  --accent-band: #fff4e0;
+  --accent-edge: #f0dcb4;
+}
+/* The one the plan does not include goes quiet rather than loud. Nothing has
+   gone wrong here; it is simply not theirs yet. */
+.stepcard--locked{ box-shadow:none; }
+.stepcard--locked .stepcard__body{ background:var(--wash); }
+
+/* ---- The band ---------------------------------------------------------- */
+.stepcard__band{
+  display:flex; align-items:center; gap:.85rem;
+  padding:.95rem 1.5rem;
+  background:var(--accent-band);
+  border-bottom:1px solid var(--accent-edge);
+}
+.stepcard__n{
+  flex:0 0 auto;
+  display:grid; place-items:center;
+  width:2.1rem; height:2.1rem;
+  border-radius:10px;
+  background:var(--surface);
+  border:1px solid var(--accent-edge);
+  color:var(--accent);
+  font-size:.95rem; font-weight:800; letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums;
+}
+.stepcard__h{ flex:1 1 auto; min-width:0; margin:0;
+  font-size:1.12rem; letter-spacing:-.022em; }
+
+.stepcard__pill{
+  flex:0 0 auto; margin:0;
+  padding:.3rem .7rem; border-radius:999px;
+  background:var(--surface); color:var(--accent);
+  border:1px solid var(--accent-edge);
+  font-size:.67rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+  white-space:nowrap;
+}
+
+/* ---- The body ---------------------------------------------------------- */
+.stepcard__body{ padding:1.4rem 1.5rem 1.5rem; }
+.stepcard__sub{ margin:0 0 1rem; font-size:.93rem; line-height:1.6;
+  color:var(--body); max-width:48rem; }
+.stepcard__fine{ margin:.8rem 0 0; font-size:.84rem; line-height:1.55;
+  color:var(--muted); max-width:48rem; }
+
+/* The review page link, as a thing to click rather than a line of text. */
+.stepcard__link{
+  display:flex; align-items:center; justify-content:space-between; gap:1rem;
+  padding:.9rem 1.05rem; border-radius:12px;
+  border:1px solid var(--line-2); background:var(--tint-2);
+  color:var(--brand); font-weight:600; text-decoration:none;
+  transition:background-color .15s, border-color .15s;
+}
+.stepcard__link:hover{ background:var(--tint); border-color:var(--brand); }
+.stepcard__linkurl{ overflow-wrap:anywhere; }
+.stepcard__linkgo{ flex:0 0 auto; font-size:1.05rem; opacity:.7; }
+
+/* Scrolls rather than wraps: a script tag broken over four lines is one a
+   member copies wrong. */
+.stepcard__code{
+  margin:0; padding:.95rem 1.05rem; border-radius:12px;
+  border:1px solid var(--line); background:var(--wash); overflow-x:auto;
+}
+.stepcard__code code{ font-family:var(--mono); font-size:.82rem; line-height:1.6;
+  color:var(--ink); white-space:pre; }
+
+.stepcard__price{ margin:0; font-size:.95rem; color:var(--ink); }
+.stepcard__acts{ margin:1rem 0 0; }
+
+/* ---- The form, inside step 3 ------------------------------------------- */
+.stepcard__form{ margin:0; }
+.stepcard__from{ border:1px solid var(--line); border-radius:12px;
+  padding:.9rem 1.05rem; margin:0; background:var(--surface); }
+.stepcard__from legend{ font-size:.8rem; font-weight:700; color:var(--muted);
+  padding:0 .35rem; text-transform:uppercase; letter-spacing:.06em; }
+.stepcard__from label{ display:block; font-weight:400; font-size:.92rem;
+  line-height:1.9; }
+
+@media (max-width:720px){
+  .steps{ gap:1.25rem; }
+  .stepcard{ border-radius:15px; }
+  /* The band wraps rather than squeezing the title to nothing: the pill drops
+     to its own line under the numeral and the title. */
+  .stepcard__band{ flex-wrap:wrap; gap:.65rem .8rem; padding:.85rem 1.1rem; }
+  .stepcard__h{ flex:1 1 60%; font-size:1.02rem; }
+  .stepcard__pill{ order:3; }
+  .stepcard__body{ padding:1.1rem 1.1rem 1.2rem; }
+}
+
+/* ---- The plan page ------------------------------------------------------ */
+/* Three questions in the order somebody asks them: what am I on, what have I
+   used, what would the others give me. A banner, two tiles, three cards.
+
+   The ladder across the banner is the part that earns its space. A price list
+   does not show somebody where they ARE; a row of dots with one filled in
+   does, in less room than a sentence, and it turns "what is above me" into a
+   glance instead of a comparison. */
+
+.planhero{
+  border-radius:18px; padding:1.75rem 1.85rem 1.6rem; margin-bottom:1.25rem;
+  color:#fff;
+  /* The same capped gradient the dashboard band uses. At full --brand the
+     small text on it measured under AA; #0a4f87 is the lightest stop that
+     keeps every pair above 4.5:1. */
+  background:linear-gradient(135deg,#0a4f87,#083b66 55%,#062c4d);
+}
+.planhero__top{ display:flex; flex-wrap:wrap; align-items:flex-start;
+  justify-content:space-between; gap:1.25rem; }
+.planhero__eyebrow{ margin:0 0 .4rem; font-size:.7rem; font-weight:800;
+  letter-spacing:.11em; text-transform:uppercase; color:#b7dcf5; }
+.planhero__h{ margin:0; font-size:1.6rem; color:#fff; letter-spacing:-.025em;
+  max-width:30rem; }
+.planhero__who{ margin:.4rem 0 0; font-size:.93rem; color:#d6e9f7; }
+
+.planhero__now{ flex:0 0 auto; min-width:10rem; padding:.85rem 1.1rem;
+  border-radius:12px; background:rgba(255,255,255,.12);
+  border:1px solid rgba(255,255,255,.22); }
+.planhero__nowlabel{ margin:0; font-size:.66rem; font-weight:800;
+  letter-spacing:.1em; text-transform:uppercase; color:#cfe4f4; }
+.planhero__nowname{ margin:.3rem 0 0; font-size:1.5rem; font-weight:800;
+  color:#fff; letter-spacing:-.025em; }
+.planhero__nowprice{ margin:.1rem 0 0; font-size:.9rem; color:#dceaf6; }
+.planhero__nowprice span{ color:#b7dcf5; }
+
+.planhero__foot{ margin:1.3rem 0 0; padding-top:1.1rem; font-size:.88rem;
+  color:#dceaf6; border-top:1px solid rgba(255,255,255,.18); }
+.planhero__foot strong{ color:#fff; }
+
+/* ---- The ladder -------------------------------------------------------- */
+.ladder{ list-style:none; display:grid; gap:.9rem; margin:1.6rem 0 0; padding:0; }
+@media (min-width:720px){ .ladder{ grid-auto-flow:column; grid-auto-columns:1fr; gap:0; } }
+
+.ladder__step{ position:relative; display:flex; flex-direction:column;
+  align-items:flex-start; gap:.15rem; padding-left:2.1rem; }
+@media (min-width:720px){
+  .ladder__step{ align-items:center; padding:0; text-align:center; }
+  /* The rail, drawn between the dots rather than behind them: a line through
+     a dot reads as a strikethrough. */
+  .ladder__step::before{ content:''; position:absolute; top:.65rem; left:calc(-50% + .9rem);
+    width:calc(100% - 1.8rem); height:2px; background:rgba(255,255,255,.22); }
+  .ladder__step:first-child::before{ display:none; }
+}
+.ladder__dot{ display:grid; place-items:center; width:1.35rem; height:1.35rem;
+  border-radius:50%; border:2px solid rgba(255,255,255,.35);
+  font-size:.72rem; font-weight:800; color:transparent; }
+@media (min-width:720px){ .ladder__dot{ margin-bottom:.45rem; } }
+.ladder__step:not(:is(.is-here,.is-done)) .ladder__dot{ background:rgba(255,255,255,.08); }
+.ladder__step.is-done .ladder__dot{ background:rgba(255,255,255,.28);
+  border-color:rgba(255,255,255,.45); color:#fff; }
+.ladder__step.is-here .ladder__dot{ background:#fff; border-color:#fff; color:#0a4f87; }
+/* The dot sits on the rail, so it needs its own stacking context. */
+.ladder__dot{ position:relative; z-index:1; }
+@media (max-width:719px){
+  .ladder__dot{ position:absolute; left:0; top:.1rem; }
+}
+
+.ladder__name{ font-size:.95rem; font-weight:700; color:#fff; }
+.ladder__price{ font-size:.8rem; color:#cfe4f4; }
+.ladder__you{ margin-top:.3rem; padding:.2rem .6rem; border-radius:999px;
+  background:#fff; color:#0a4f87; font-size:.66rem; font-weight:800;
+  letter-spacing:.06em; text-transform:uppercase; }
+.ladder__go{ margin-top:.3rem; font-size:.78rem; font-weight:700; color:#fff;
+  text-decoration:underline; }
+
+/* ---- What you have used ------------------------------------------------ */
+.planuse{ display:grid; gap:1rem; margin-bottom:2.25rem; }
+@media (min-width:620px){ .planuse{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+.planuse__tile{ border:1px solid var(--line); border-radius:14px;
+  background:var(--surface); padding:1.1rem 1.25rem; }
+.planuse__label{ margin:0; font-size:.68rem; font-weight:800; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--muted); }
+.planuse__n{ margin:.45rem 0 0; font-size:1.9rem; font-weight:800; color:var(--ink);
+  letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
+.planuse__n span{ font-size:1rem; font-weight:600; color:var(--muted); }
+.planuse__n--off{ color:var(--muted); }
+.planuse__off{ margin:.3rem 0 0; font-size:.85rem; color:var(--body); }
+
+/* ---- The three cards --------------------------------------------------- */
+.plans__h{ font-size:1.45rem; margin:.2rem 0 0; letter-spacing:-.025em; }
+.plans__sub{ margin:.4rem 0 0; font-size:.93rem; max-width:44rem; }
+
+.plangrid{ display:grid; gap:1.1rem; align-items:stretch; }
+@media (min-width:900px){ .plangrid{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+
+.plancard{ position:relative; display:flex; flex-direction:column;
+  border:1px solid var(--line); border-radius:16px; background:var(--surface);
+  padding:1.5rem 1.5rem 1.6rem;
+  box-shadow:0 1px 2px rgba(10,30,50,.05), 0 14px 32px -18px rgba(10,30,50,.22); }
+.plancard--current{ border-color:var(--brand); box-shadow:0 0 0 2px var(--brand) inset; }
+
+.plancard__flag{ position:absolute; top:-.7rem; left:1.4rem; margin:0;
+  padding:.25rem .7rem; border-radius:999px; background:var(--brand); color:#fff;
+  font-size:.66rem; font-weight:800; letter-spacing:.07em; text-transform:uppercase; }
+
+.plancard__eyebrow{ margin:0; font-size:.7rem; font-weight:800; letter-spacing:.1em;
+  color:var(--brand); }
+.plancard__price{ margin:.3rem 0 0; font-size:2.1rem; font-weight:800;
+  color:var(--ink); letter-spacing:-.04em; }
+.plancard__price span{ font-size:.9rem; font-weight:600; color:var(--muted);
+  letter-spacing:0; }
+.plancard__for{ margin:.7rem 0 0; font-size:.88rem; line-height:1.55; color:var(--body); }
+.plancard__for strong{ color:var(--ink); }
+
+.plancard__rhythm{ margin:1.1rem 0 0; padding:.9rem 1rem; border-radius:12px;
+  background:var(--tint-2); border:1px solid var(--line-2); }
+.plancard__every{ margin:0; font-size:.68rem; font-weight:800; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--brand); }
+.plancard__what{ margin:.35rem 0 0; font-size:.88rem; line-height:1.5; color:var(--ink); }
+.plancard__count{ margin:.3rem 0 0; font-size:.82rem; color:var(--muted); }
+
+.plancard__heading{ margin:1.2rem 0 .55rem; font-size:.68rem; font-weight:800;
+  letter-spacing:.09em; text-transform:uppercase; color:var(--muted); }
+.plancard__heading--extra{ margin-top:1rem; padding-top:.85rem;
+  border-top:1px solid var(--line); }
+
+.plancard__list{ list-style:none; margin:0; padding:0; display:grid; gap:.4rem; }
+.plancard__list li{ display:grid; grid-template-columns:1.1rem 1fr; gap:.5rem;
+  align-items:start; font-size:.88rem; line-height:1.45; }
+.plancard__list li.yes span:first-child{ color:var(--good); font-weight:800; }
+.plancard__list li.no{ color:var(--muted); }
+.plancard__list li.no span:first-child{ color:#b3261e; font-weight:800; }
+
+.plancard__act{ margin-top:auto; padding-top:1.35rem; }
+.plancard__act form{ margin:0; }
+.plancard__act .btn{ width:100%; }
+.plancard__on{ margin:0; text-align:center; font-size:.88rem; font-weight:700;
+  color:var(--good); }
+
+@media (max-width:620px){
+  .planhero{ padding:1.3rem 1.2rem 1.25rem; border-radius:15px; }
+  .planhero__h{ font-size:1.3rem; }
+  .plancard{ padding:1.25rem 1.2rem 1.35rem; }
+}
+
+/* ---- Get started ------------------------------------------------------ */
+/* A card per step that can be finished, in a row, with one of them live.
+
+   The panel used to be a vertical list of five rows. Rows make everything
+   look equally urgent, and the member only ever has one next thing to do --
+   so the live step now gets a card of its own with a tinted fill, a badge and
+   a solid button, the finished ones go quiet and green, and the two steps
+   that cannot be counted (locked by plan, or on a website we cannot see) sit
+   underneath in smaller type where they inform without nagging.
+
+   Three signals, three colours, all from the palette: amber is your turn,
+   green is finished, and blue stays the product's own. Red is not used --
+   on this page nothing has gone wrong, and a red badge would say it had. */
+.gs{ border:1px solid var(--line); border-radius:16px; padding:1.4rem 1.5rem 1.6rem;
+  background:var(--surface); margin-bottom:2rem; }
+.gs--done{ background:linear-gradient(0deg, rgba(21,128,61,.05), rgba(21,128,61,.05)), var(--surface);
+  border-color:rgba(21,128,61,.35); }
+
+/* The flag. One job: say where to look first on a page that has a banner, a
+   panel, four figures and a table on it. */
+/* #8a5a12, not --star. The flag is 11px uppercase, so it needs 4.5:1, and
+   white on --star measured 3.57:1 -- fine for a star glyph, not for type this
+   small. #8a5a12 is the same deep amber the locked-plan pill already uses, so
+   this borrows a colour rather than inventing one, and comes out at 5.92:1. */
+.gs__flag{ display:inline-block; margin:0 0 .85rem; padding:.3rem .75rem;
+  border-radius:999px; background:#8a5a12; color:#fff;
+  font-size:.68rem; font-weight:800; letter-spacing:.09em; text-transform:uppercase; }
+
+.gs__head{ display:flex; flex-wrap:wrap; align-items:flex-end; gap:1rem;
+  justify-content:space-between; margin-bottom:1.35rem; }
+.gs__headtext{ min-width:min(100%,20rem); }
+.gs__title{ font-size:1.4rem; margin:0; letter-spacing:-.025em; }
+.gs__sub{ margin:.4rem 0 0; font-size:.93rem; color:var(--body); max-width:42rem; }
+
+.gs__meter{ flex:0 0 auto; min-width:12rem; }
+.gs__count{ margin:0 0 .4rem; font-size:.85rem; color:var(--muted); text-align:right; }
+.gs__count strong{ color:var(--ink); font-weight:800; }
+.gs__bar{ height:7px; border-radius:999px; background:var(--line); overflow:hidden; }
+.gs__bar span{ display:block; height:100%; border-radius:999px; background:var(--brand); }
+.gs__bar.is-full span{ background:var(--good); }
+
+/* ---- The cards -------------------------------------------------------- */
+/* auto-rows:1fr, so a card with a blurb and a card without still come out the
+   same height. Without it the finished ones sit short and the row reads as
+   three boxes that failed to load.
+
+   Only once there is more than one column, though. Stacked on a phone there
+   is nothing to line up with, and forcing every card to the height of the
+   tallest just adds two screens of empty box. */
+.gs__cards{ list-style:none; margin:0; padding:0; display:grid; gap:.9rem; }
+@media (min-width:760px){
+  .gs__cards{ grid-template-columns:repeat(2,minmax(0,1fr)); grid-auto-rows:1fr; }
+}
+@media (min-width:1180px){ .gs__cards{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+
+.gs__card{ display:flex; flex-direction:column; border:1px solid var(--line);
+  border-radius:13px; padding:1.1rem 1.15rem 1.15rem; background:var(--surface); }
+/* Your turn. The tint is what the eye lands on, so only one card ever has it. */
+.gs__card.is-next{ border-color:var(--star);
+  background:linear-gradient(0deg, rgba(194,118,10,.07), rgba(194,118,10,.07)), var(--surface); }
+.gs__card.is-done{ border-color:rgba(21,128,61,.3); }
+
+.gs__cardtop{ display:flex; align-items:center; justify-content:space-between;
+  gap:.6rem; margin-bottom:.9rem; }
+.gs__icon{ display:grid; place-items:center; width:2.25rem; height:2.25rem;
+  border-radius:10px; background:var(--tint); color:var(--brand); }
+.gs__card.is-next .gs__icon{ background:var(--star); color:#fff; }
+.gs__card.is-done .gs__icon{ background:rgba(21,128,61,.12); color:var(--good); }
+.gs__icon .icon{ width:1.15rem; height:1.15rem; }
+
+.gs__badge{ font-size:.7rem; font-weight:800; letter-spacing:.03em;
+  padding:.25rem .6rem; border-radius:999px; white-space:nowrap; }
+/* #8a5a12 on #fff4e0, not --star on its own tint: the amber that is right for
+   a 2.25rem icon tile is not light enough to carry 11px text. */
+.gs__badge--next{ background:#fff4e0; color:#8a5a12; }
+.gs__badge--done{ background:rgba(21,128,61,.12); color:#166534; }
+
+.gs__step{ margin:0 0 .15rem; font-size:.68rem; font-weight:800;
+  letter-spacing:.09em; text-transform:uppercase; color:var(--muted); }
+.gs__h{ margin:0; font-size:1.08rem; letter-spacing:-.02em; }
+.gs__what{ margin:.5rem 0 0; font-size:.88rem; line-height:1.5; color:var(--body); }
+
+/* What came of a finished step, where its blurb used to be. */
+.gs__facts{ list-style:none; display:flex; flex-wrap:wrap; gap:.35rem;
+  margin:.6rem 0 0; padding:0; }
+.gs__facts li{ padding:.22rem .6rem; border-radius:999px; font-size:.78rem;
+  font-weight:600; color:#166534; background:rgba(21,128,61,.12); }
+
+/* The green fill is translucent, so in dark mode it sits over a near-black
+   card and the dark green on it measured 2.17:1. The fill is right; the text
+   colour has to follow the scheme. */
+
+/* margin-top:auto pins every button to the bottom of its card, so three
+   buttons line up across the row however much text is above them. */
+.gs__btn{ display:block; margin-top:auto; padding-top:1.05rem;
+  font-size:.88rem; font-weight:700; color:var(--brand); text-decoration:none; }
+.gs__btn:hover{ text-decoration:underline; }
+/* The live step gets a real button; the rest get a link. Three solid buttons
+   in a row is three equal calls to action, which is none. */
+.gs__btn--go{ display:flex; align-items:center; justify-content:center;
+  margin-top:auto; padding:.7rem 1rem; border-radius:9px;
+  background:var(--brand); color:#fff; text-decoration:none; }
+.gs__btn--go:hover{ background:var(--brand-hover); color:#fff; text-decoration:none; }
+
+/* ---- The two that cannot be counted ----------------------------------- */
+.gs__also{ list-style:none; margin:1.1rem 0 0; padding:1.1rem 0 0;
+  border-top:1px solid var(--line); display:grid; gap:.7rem; }
+.gs__note{ display:flex; flex-wrap:wrap; align-items:center; gap:.85rem;
+  padding:.8rem .95rem; border:1px solid var(--line); border-radius:11px;
+  background:var(--wash); }
+.gs__noteicon{ flex:0 0 auto; display:grid; place-items:center;
+  width:1.9rem; height:1.9rem; border-radius:8px;
+  background:var(--surface); border:1px solid var(--line); font-size:.9rem; }
+.gs__noteicon .icon{ width:1rem; height:1rem; color:var(--muted); }
+.gs__note > div{ flex:1 1 16rem; min-width:0; }
+.gs__note h3{ margin:0; font-size:.95rem; }
+.gs__note p{ margin:.2rem 0 0; font-size:.85rem; line-height:1.45; color:var(--muted); }
+.gs__notebtn{ flex:0 0 auto; display:flex; flex-direction:column;
+  font-size:.86rem; font-weight:700; color:var(--brand); text-decoration:none; }
+.gs__notebtn:hover{ text-decoration:underline; }
+.gs__notecost{ font-size:.73rem; font-weight:600; color:var(--muted); }
+
+@media (max-width:620px){
+  .gs{ padding:1.15rem 1.1rem 1.25rem; border-radius:14px; }
+  .gs__title{ font-size:1.2rem; }
+  .gs__meter{ width:100%; }
+  .gs__count{ text-align:left; }
+  .gs__notebtn{ margin-left:auto; text-align:right; }
+}
+
+/* ---- The logo lockup --------------------------------------------------- */
+/* "by Toutify" sits under the wordmark rather than beside it. On one line it
+   reads as part of the product's name; stacked and smaller it reads as who
+   makes it, which is what it is. */
+.logo__text{ display:inline-flex; flex-direction:column; justify-content:center;
+  line-height:1.05; }
+.logo__by{ font-size:.66em; font-weight:600; letter-spacing:0; color:var(--muted);
+  margin-top:.12em; white-space:nowrap; }
+/* The mark is two lines tall now, so it stops being vertically centred against
+   a single line of text and starts looking dropped. */
+.logo--stacked{ align-items:center; }
+/* Below 379px the wordmark is hidden to save the header; the byline has to go
+   with it or "by Toutify" is left floating beside the mark on its own. */
+@media (max-width:379px){ .logo__by{ display:none; } }
+
+/* ---- Sign up ----------------------------------------------------------- */
+/* One card, centred, on a quiet background: there is exactly one thing to do
+   on this page and nothing else should compete with it. The form inside is
+   Toutify's and carries its own styling; what is set here is the frame around
+   it and the accent it is told to use. */
+.signup-wrap{ background:var(--wash); min-height:70vh; }
+.signup-card{ max-width:30rem; margin:0 auto; background:var(--surface);
+  border:1px solid var(--line); border-radius:16px; padding:2.25rem 2rem 2rem;
+  box-shadow:0 18px 44px rgba(10,30,50,.07); }
+.signup-card__title{ font-size:1.6rem; line-height:1.2; letter-spacing:-.02em;
+  margin:0; color:var(--ink); }
+.signup-card__lead{ margin:.7rem 0 0; font-size:.95rem; line-height:1.6; color:var(--body); }
+.signup-card__form{ margin-top:1.6rem; }
+/* The embed renders its own inputs and button. These keep whatever it draws
+   from touching the card's edges, without trying to restyle somebody else's
+   markup from the outside -- which breaks the first time they change it. */
+.signup-card__form input,
+.signup-card__form button{ max-width:100%; }
+
+.signup-card__fallback{ margin:1.4rem 0 0; padding-top:1.1rem;
+  border-top:1px solid var(--line); font-size:.86rem; color:var(--muted); }
+.signup-card__alt{ margin:.5rem 0 0; font-size:.86rem; color:var(--muted); }
+.signup-card__fallback a, .signup-card__alt a{ color:var(--brand); font-weight:700; }
+
+@media (max-width:520px){
+  .signup-card{ padding:1.6rem 1.25rem 1.5rem; border-radius:14px; }
+  .signup-card__title{ font-size:1.4rem; }
+}

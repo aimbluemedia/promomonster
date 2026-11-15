@@ -1,0 +1,9 @@
+# Defence in depth. app/ should sit OUTSIDE the web root, but if the whole
+# project is uploaded into public_html this makes the directory unreachable.
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>

@@ -1,0 +1,57 @@
+# PromoMonster — Apache / LiteSpeed configuration.
+# Upload the CONTENTS of public/ into public_html.
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Strip a trailing slash (except on the root) so /business/ and /business
+    # are not two URLs.
+    RewriteCond %{REQUEST_URI} !^/$
+    RewriteRule ^(.*)/$ /$1 [R=301,L]
+
+    # A missing file under /assets/ is a missing file, not a page. Without this
+    # the front controller answers image and stylesheet requests with a whole
+    # HTML page, so a mistyped filename looks like a mysteriously broken <img>
+    # instead of the 404 it is.
+    #
+    # The optional /public prefix matters: in the root-fallback layout the outer
+    # .htaccess has already rewritten the request, and REQUEST_URI reads
+    # /public/assets/... by the time these rules run.
+    RewriteCond %{REQUEST_URI} ^/(public/)?assets/
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ - [R=404,L]
+
+    # Serve real files and directories as-is; route everything else through
+    # index.php. This is what stops Apache returning 403 for a directory with
+    # no index file.
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+# Never serve a directory listing.
+Options -Indexes
+
+DirectoryIndex index.php
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# Block access to anything sensitive that ends up in the web root by mistake.
+<FilesMatch "^(config\.php|\.env.*|composer\.(json|lock)|.*\.sql|.*\.md)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 1 week"
+    ExpiresByType image/svg+xml "access plus 1 month"
+</IfModule>
