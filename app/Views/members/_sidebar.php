@@ -59,6 +59,7 @@ $who  = $name !== '' ? $name : (string) ($account['name'] ?? 'Your account');
         '/members/playbook'             => ['list',    'Your playbook'],
       ],
       'Account' => [
+        '/members/plan'     => ['chart',  'My plan'],
         '/members/profile'  => ['users',  'Your details'],
         '/members/settings' => ['shield', 'Settings'],
       ],
@@ -102,7 +103,7 @@ $who  = $name !== '' ? $name : (string) ($account['name'] ?? 'Your account');
     <?php /* Only when there is something to move up to. "Upgrade" on the
              dearest plan is a dead link that makes the page look unfinished. */ ?>
     <?php if (Plans::above($plan) !== []): ?>
-      <a href="/members#plans">Compare the plans &rarr;</a>
+      <a href="/members/plan">Compare the plans &rarr;</a>
     <?php endif; ?>
   </div>
 

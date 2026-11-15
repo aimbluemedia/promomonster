@@ -246,7 +246,7 @@ $onCard    = Billing::hasLiveSubscription($account);
     <p style="font-size:.92rem;margin:0;">
       On <?= View::e(Plans::name((string) Plans::cheapestWith(Plans::MONTHLY_REPORT))) ?>,
       <?= View::e(Plans::money((string) Plans::cheapestWith(Plans::MONTHLY_REPORT))) ?>/month.
-      <a href="/members#plans">Compare the plans &rarr;</a>
+      <a href="/members/plan">Compare the plans &rarr;</a>
     </p>
   <?php elseif (!$reportReady): ?>
     <p class="muted" style="font-size:.9rem;margin:0;">

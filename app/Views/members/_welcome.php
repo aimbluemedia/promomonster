@@ -70,7 +70,7 @@ $pills = [
 
   <div class="hello__acts">
     <?php if (Plans::above($plan) !== []): ?>
-      <a class="hello__btn hello__btn--solid" href="/members#plans">Upgrade my plan &rarr;</a>
+      <a class="hello__btn hello__btn--solid" href="/members/plan">Upgrade my plan &rarr;</a>
     <?php endif; ?>
     <?php /* Toutify, from the band, either way round.
 

@@ -660,6 +660,9 @@ body.members{ background:var(--wash); }
   padding:1.1rem 1.25rem; }
 .stat-card__v{ font-size:1.9rem; font-weight:800; letter-spacing:-.03em; }
 .stat-card__l{ font-size:.82rem; color:var(--muted); margin-top:.15rem; }
+/* The hint under the label. It had no rule at all, so it rendered at body
+   size in full ink -- louder than the label it explains. */
+.stat-card__h{ font-size:.76rem; color:var(--body); margin-top:.35rem; line-height:1.4; }
 
 /* position:relative is load-bearing, not decoration.
    overflow-x:auto makes this a scroll container, but it only clips descendants
@@ -1646,55 +1649,6 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
 .where__list dd{ margin:0 0 .55rem; color:var(--muted); font-size:.86rem; line-height:1.5; }
 @media (min-width:640px){ .where__list dd{ margin-bottom:.25rem; } }
 
-/* ---- Plan cards ------------------------------------------------------- */
-/* Three plans side by side on the dashboard, with the member's own marked.
-   Shares the look of .plan-option in Settings but not its markup: these are
-   not a radio group, each one carries its own form. */
-.plan-cards{ display:grid; gap:.85rem; margin:0 0 .5rem; }
-@media (min-width:860px){ .plan-cards{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
-
-.plan-card{ position:relative; display:flex; flex-direction:column;
-  border:1px solid var(--line); border-radius:12px; padding:1.15rem 1.15rem 1.1rem;
-  background:var(--surface); }
-.plan-card.is-current{ border-color:var(--brand); box-shadow:0 0 0 2px var(--brand) inset; }
-
-.plan-card__flag{ position:absolute; top:-.6rem; left:1.1rem;
-  background:var(--brand); color:#fff; font-size:.68rem; font-weight:800;
-  letter-spacing:.04em; text-transform:uppercase; padding:.18rem .5rem;
-  border-radius:999px; }
-
-.plan-card__name{ display:block; font-weight:700; color:var(--ink); font-size:1.05rem; }
-.plan-card__price{ display:block; font-size:1.55rem; font-weight:800; color:var(--ink);
-  line-height:1.1; margin-top:.15rem; }
-.plan-card__price small{ font-size:.8rem; font-weight:600; color:var(--muted); }
-
-.plan-card__more{ margin-top:.9rem; }
-.plan-card__more summary{ cursor:pointer; font-size:.88rem; font-weight:600;
-  color:var(--brand); list-style:none; padding:.2rem 0; }
-.plan-card__more summary::-webkit-details-marker{ display:none; }
-.plan-card__more summary::before{ content:"\25B8"; display:inline-block;
-  margin-right:.4rem; transition:transform .12s ease; }
-.plan-card__more[open] summary::before{ transform:rotate(90deg); }
-.plan-card__more summary:focus-visible{ outline:2px solid var(--brand); outline-offset:2px; }
-
-.plan-card__heading{ margin:.6rem 0 .35rem; font-size:.78rem; font-weight:700;
-  text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
-/* The bundled block is a second list, so it needs a rule above it or the two
-   read as one run of ticks. */
-.plan-card__heading--extra{ margin-top:.8rem; padding-top:.7rem;
-  border-top:1px solid var(--line); }
-
-.plan-card__list{ list-style:none; margin:0; padding:0; display:grid; gap:.35rem; }
-.plan-card__list li{ display:grid; grid-template-columns:1.1rem 1fr; gap:.45rem;
-  align-items:start; font-size:.88rem; line-height:1.45; }
-.plan-card__list li.yes span:first-child{ color:#0b7a4b; font-weight:800; }
-.plan-card__list li.no{ color:var(--muted); }
-.plan-card__list li.no span:first-child{ color:#b3261e; font-weight:800; }
-
-.plan-card__act{ margin-top:auto; padding-top:1rem; }
-.plan-card__on{ display:block; text-align:center; font-size:.86rem;
-  font-weight:600; color:var(--muted); }
-
 /* ---- A section the plan does not include ------------------------------ */
 /* The badge is the point of this panel.
 
@@ -1776,18 +1730,6 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
 }
 
 /* ---- The plans, at the foot of the dashboard -------------------------- */
-/* They used to be a strip above the nav on every members page. The reason was
-   sound -- the plan decides whether three of those screens work, so "what
-   would I get" should never be a click away -- but three boxes above eight
-   pages is a lot of page spent on a question asked on one of them. The
-   sidebar answers it now in a line, and the cards sit here.
-
-   The stray closing brace that used to end this block is gone with it. It
-   closed nothing; CSS skips it, which is why it survived. */
-.plans-at-foot{ margin-top:2.75rem; padding-top:2rem; border-top:1px solid var(--line); }
-.plans-at-foot h2{ font-size:1.15rem; margin:0 0 .35rem; }
-.plans-at-foot > .muted{ margin:0 0 1.1rem; font-size:.9rem; max-width:40rem; }
-
 /* ---- The three steps on the review page -------------------------------- */
 /* One per row, and each one plainly a separate thing.
 
@@ -1915,6 +1857,151 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
   .stepcard__h{ flex:1 1 60%; font-size:1.02rem; }
   .stepcard__pill{ order:3; }
   .stepcard__body{ padding:1.1rem 1.1rem 1.2rem; }
+}
+
+/* ---- The plan page ------------------------------------------------------ */
+/* Three questions in the order somebody asks them: what am I on, what have I
+   used, what would the others give me. A banner, two tiles, three cards.
+
+   The ladder across the banner is the part that earns its space. A price list
+   does not show somebody where they ARE; a row of dots with one filled in
+   does, in less room than a sentence, and it turns "what is above me" into a
+   glance instead of a comparison. */
+
+.planhero{
+  border-radius:18px; padding:1.75rem 1.85rem 1.6rem; margin-bottom:1.25rem;
+  color:#fff;
+  /* The same capped gradient the dashboard band uses. At full --brand the
+     small text on it measured under AA; #0a4f87 is the lightest stop that
+     keeps every pair above 4.5:1. */
+  background:linear-gradient(135deg,#0a4f87,#083b66 55%,#062c4d);
+}
+.planhero__top{ display:flex; flex-wrap:wrap; align-items:flex-start;
+  justify-content:space-between; gap:1.25rem; }
+.planhero__eyebrow{ margin:0 0 .4rem; font-size:.7rem; font-weight:800;
+  letter-spacing:.11em; text-transform:uppercase; color:#b7dcf5; }
+.planhero__h{ margin:0; font-size:1.6rem; color:#fff; letter-spacing:-.025em;
+  max-width:30rem; }
+.planhero__who{ margin:.4rem 0 0; font-size:.93rem; color:#d6e9f7; }
+
+.planhero__now{ flex:0 0 auto; min-width:10rem; padding:.85rem 1.1rem;
+  border-radius:12px; background:rgba(255,255,255,.12);
+  border:1px solid rgba(255,255,255,.22); }
+.planhero__nowlabel{ margin:0; font-size:.66rem; font-weight:800;
+  letter-spacing:.1em; text-transform:uppercase; color:#cfe4f4; }
+.planhero__nowname{ margin:.3rem 0 0; font-size:1.5rem; font-weight:800;
+  color:#fff; letter-spacing:-.025em; }
+.planhero__nowprice{ margin:.1rem 0 0; font-size:.9rem; color:#dceaf6; }
+.planhero__nowprice span{ color:#b7dcf5; }
+
+.planhero__foot{ margin:1.3rem 0 0; padding-top:1.1rem; font-size:.88rem;
+  color:#dceaf6; border-top:1px solid rgba(255,255,255,.18); }
+.planhero__foot strong{ color:#fff; }
+
+/* ---- The ladder -------------------------------------------------------- */
+.ladder{ list-style:none; display:grid; gap:.9rem; margin:1.6rem 0 0; padding:0; }
+@media (min-width:720px){ .ladder{ grid-auto-flow:column; grid-auto-columns:1fr; gap:0; } }
+
+.ladder__step{ position:relative; display:flex; flex-direction:column;
+  align-items:flex-start; gap:.15rem; padding-left:2.1rem; }
+@media (min-width:720px){
+  .ladder__step{ align-items:center; padding:0; text-align:center; }
+  /* The rail, drawn between the dots rather than behind them: a line through
+     a dot reads as a strikethrough. */
+  .ladder__step::before{ content:''; position:absolute; top:.65rem; left:calc(-50% + .9rem);
+    width:calc(100% - 1.8rem); height:2px; background:rgba(255,255,255,.22); }
+  .ladder__step:first-child::before{ display:none; }
+}
+.ladder__dot{ display:grid; place-items:center; width:1.35rem; height:1.35rem;
+  border-radius:50%; border:2px solid rgba(255,255,255,.35);
+  font-size:.72rem; font-weight:800; color:transparent; }
+@media (min-width:720px){ .ladder__dot{ margin-bottom:.45rem; } }
+.ladder__step:not(:is(.is-here,.is-done)) .ladder__dot{ background:rgba(255,255,255,.08); }
+.ladder__step.is-done .ladder__dot{ background:rgba(255,255,255,.28);
+  border-color:rgba(255,255,255,.45); color:#fff; }
+.ladder__step.is-here .ladder__dot{ background:#fff; border-color:#fff; color:#0a4f87; }
+/* The dot sits on the rail, so it needs its own stacking context. */
+.ladder__dot{ position:relative; z-index:1; }
+@media (max-width:719px){
+  .ladder__dot{ position:absolute; left:0; top:.1rem; }
+}
+
+.ladder__name{ font-size:.95rem; font-weight:700; color:#fff; }
+.ladder__price{ font-size:.8rem; color:#cfe4f4; }
+.ladder__you{ margin-top:.3rem; padding:.2rem .6rem; border-radius:999px;
+  background:#fff; color:#0a4f87; font-size:.66rem; font-weight:800;
+  letter-spacing:.06em; text-transform:uppercase; }
+.ladder__go{ margin-top:.3rem; font-size:.78rem; font-weight:700; color:#fff;
+  text-decoration:underline; }
+
+/* ---- What you have used ------------------------------------------------ */
+.planuse{ display:grid; gap:1rem; margin-bottom:2.25rem; }
+@media (min-width:620px){ .planuse{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+.planuse__tile{ border:1px solid var(--line); border-radius:14px;
+  background:var(--surface); padding:1.1rem 1.25rem; }
+.planuse__label{ margin:0; font-size:.68rem; font-weight:800; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--muted); }
+.planuse__n{ margin:.45rem 0 0; font-size:1.9rem; font-weight:800; color:var(--ink);
+  letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
+.planuse__n span{ font-size:1rem; font-weight:600; color:var(--muted); }
+.planuse__n--off{ color:var(--muted); }
+.planuse__off{ margin:.3rem 0 0; font-size:.85rem; color:var(--body); }
+
+/* ---- The three cards --------------------------------------------------- */
+.plans__h{ font-size:1.45rem; margin:.2rem 0 0; letter-spacing:-.025em; }
+.plans__sub{ margin:.4rem 0 0; font-size:.93rem; max-width:44rem; }
+
+.plangrid{ display:grid; gap:1.1rem; align-items:stretch; }
+@media (min-width:900px){ .plangrid{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+
+.plancard{ position:relative; display:flex; flex-direction:column;
+  border:1px solid var(--line); border-radius:16px; background:var(--surface);
+  padding:1.5rem 1.5rem 1.6rem;
+  box-shadow:0 1px 2px rgba(10,30,50,.05), 0 14px 32px -18px rgba(10,30,50,.22); }
+.plancard--current{ border-color:var(--brand); box-shadow:0 0 0 2px var(--brand) inset; }
+
+.plancard__flag{ position:absolute; top:-.7rem; left:1.4rem; margin:0;
+  padding:.25rem .7rem; border-radius:999px; background:var(--brand); color:#fff;
+  font-size:.66rem; font-weight:800; letter-spacing:.07em; text-transform:uppercase; }
+
+.plancard__eyebrow{ margin:0; font-size:.7rem; font-weight:800; letter-spacing:.1em;
+  color:var(--brand); }
+.plancard__price{ margin:.3rem 0 0; font-size:2.1rem; font-weight:800;
+  color:var(--ink); letter-spacing:-.04em; }
+.plancard__price span{ font-size:.9rem; font-weight:600; color:var(--muted);
+  letter-spacing:0; }
+.plancard__for{ margin:.7rem 0 0; font-size:.88rem; line-height:1.55; color:var(--body); }
+.plancard__for strong{ color:var(--ink); }
+
+.plancard__rhythm{ margin:1.1rem 0 0; padding:.9rem 1rem; border-radius:12px;
+  background:var(--tint-2); border:1px solid var(--line-2); }
+.plancard__every{ margin:0; font-size:.68rem; font-weight:800; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--brand); }
+.plancard__what{ margin:.35rem 0 0; font-size:.88rem; line-height:1.5; color:var(--ink); }
+.plancard__count{ margin:.3rem 0 0; font-size:.82rem; color:var(--muted); }
+
+.plancard__heading{ margin:1.2rem 0 .55rem; font-size:.68rem; font-weight:800;
+  letter-spacing:.09em; text-transform:uppercase; color:var(--muted); }
+.plancard__heading--extra{ margin-top:1rem; padding-top:.85rem;
+  border-top:1px solid var(--line); }
+
+.plancard__list{ list-style:none; margin:0; padding:0; display:grid; gap:.4rem; }
+.plancard__list li{ display:grid; grid-template-columns:1.1rem 1fr; gap:.5rem;
+  align-items:start; font-size:.88rem; line-height:1.45; }
+.plancard__list li.yes span:first-child{ color:var(--good); font-weight:800; }
+.plancard__list li.no{ color:var(--muted); }
+.plancard__list li.no span:first-child{ color:#b3261e; font-weight:800; }
+
+.plancard__act{ margin-top:auto; padding-top:1.35rem; }
+.plancard__act form{ margin:0; }
+.plancard__act .btn{ width:100%; }
+.plancard__on{ margin:0; text-align:center; font-size:.88rem; font-weight:700;
+  color:var(--good); }
+
+@media (max-width:620px){
+  .planhero{ padding:1.3rem 1.2rem 1.25rem; border-radius:15px; }
+  .planhero__h{ font-size:1.3rem; }
+  .plancard{ padding:1.25rem 1.2rem 1.35rem; }
 }
 
 /* ---- Get started ------------------------------------------------------ */

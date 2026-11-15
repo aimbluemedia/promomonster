@@ -1045,6 +1045,35 @@ final class MembersController
     }
 
     /**
+     * The plan page: where they are, what the others are, what they have used.
+     *
+     * A page of its own rather than a strip on the dashboard. The plans were
+     * on every members page once, then at the foot of the dashboard; both put
+     * a price list in front of somebody who came to do something else. A
+     * member asks "what am I on and what would more cost" perhaps twice in
+     * their life, and when they do they want the whole answer on one screen.
+     */
+    public function planPage(): void
+    {
+        $account = Auth::account() ?? [];
+        $id      = (int) ($account['id'] ?? 0);
+        $current = $this->plan();
+
+        echo View::members('members/plan', [
+            'title'   => 'Your plan · PromoMonster',
+            'account' => $account,
+            'plans'   => Plans::selectable(),
+            'current' => $current,
+            // Both counts are the ones that are actually enforced, read from
+            // the same place the enforcement reads them. A usage figure that
+            // disagreed with the thing blocking a send would be worse than
+            // showing none.
+            'sending' => SendLimit::check($id, $current),
+            'drafts'  => DraftStore::month($id, $current),
+        ]);
+    }
+
+    /**
      * Records that a member wants a different plan.
      *
      * Downgrading to Free takes effect immediately — it costs nothing and

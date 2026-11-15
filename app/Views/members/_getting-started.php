@@ -173,7 +173,7 @@ $icons = [
                   ? [(string) $step['needs']]
                   : Plans::plansWith((string) $step['ability']);
             ?>
-            <a class="gs__notebtn" href="/members#plans">
+            <a class="gs__notebtn" href="/members/plan">
               <?= View::e('Upgrade to ' . implode(' or ', array_map(
                   static fn (string $k): string => Plans::name($k),
                   $grants,

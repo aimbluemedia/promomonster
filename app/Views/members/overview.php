@@ -109,7 +109,7 @@ $pageUrl   = $pageUrl ?? null; ?>
 
             <td>
               <?php if (!$canGoogle): ?>
-                <a href="/members#plans">Needs <?= View::e(Plans::name(
+                <a href="/members/plan">Needs <?= View::e(Plans::name(
                     (string) Plans::cheapestWith(Plans::GOOGLE_PAGE))) ?></a>
               <?php elseif (!empty($l['google_review_url'])): ?>
                 <a href="<?= View::e($l['google_review_url']) ?>" rel="noopener"
@@ -140,24 +140,8 @@ $pageUrl   = $pageUrl ?? null; ?>
   <?php endif; ?>
 </div>
 
-<?php /* ---- The plans --------------------------------------------------- */ ?>
-<?php /* These three cards used to sit above the nav on every page in the
-         members area. They were put there so a member who met a locked
-         screen could see what the next tier costs without hunting for it --
-         a good reason, served badly: three boxes above every page, including
-         the eight pages where nobody was asking. The sidebar carries the
-         plan and the allowance now, on every page, in one line, and the
-         cards live here, at the end of the only page that is about how the
-         account is doing.
-
-         id="plans" stays on this section: every "Compare the plans" and
-         "Needs Pro" link in the members area points at /members#plans, and
-         they all still land on the same thing. */ ?>
-<section id="plans" class="plans-at-foot">
-  <h2>Your plan</h2>
-  <p class="muted">
-    What you are on, and what the other two would add. Nothing changes until
-    you say so.
-  </p>
-  <?= View::render('members/_plan-cards', ['account' => $account ?? []]) ?>
-</section>
+<?php /* The three plan cards used to end this page, under id="plans".
+         They have a page of their own now -- /members/plan -- with the
+         ladder, what has been used this month and the full comparison on
+         one screen. Every "Compare the plans" link in the members area
+         points there instead, so nothing lands on an anchor that moved. */ ?>

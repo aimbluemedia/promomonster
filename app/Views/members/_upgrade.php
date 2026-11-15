@@ -109,7 +109,7 @@ $tone = $needed === null ? '' : ($only ? ' locked--only' : ' locked--up');
             </button>
           </form>
         <?php endif; ?>
-        <a class="btn btn--ghost" href="/members#plans">Compare the plans</a>
+        <a class="btn btn--ghost" href="/members/plan">Compare the plans</a>
       </div>
     <?php endif; ?>
   </div>

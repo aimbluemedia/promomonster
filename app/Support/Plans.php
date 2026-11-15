@@ -277,6 +277,127 @@ final class Plans
         return $n === null ? 'Review replies, uncapped' : (int) $n . ' review replies';
     }
 
+    /**
+     * Who the plan is for, in one line, in the second person.
+     *
+     * Here rather than in the view because the plan page and the public
+     * pricing page both want it, and two copies of a sentence about who
+     * should buy what is two chances to describe the same plan differently.
+     */
+    /**
+     * The heading above a plan's feature list.
+     *
+     * "Includes" on the cheapest, "Everything in Free, plus" on the next,
+     * and so on -- the ladder said in words, so a reader does not have to
+     * diff two lists to see that a plan is cumulative.
+     *
+     * Derived from price order rather than from a fixed list, so inserting a
+     * tier in the middle renames the one above it without anybody noticing
+     * they had to.
+     */
+    public static function listHeading(string $key): string
+    {
+        $below = null;
+        foreach (self::SELECTABLE as $candidate) {
+            if ($candidate === $key) {
+                break;
+            }
+            $below = $candidate;
+        }
+
+        return $below === null ? 'Includes' : 'Everything in ' . self::name($below) . ', plus';
+    }
+
+    public static function bestFor(string $key): string
+    {
+        return match ($key) {
+            self::FREE    => 'Seeing whether asking works at all, a few customers at a time.',
+            self::PRO     => 'Asking every customer, with the request landing on your Google listing.',
+            self::PREMIUM => 'Businesses that want the reviews answered and watched, not just collected.',
+            self::PARTNER => 'Agencies running this for their own clients.',
+            default       => '',
+        };
+    }
+
+    /**
+     * How often the plan lets you ask, said as a rhythm.
+     *
+     * Built from burst and burst_days rather than written out, so it cannot
+     * disagree with the limit the sender actually enforces. "Twice a day" is
+     * a thing somebody can picture; "burst 2 over 1 day" is not.
+     *
+     * No time-saved claim. The reference design this page follows puts
+     * "Save ~10 hrs a month" here, and we have no data for a number like
+     * that -- so the third line is the monthly allowance, which is a fact.
+     *
+     * @return array{every:string, what:string, count:string}
+     */
+    public static function cadence(string $key): array
+    {
+        $burst = self::limit($key, 'burst');
+        $days  = self::limit($key, 'burst_days');
+        $month = self::limit($key, 'requests_per_month');
+
+        $per = match (true) {
+            $days === null  => null,
+            (int) $days === 1 => 'a day',
+            (int) $days === 7 => 'a week',
+            default           => 'every ' . (int) $days . ' days',
+        };
+
+        $every = ($burst === null || $per === null)
+            ? 'As often as you like'
+            : self::howOften((int) $burst) . ' ' . $per;
+
+        return [
+            'every' => $every,
+            'what'  => match ($key) {
+                self::FREE    => 'One customer at a time, on the day you did the work.',
+                self::PRO     => 'Every job, the day it finishes, without saving them up.',
+                self::PREMIUM => 'A busy day\'s worth in one sitting, still paced so the mail lands.',
+                default       => 'Paced so the mail keeps landing.',
+            },
+            'count' => $month === null
+                ? 'Uncapped'
+                : (int) $month . ' review requests a month',
+        ];
+    }
+
+    /**
+     * "Once", "Twice", "Ten times" -- the whole phrase, not a bare numeral.
+     *
+     * Whole phrase on purpose: the first version returned the word and let
+     * the caller append " times", which produced "Twice times a day". Two is
+     * the one number in English that carries its own "times".
+     */
+    private static function howOften(int $n): string
+    {
+        if ($n === 1) {
+            return 'Once';
+        }
+        if ($n === 2) {
+            return 'Twice';
+        }
+
+        $word = [3 => 'Three', 4 => 'Four', 5 => 'Five', 6 => 'Six', 7 => 'Seven',
+                 8 => 'Eight', 9 => 'Nine', 10 => 'Ten'][$n] ?? (string) $n;
+
+        return $word . ' times';
+    }
+
+    /** How many of the gated features a plan opens, for "N of 6". */
+    public static function featureCount(string $key): int
+    {
+        $n = 0;
+        foreach (self::ABILITIES as $ability) {
+            if (self::can($key, $ability)) {
+                $n++;
+            }
+        }
+
+        return $n;
+    }
+
     public static function card(string $key): array
     {
         $month = self::LIMITS[$key]['requests_per_month'] ?? null;
@@ -539,7 +660,27 @@ final class Plans
     /** null means no limit. */
     public static function limit(string $key, string $limit): int|bool|null
     {
-        return self::LIMITS[$key][$limit] ?? self::LIMITS[self::FREE][$limit] ?? null;
+        // array_key_exists, not ??.
+        //
+        // A null VALUE in this table means "no limit" and is the entire point
+        // of the Partner row. ?? cannot tell that from a missing key, so it
+        // fell through to Free's table and returned 5 -- which means a
+        // reseller running client accounts was capped at five review requests
+        // a month and one a week, by SendLimit, silently, with a message
+        // reading "that is this month's 5 on the Partner plan".
+        //
+        // Fourth time this exact mistake has been made in this codebase.
+        if (array_key_exists($key, self::LIMITS)
+            && array_key_exists($limit, self::LIMITS[$key])) {
+            return self::LIMITS[$key][$limit];
+        }
+
+        // An unknown plan falls back to Free, which is the safe direction:
+        // too few sends is a support email, too many is a deliverability
+        // problem for everybody on the platform.
+        return array_key_exists($limit, self::LIMITS[self::FREE])
+            ? self::LIMITS[self::FREE][$limit]
+            : null;
     }
 
     /**

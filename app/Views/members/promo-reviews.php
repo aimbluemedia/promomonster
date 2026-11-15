@@ -105,7 +105,7 @@ $draftMonth = $draftMonth ?? ['allowed' => false, 'used' => 0, 'limit' => 0, 're
           <?php $plain = App\Support\Plans::cheapestWith(App\Support\Plans::UNBRANDED); ?>
           <?php if ($plain !== null): ?>
             Want it without our name on it? That is
-            <a href="/members#plans"><?= View::e(App\Support\Plans::name($plain)) ?></a>.
+            <a href="/members/plan"><?= View::e(App\Support\Plans::name($plain)) ?></a>.
           <?php endif; ?>
         <?php else: ?>
           On your plan it carries no PromoMonster name &mdash; the link back just
@@ -142,7 +142,7 @@ $draftMonth = $draftMonth ?? ['allowed' => false, 'used' => 0, 'limit' => 0, 're
             <?= View::e(App\Support\Plans::money($needsPlan)) ?> a month.
           </p>
           <p class="stepcard__acts">
-            <a class="btn btn--primary btn--sm" href="/members#plans">
+            <a class="btn btn--primary btn--sm" href="/members/plan">
               Compare the plans
             </a>
           </p>

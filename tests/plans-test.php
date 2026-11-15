@@ -550,5 +550,99 @@ foreach (Plans::SELECTABLE as $plan) {
 ok('the pricing page makes no sender-name promise',
     preg_match('/(under|as)\s+(your|their)\s+own\s+(business\s+)?name/i', $pageText) !== 1);
 
+// =====================================================================
+// The plan page's helpers
+// =====================================================================
+//
+// Four of these exist only to keep the plan page from typing anything out,
+// so each has to be true of the catalogue rather than of a sentence somebody
+// wrote once and forgot.
+
+// The heading above each feature list says the ladder in words. The first
+// plan "Includes"; every later one builds on the plan below it, which is
+// what makes it honest to leave the inherited lines off the list.
+$previous = null;
+foreach (Plans::SELECTABLE as $plan) {
+    $heading = Plans::listHeading($plan);
+    if ($previous === null) {
+        check("{$plan}: the cheapest plan just includes", $heading, 'Includes');
+    } else {
+        check("{$plan}: builds on the plan below it", $heading,
+            'Everything in ' . Plans::name($previous) . ', plus');
+    }
+    $previous = $plan;
+}
+
+// Not derived from a hand-written list: inserting a tier has to rename the
+// one above it. SELECTABLE is the order, so the second entry's heading must
+// name the first, whatever they are called.
+$order = array_values(Plans::SELECTABLE);
+ok('the heading follows SELECTABLE order',
+    str_contains(Plans::listHeading($order[1]), Plans::name($order[0])));
+
+foreach (Plans::SELECTABLE as $plan) {
+    // "Best for" is prose, but it must exist and must not be the same
+    // sentence on two plans -- three identical lines help nobody choose.
+    $best = Plans::bestFor($plan);
+    ok("{$plan}: has a best-for line", trim($best) !== '');
+    ok("{$plan}: the best-for line ends in a full stop", str_ends_with(trim($best), '.'));
+
+    // The rhythm band. Its three parts are built from the burst and the
+    // monthly cap, so the count it prints has to be the cap SendLimit will
+    // actually enforce -- not a rounder number that reads better.
+    $cadence = Plans::cadence($plan);
+    foreach (['every', 'what', 'count'] as $part) {
+        ok("{$plan}: the rhythm band has a {$part}", ($cadence[$part] ?? '') !== '');
+    }
+    $cap = Plans::limit($plan, 'requests_per_month');
+    if (is_int($cap)) {
+        ok("{$plan}: the rhythm count is the real monthly cap",
+            str_contains($cadence['count'], (string) $cap));
+    }
+
+    // No time-saved claim anywhere in the band: we cannot measure it.
+    $band = $cadence['every'] . ' ' . $cadence['what'] . ' ' . $cadence['count'];
+    ok("{$plan}: the band promises no hours saved",
+        preg_match('/\b(hours?|minutes?)\s+(a|per|each)\s+(week|month|day)\b/i', $band) !== 1);
+
+    // "N of 6 features" on the page. If this counted anything but the
+    // granted abilities, the banner and the cards would disagree.
+    $granted = 0;
+    foreach (Plans::ABILITIES as $ability) {
+        if (Plans::can($plan, $ability)) {
+            $granted++;
+        }
+    }
+    check("{$plan}: the feature count is the granted abilities", Plans::featureCount($plan), $granted);
+}
+
+// A plural bug that shipped once: howOften() returned "Twice" and the caller
+// appended " times", so Pro's band read "Twice times a day".
+foreach (Plans::SELECTABLE as $plan) {
+    ok("{$plan}: the rhythm heading is not doubled",
+        preg_match('/\b(once|twice)\s+times\b/i', Plans::cadence($plan)['every']) !== 1);
+}
+
+// =====================================================================
+// limit() must not confuse "no limit" with "not listed"
+// =====================================================================
+//
+// Partner's row is null all the way across, which is the entire point of it.
+// ?? cannot tell a null value from a missing key, so it fell through to
+// Free's table and capped a reseller at five requests a month and one a
+// week -- silently, because SendLimit simply refused and said why.
+
+check('partner has no monthly cap', Plans::limit(Plans::PARTNER, 'requests_per_month'), null);
+check('partner has no burst cap', Plans::limit(Plans::PARTNER, 'burst'), null);
+check('partner has no draft cap', Plans::limit(Plans::PARTNER, 'reply_drafts_per_month'), null);
+
+// A key that is genuinely absent still falls back to Free, which is the
+// safe direction: a new limit nobody has filled in yet restricts rather
+// than releases.
+check('an unknown limit falls back to Free',
+    Plans::limit('no-such-plan', 'requests_per_month'),
+    Plans::limit(Plans::FREE, 'requests_per_month'));
+check('an unknown key is null, not zero', Plans::limit(Plans::PRO, 'no-such-limit'), null);
+
 echo "\n{$passed} passed, {$failed} failed\n";
 exit($failed === 0 ? 0 : 1);

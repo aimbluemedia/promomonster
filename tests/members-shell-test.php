@@ -110,7 +110,7 @@ ok('routes were found to check against', count($routes) > 20);
 preg_match_all("~'(/members[a-z/-]*)'\s*=> \[~", $sidebar, $navMatch);
 $nav = array_values(array_unique($navMatch[1]));
 
-check('the sidebar lists eight screens', count($nav), 8);
+check('the sidebar lists nine screens', count($nav), 9);
 
 foreach ($nav as $href) {
     ok("{$href} is a registered route", in_array($href, $routes, true));
@@ -127,6 +127,7 @@ foreach ([
     '/members/promomonster-reviews',
     '/members/templates',
     '/members/playbook',
+    '/members/plan',
     '/members/profile',
     '/members/settings',
 ] as $href) {
@@ -146,40 +147,78 @@ ok('the active test is equality', str_contains($sidebar, '$here = $path === $hre
 ok('and not a prefix test', !str_contains($sidebarCode, 'str_starts_with($path'));
 ok('the active link is announced', str_contains($sidebar, 'aria-current="page"'));
 
-/* ---- The #plans anchor ----------------------------------------------- */
+/* ---- The plan page ---------------------------------------------------- */
 
-// Collect every members-area link to the anchor, then prove the page it names
-// carries it. The cards moved out of the layout; this is the thing that broke.
-$pointers = [];
+// The cards used to sit behind a #plans anchor on the dashboard. They have a
+// page of their own now, which means two different things can break: a link
+// left pointing at an anchor that no longer exists, and a second copy of the
+// cards nobody is looking at drifting away from the real one.
+$deadAnchors = [];
 foreach (glob($views . '/*.php') ?: [] as $file) {
-    $body = (string) file_get_contents($file);
+    $body = code((string) file_get_contents($file));
     if (preg_match_all('~href="(/members[a-z/-]*)#plans"~', $body, $m) > 0) {
-        foreach ($m[1] as $target) {
-            $pointers[$target][] = basename($file);
-        }
+        $deadAnchors[] = basename($file);
     }
 }
-ok('something links to the anchor', $pointers !== []);
+check('nothing links to the retired #plans anchor', $deadAnchors, []);
 
-$overview = (string) file_get_contents($views . '/overview.php');
-$pages = ['/members' => $overview];
-foreach (array_keys($pointers) as $target) {
-    ok("#plans is linked from a page we can check: {$target}", isset($pages[$target]));
-    if (isset($pages[$target])) {
-        ok("{$target} carries id=\"plans\"", str_contains($pages[$target], 'id="plans"'));
-        ok("{$target} renders the plan cards", str_contains($pages[$target], "members/_plan-cards"));
-    }
-}
+$plan       = (string) file_get_contents($views . '/plan.php');
+$planCode   = code($plan);
+$overview   = (string) file_get_contents($views . '/overview.php');
+$settings   = (string) file_get_contents($views . '/settings.php');
+$controller = (string) file_get_contents(BASE_PATH . '/app/Controllers/MembersController.php');
 
-// Exactly one, or the browser jumps to whichever comes first and the other is
-// dead weight.
-check('the dashboard defines the anchor once', substr_count(code($overview), 'id="plans"'), 1);
+ok('the plan page has a body', strlen($plan) > 1500);
+ok('/members/plan is a registered route', in_array('/members/plan', $routes, true));
+ok('and the nav carries it', in_array('/members/plan', $nav, true));
+ok('the controller answers it', str_contains($controller, 'public function planPage()'));
 
-// And the layout no longer does, or the anchor on the dashboard is shadowed by
-// one above it on every page.
-ok('the layout does not render the plan cards', !str_contains($layoutCode, '_plan-cards'));
+// planPage(), not plan(): MembersController already has a private plan() that
+// returns the current plan key, and the collision was a fatal error.
+ok('the existing plan() helper is untouched',
+    str_contains($controller, 'private function plan(): string'));
+
+// One copy of the cards.
+ok('the dashboard no longer renders plan cards', !str_contains(code($overview), '_plan-cards'));
+ok('the retired partial is gone', !is_file($views . '/_plan-cards.php'));
+ok('the layout does not render plan cards', !str_contains($layoutCode, '_plan-cards'));
 ok('the layout has no plan strip', !str_contains($layoutCode, 'planstrip'));
 ok('the stylesheet has no plan strip left', !str_contains(code($css), 'planstrip'));
+
+// Everything on the page comes out of the catalogue. A price or a feature
+// typed into the view is a price that keeps saying $19 after the catalogue
+// says something else.
+foreach ([
+    'Plans::money'       => 'prices',
+    'Plans::card'        => 'the feature lines',
+    'Plans::cadence'     => 'how often you may ask',
+    'Plans::bestFor'     => 'who each plan suits',
+    'Plans::listHeading' => 'the heading above each list',
+    'Plans::includes'    => 'what every plan bundles',
+] as $call => $what) {
+    ok("{$what} come from {$call}()", str_contains($planCode, $call));
+}
+
+// No money typed into the markup. $0.00/$19.00/$49.00 all have to come from
+// Plans::money(), so a dollar sign followed by a digit is the whole test.
+ok('no price is typed into the page', preg_match('~\$\d~', $planCode) !== 1);
+
+// The three plans are walked, not listed. A hard-coded free/pro/premium loop
+// would silently skip a tier added to the catalogue.
+ok('the cards are generated from the plans passed in',
+    str_contains($planCode, 'foreach ($plans as $key => $plan)'));
+ok('the ladder is generated too', str_contains($planCode, 'array_keys($plans)'));
+
+// Asked for explicitly: no "Done For You" block on this page.
+foreach (['Done For You', 'Done for you', 'million things', 'handle your content'] as $phrase) {
+    ok("the page does not pitch: {$phrase}", !str_contains($plan, $phrase));
+}
+
+// The replies tile. On a plan with no drafting, "0 / 0" reads as a counter
+// that broke, so the tile has to ask the catalogue instead of printing it.
+ok('the replies tile checks the ability first',
+    str_contains($planCode, 'Plans::can($current, Plans::REPLY_DRAFTS)'));
+ok('and names the plans that do draft', str_contains($planCode, 'Plans::plansWith(Plans::REPLY_DRAFTS)'));
 
 /* ---- The layout renders the sidebar ---------------------------------- */
 
@@ -197,7 +236,8 @@ ok('superadmin still has its nav rules', str_contains($css, '.admin-nav a[aria-c
 // The "no design change" bug: markup renders, class name is a typo, nothing
 // is styled and nothing complains.
 $classes = [];
-foreach ([$sidebar, $welcome, $layout, $started, $promo, $asks] as $source) {
+foreach ([$sidebar, $welcome, $layout, $started, $promo, $asks, $plan,
+          $overview, $settings] as $source) {
     if (preg_match_all('~class="([^"<>$]+)"~', $source, $m) > 0) {
         foreach ($m[1] as $attr) {
             foreach (preg_split('/\s+/', trim($attr)) ?: [] as $name) {
@@ -214,6 +254,7 @@ foreach ([
     'gs', 'gs--done', 'gs__card', 'is-next', 'is-done', 'gs__btn--go', 'is-full',
     'stepcard', 'stepcard--paid', 'stepcard--locked',
     'dest__access', 'dest__access--paid', 'dest__card--off',
+    'ladder__step', 'is-done', 'plancard', 'plancard--current', 'no',
 ] as $name) {
     $classes[$name] = true;
 }
