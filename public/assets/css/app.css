@@ -1714,18 +1714,93 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
   font-weight:600; color:var(--muted); }
 
 /* ---- A section the plan does not include ------------------------------ */
-.locked{ border:1px solid var(--line); border-left:5px solid var(--brand);
-  border-radius:12px; padding:1.25rem 1.35rem; background:var(--surface);
-  margin-bottom:1.5rem; }
-.locked__head{ display:flex; flex-wrap:wrap; gap:.6rem; align-items:center; }
-.locked__pill{ background:var(--line); color:var(--ink); font-size:.7rem;
-  font-weight:800; letter-spacing:.04em; text-transform:uppercase;
-  padding:.2rem .55rem; border-radius:999px; }
-.locked__title{ font-size:1.05rem; margin:0; color:var(--ink); }
-.locked__blurb{ margin:.6rem 0 0; font-size:.92rem; color:var(--muted); max-width:46rem; }
-.locked__price{ margin:.75rem 0 0; font-size:.95rem; color:var(--ink); }
-.locked__act{ display:flex; flex-wrap:wrap; gap:.6rem; margin-top:1rem; align-items:center; }
+/* The badge is the point of this panel.
+
+   A member who opens a screen and finds it closed has one question, and it
+   is not "what is this feature". It is "what would it cost me". So the first
+   thing on the panel is a plain statement of which plan opens it, set big
+   enough to read from across the room, and everything else -- what the thing
+   is, what it costs, the button -- comes after.
+
+   "Premium only" and "Pro and above" are both generated from the catalogue.
+   Two of the three gates that render this panel are Pro gates, so a
+   hardcoded "Premium only" would be telling a member the cheaper plan will
+   not do: false, and expensive for them. */
+
+.locked{
+  --accent:      var(--brand);
+  --accent-ink:  #fff;
+  --accent-band: var(--tint);
+  --accent-edge: var(--line-2);
+
+  overflow:hidden;
+  border:1px solid var(--line);
+  border-radius:18px;
+  background:var(--surface);
+  box-shadow:0 1px 2px rgba(10,30,50,.05), 0 14px 32px -18px rgba(10,30,50,.22);
+  margin-bottom:1.75rem;
+}
+
+/* Amber when one plan holds it, brand blue when more than one do -- the same
+   two accents the steps on the review page use, meaning the same two things.
+   #8a5a12 is the deep amber that carries small uppercase type at 4.5:1. */
+.locked--only{ --accent:#8a5a12; --accent-band:#fff4e0; --accent-edge:#f0dcb4; }
+
+@media (prefers-color-scheme: dark){
+  .locked{ --accent-ink:var(--paper);
+    box-shadow:0 1px 2px rgba(0,0,0,.35), 0 14px 32px -18px rgba(0,0,0,.7); }
+  /* A light amber on a dark card, with dark ink on it. The light-mode pair
+     inverts to under 3:1 here. */
+  .locked--only{ --accent:#f3c982; --accent-ink:#20180c;
+    --accent-band:#2b2114; --accent-edge:#453522; }
+}
+
+.locked__band{
+  display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between;
+  gap:.75rem 1rem;
+  padding:1.1rem 1.5rem;
+  background:var(--accent-band);
+  border-bottom:1px solid var(--accent-edge);
+}
+
+/* The callout. Deliberately larger than a pill: this is the sentence the
+   member came for. */
+.locked__badge{
+  margin:0;
+  padding:.5rem 1.1rem;
+  border-radius:999px;
+  background:var(--accent); color:var(--accent-ink);
+  font-size:.92rem; font-weight:800; letter-spacing:.09em;
+  text-transform:uppercase; white-space:nowrap;
+}
+.locked__on{ margin:0; font-size:.88rem; color:var(--body); }
+.locked__on strong{ color:var(--ink); }
+
+.locked__body{ padding:1.4rem 1.5rem 1.5rem; }
+.locked__title{ font-size:1.12rem; margin:0; letter-spacing:-.022em; }
+.locked__blurb{ margin:.55rem 0 0; font-size:.93rem; line-height:1.6;
+  color:var(--body); max-width:48rem; }
+
+/* Each plan as a chip, so two prices do not read as one run-on sentence. */
+.locked__price{ display:flex; flex-wrap:wrap; align-items:center; gap:.5rem;
+  margin:1.1rem 0 0; }
+.locked__plan{ display:inline-flex; align-items:baseline; gap:.4rem;
+  padding:.4rem .75rem; border-radius:10px;
+  background:var(--wash); border:1px solid var(--line);
+  font-size:.9rem; color:var(--body); }
+.locked__plan strong{ color:var(--ink); }
+.locked__or{ font-size:.85rem; color:var(--muted); }
+
+.locked__act{ display:flex; flex-wrap:wrap; gap:.6rem; margin-top:1.25rem;
+  align-items:center; }
 .locked__act form{ margin:0; }
+
+@media (max-width:720px){
+  .locked{ border-radius:15px; }
+  .locked__band{ padding:.95rem 1.1rem; }
+  .locked__badge{ font-size:.82rem; padding:.45rem .9rem; }
+  .locked__body{ padding:1.1rem 1.1rem 1.2rem; }
+}
 
 /* ---- The plans, at the foot of the dashboard -------------------------- */
 /* They used to be a strip above the nav on every members page. The reason was

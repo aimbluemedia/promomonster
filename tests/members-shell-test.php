@@ -370,6 +370,72 @@ foreach (['Your review page', 'Put them on your website', 'Add a review yourself
     ok("Premium sees: {$heading}", str_contains($asPremium, $heading));
 }
 
+/* ---- The callout on a locked section --------------------------------- */
+
+// "Premium only" is the right words when Premium really is the only plan
+// that grants the thing, and the wrong words on a screen Pro opens. Two of
+// the gates that render this panel are Pro gates, so a hardcoded badge would
+// be telling a member the cheaper plan will not do -- false, and expensive
+// for them. It is generated, and here is the proof.
+
+$upgrade = (string) file_get_contents($views . '/_upgrade.php');
+$lockFor = static function (string $ability) use ($upgrade): string {
+    return App\Support\View::render('members/_upgrade', [
+        'account' => ['id' => 1, 'name' => 'Acme', 'plan' => App\Support\Plans::FREE],
+        'ability' => $ability,
+        'blurb'   => 'What it is for.',
+    ]);
+};
+
+// One plan grants it: "Premium only".
+foreach ([App\Support\Plans::ADD_REVIEWS, App\Support\Plans::REPLY_DRAFTS,
+          App\Support\Plans::MONTHLY_REPORT, App\Support\Plans::UNBRANDED] as $ability) {
+    $html = $lockFor($ability);
+    $name = App\Support\Plans::name((string) App\Support\Plans::cheapestWith($ability));
+    check("{$ability}: one plan grants it",
+        count(App\Support\Plans::plansWith($ability)), 1);
+    ok("{$ability}: the badge says \"{$name} only\"", str_contains($html, $name . ' only'));
+    ok("{$ability}: and it is the amber one", str_contains($html, 'locked--only'));
+    ok("{$ability}: never \"and above\"", !str_contains($html, 'and above'));
+}
+
+// More than one grants it: "Pro and above", never "Premium only".
+foreach ([App\Support\Plans::GOOGLE_PAGE, App\Support\Plans::ALL_TEMPLATES] as $ability) {
+    $html  = $lockFor($ability);
+    $plans = App\Support\Plans::plansWith($ability);
+    ok("{$ability}: more than one plan grants it", count($plans) > 1);
+    $cheapest = App\Support\Plans::name($plans[0]);
+    ok("{$ability}: the badge says \"{$cheapest} and above\"",
+        str_contains($html, $cheapest . ' and above'));
+    ok("{$ability}: and it is the blue one", str_contains($html, 'locked--up'));
+
+    // The one that matters. A member told "Premium only" on a screen Pro
+    // opens has been sold the wrong plan by a stylesheet.
+    foreach ($plans as $plan) {
+        ok("{$ability}: never \"" . App\Support\Plans::name($plan) . ' only"',
+            !str_contains($html, App\Support\Plans::name($plan) . ' only'));
+    }
+
+    // Every plan that grants it is priced, not just the cheapest: somebody
+    // who upgrades to Pro for this and then needs Premium for the next thing
+    // has been led there one plan at a time.
+    foreach ($plans as $plan) {
+        ok("{$ability}: names " . App\Support\Plans::name($plan),
+            str_contains($html, App\Support\Plans::name($plan)));
+        ok("{$ability}: prices " . App\Support\Plans::name($plan),
+            str_contains($html, App\Support\Plans::money($plan)));
+    }
+}
+
+// Nothing in the panel is typed where it could be read.
+ok('the badge is generated', str_contains(code($upgrade), 'Plans::name($options[0])'));
+ok('and no plan name is hardcoded',
+    !preg_match('~[\'"](Premium|Pro) only[\'"]~', code($upgrade)));
+
+// It always says what they are on now, so the comparison is on screen.
+ok('the panel names the current plan', str_contains($lockFor(App\Support\Plans::ADD_REVIEWS),
+    'You are on'));
+
 /* ---- The band says only what it can stand behind --------------------- */
 
 // Telling a direct-signup member their account is "included with your Toutify
