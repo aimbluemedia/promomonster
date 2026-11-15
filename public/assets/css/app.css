@@ -39,28 +39,8 @@
   --ease: cubic-bezier(.22,.61,.36,1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --paper:  #0a1119;
-    --wash:   #0e1721;
-    --surface:#111c27;
-    --tint:   #102c3d;
-    --tint-2: #0d2534;
-    --ink:    #eef4f8;
-    --body:   #a9b8c6;
-    --muted:  #93a3b3;
-    --line:   #1e2c39;
-    --line-2: #24455c;
-    --brand:  #58c4f2;
-    --brand-hover: #85d6f7;
-    --vivid:  #009fe0;
-    --star:   #f0a83a;
-    --good:   #4ade80;
-  }
-}
-
 *, *::before, *::after { box-sizing: border-box; }
-html { color-scheme: light dark; scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+html { color-scheme: light; scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
 body {
   margin: 0; background: var(--paper); color: var(--ink);
   font-family: var(--font); font-size: 16px; line-height: 1.6;
@@ -166,10 +146,6 @@ h3{ font-size:1.0625rem; font-weight:700; letter-spacing:-.01em; }
    label all but disappears. The fill is the one surface on the page that
    does not follow the scheme, so the label has to: --paper on --brand is
    9.57:1, and 11.71:1 on the hover shade. */
-@media (prefers-color-scheme: dark){
-  .btn--primary, .site-nav a.btn--primary,
-  .btn--primary:hover, .site-nav a.btn--primary:hover{ color:var(--paper); }
-}
 .btn--ghost{ background:var(--surface); color:var(--ink); border-color:var(--line); }
 .btn--ghost:hover{ background:var(--wash); }
 .btn--block{ width:100%; }
@@ -245,7 +221,6 @@ h3{ font-size:1.0625rem; font-weight:700; letter-spacing:-.01em; }
   box-shadow:0 12px 28px rgba(11,27,43,.10); padding:.85rem 1rem;
   display:flex; align-items:center; gap:.85rem; }
 @media (min-width:520px){ .hero__float{ right:auto; max-width:22rem; } }
-@media (prefers-color-scheme: dark){ .hero__float{ box-shadow:0 12px 28px rgba(0,0,0,.45); } }
 .hero__float .stars{ font-size:1rem; }
 .hero__float p{ margin:.1rem 0 0; font-size:.82rem; color:var(--body); }
 .hero__float strong{ font-size:.9rem; color:var(--ink); }
@@ -356,7 +331,6 @@ select.field{ appearance:none; background-image:linear-gradient(45deg,transparen
 .pw__eye .icon{ width:1.15rem; height:1.15rem; }
 .alert{ border-radius:var(--radius-sm); padding:.8rem 1rem; font-size:.9rem;
   background:#fdecea; color:#9b2c1f; border:1px solid #f5c6c0; }
-@media (prefers-color-scheme: dark){ .alert{ background:#3a1512; color:#ffb4a8; border-color:#5c211c; } }
 
 /* FAQ -------------------------------------------------------------------- */
 .faq{ border-top:1px solid var(--line); }
@@ -539,9 +513,6 @@ body.members{ background:var(--wash); }
 /* In dark mode --brand is a light blue and white on it is 1.98:1. The mark
    cannot follow the scheme, so the label has to -- the same trick .btn--primary
    already uses. */
-@media (prefers-color-scheme: dark){
-  .side__cta, .side__cta:hover{ color:var(--paper); }
-}
 
 .side__group{ margin:.9rem .55rem .3rem; font-size:.68rem; font-weight:800;
   letter-spacing:.09em; text-transform:uppercase; color:var(--muted); }
@@ -583,7 +554,6 @@ body.members{ background:var(--wash); }
 .side__avatar{ flex:0 0 auto; width:2rem; height:2rem; border-radius:50%;
   display:grid; place-items:center; background:var(--brand); color:#fff;
   font-weight:800; font-size:.85rem; }
-@media (prefers-color-scheme: dark){ .side__avatar{ color:var(--paper); } }
 .side__who{ min-width:0; display:flex; flex-direction:column; line-height:1.25; }
 .side__who strong{ font-size:.85rem; color:var(--ink);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -715,12 +685,6 @@ table.data td.wrap{ white-space:normal; max-width:22rem; }
 .st-delivered{ background:#eef0f3; color:#455260; }
 .st-converted,.st-approved{ background:#e3f3ec; color:#0b6b5b; }
 .st-declined{ background:#fbe6da; color:#a34a12; }
-@media (prefers-color-scheme: dark){
-  .st-in_progress,.st-contacted{ background:#3b2a10; color:#f0c37a; }
-  .st-delivered{ background:#1e2c39; color:#a9b8c6; }
-  .st-converted,.st-approved{ background:#12352c; color:#7fd8bd; }
-  .st-declined{ background:#3a1512; color:#ffb4a8; }
-}
 
 .row-form{ display:flex; flex-wrap:wrap; gap:.4rem; align-items:center; }
 .row-form select, .row-form input[type=text]{ padding:.4rem .55rem; font-size:.84rem;
@@ -741,7 +705,6 @@ table.data td.wrap{ white-space:normal; max-width:22rem; }
   border-radius:999px; background:rgba(0,0,0,.07); color:inherit;
   font-size:.74rem; font-variant-numeric:tabular-nums; }
 .filters a[aria-current="page"] .filters__n{ background:rgba(255,255,255,.22); }
-@media (prefers-color-scheme: dark){ .filters__n{ background:rgba(255,255,255,.10); } }
 
 /* Handing an account back by hand. Loud on purpose: it is shown once, and
    somebody has to read it out correctly down a phone line. */
@@ -798,9 +761,6 @@ table.data td.wrap{ white-space:normal; max-width:22rem; }
   text-align:center; background:#e3f3ec; color:#0b6b5b; }
 .rev__badge--g{ background:var(--wash); color:var(--body); border:1px solid var(--line);
   font-family:var(--mono); font-size:.8rem; }
-@media (prefers-color-scheme: dark){
-  .rev__badge{ background:#12352c; color:#7fd8bd; }
-}
 
 .rating-pick{ border:0; padding:0; margin:0 0 .3rem; }
 .rating-pick legend{ font-size:.9rem; font-weight:600; color:var(--ink); padding:0; margin:0 0 .5rem; }
@@ -810,7 +770,6 @@ table.data td.wrap{ white-space:normal; max-width:22rem; }
 
 .flash{ border:1px solid #a6d3c6; background:#e3f3ec; color:#0b6b5b; border-radius:var(--radius-sm);
   padding:.7rem 1rem; font-size:.88rem; margin-bottom:1.25rem; font-weight:600; }
-@media (prefers-color-scheme: dark){ .flash{ background:#12352c; color:#7fd8bd; border-color:#1f5346; } }
 
 .empty{ padding:2.5rem 1.25rem; text-align:center; color:var(--muted); font-size:.92rem; }
 
@@ -907,10 +866,6 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
 .st-sent{ background:var(--tint); color:var(--brand); }
 .st-clicked,.st-review_detected{ background:#e3f3ec; color:#0b6b5b; }
 .st-failed,.st-cancelled{ background:#fbe6da; color:#a34a12; }
-@media (prefers-color-scheme: dark){
-  .st-clicked,.st-review_detected{ background:#12352c; color:#7fd8bd; }
-  .st-failed,.st-cancelled{ background:#3a1512; color:#ffb4a8; }
-}
 
 /* Current-plan strip in the members area. */
 .plan-strip{ display:flex; flex-wrap:wrap; gap:1rem; align-items:center;
@@ -1555,9 +1510,6 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
    member learns the colour once. #8a5a12 on #fff4e0 carries 11px uppercase
    at 4.5:1, which --star on its own tint does not. */
 .dest__access--paid{ background:#fff4e0; color:#8a5a12; }
-@media (prefers-color-scheme: dark){
-  .dest__access--paid{ background:#2b2114; color:#f3c982; }
-}
 
 .dest__card--off{ cursor:not-allowed; opacity:.72; background:var(--wash); }
 .dest__card--off:hover{ border-color:var(--line); }
@@ -1776,15 +1728,6 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
    #8a5a12 is the deep amber that carries small uppercase type at 4.5:1. */
 .locked--only{ --accent:#8a5a12; --accent-band:#fff4e0; --accent-edge:#f0dcb4; }
 
-@media (prefers-color-scheme: dark){
-  .locked{ --accent-ink:var(--paper);
-    box-shadow:0 1px 2px rgba(0,0,0,.35), 0 14px 32px -18px rgba(0,0,0,.7); }
-  /* A light amber on a dark card, with dark ink on it. The light-mode pair
-     inverts to under 3:1 here. */
-  .locked--only{ --accent:#f3c982; --accent-ink:#20180c;
-    --accent-band:#2b2114; --accent-edge:#453522; }
-}
-
 .locked__band{
   display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between;
   gap:.75rem 1rem;
@@ -1892,14 +1835,6 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
    gone wrong here; it is simply not theirs yet. */
 .stepcard--locked{ box-shadow:none; }
 .stepcard--locked .stepcard__body{ background:var(--wash); }
-
-@media (prefers-color-scheme: dark){
-  .stepcard{ box-shadow:0 1px 2px rgba(0,0,0,.35), 0 14px 32px -18px rgba(0,0,0,.7); }
-  .stepcard--locked{ box-shadow:none; }
-  /* A light amber on a dark card, so the accent still carries at 4.5:1. The
-     light-mode #8a5a12 on a near-black surface measures under 3. */
-  .stepcard--paid{ --accent:#f3c982; --accent-band:#2b2114; --accent-edge:#453522; }
-}
 
 /* ---- The band ---------------------------------------------------------- */
 .stepcard__band{
@@ -2073,9 +2008,6 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
 /* The green fill is translucent, so in dark mode it sits over a near-black
    card and the dark green on it measured 2.17:1. The fill is right; the text
    colour has to follow the scheme. */
-@media (prefers-color-scheme: dark){
-  .gs__badge--done, .gs__facts li{ color:#86efac; }
-}
 
 /* margin-top:auto pins every button to the bottom of its card, so three
    buttons line up across the row however much text is above them. */
@@ -2088,9 +2020,6 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
   margin-top:auto; padding:.7rem 1rem; border-radius:9px;
   background:var(--brand); color:#fff; text-decoration:none; }
 .gs__btn--go:hover{ background:var(--brand-hover); color:#fff; text-decoration:none; }
-@media (prefers-color-scheme: dark){
-  .gs__btn--go, .gs__btn--go:hover{ color:var(--paper); }
-}
 
 /* ---- The two that cannot be counted ----------------------------------- */
 .gs__also{ list-style:none; margin:1.1rem 0 0; padding:1.1rem 0 0;
@@ -2142,9 +2071,6 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
 .signup-card{ max-width:30rem; margin:0 auto; background:var(--surface);
   border:1px solid var(--line); border-radius:16px; padding:2.25rem 2rem 2rem;
   box-shadow:0 18px 44px rgba(10,30,50,.07); }
-@media (prefers-color-scheme: dark){
-  .signup-card{ box-shadow:0 18px 44px rgba(0,0,0,.4); }
-}
 .signup-card__title{ font-size:1.6rem; line-height:1.2; letter-spacing:-.02em;
   margin:0; color:var(--ink); }
 .signup-card__lead{ margin:.7rem 0 0; font-size:.95rem; line-height:1.6; color:var(--body); }

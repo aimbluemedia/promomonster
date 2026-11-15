@@ -373,6 +373,37 @@ foreach (['Your review page', 'Put them on your website', 'Add a review yourself
     ok("Premium sees: {$heading}", str_contains($asPremium, $heading));
 }
 
+/* ---- One colour scheme ------------------------------------------------ */
+
+// The product is light only. The dark rules were lifted into app-dark.css
+// rather than deleted -- every pair in them was measured at 4.5:1 or better
+// and that is most of a day's work to redo -- but nothing links that file,
+// so none of it runs.
+//
+// The failure this guards against is a half-dark product: somebody adds one
+// @media (prefers-color-scheme: dark) block back into app.css, a member whose
+// phone is set to dark gets a dark card on a light page, and nobody notices
+// because the person who wrote it has a light phone.
+ok('app.css carries no dark rules', !str_contains($css, 'prefers-color-scheme'));
+ok('and declares one scheme', str_contains($css, 'color-scheme: light;'));
+ok('not two', !str_contains($css, 'color-scheme: light dark'));
+
+$darkFile = BASE_PATH . '/public/assets/css/app-dark.css';
+ok('the dark rules are kept, not deleted', is_file($darkFile));
+ok('and they are all there',
+    substr_count((string) file_get_contents($darkFile), 'prefers-color-scheme') >= 17);
+
+// Nothing may link it. One <link> is all it takes to turn the product
+// half-dark, and that is exactly how it would happen.
+foreach (glob(BASE_PATH . '/app/Views/**/*.php') ?: [] as $view) {
+    ok('not linked: ' . basename(dirname($view)) . '/' . basename($view),
+        !str_contains((string) file_get_contents($view), 'app-dark.css'));
+}
+foreach (glob(BASE_PATH . '/app/Views/*.php') ?: [] as $view) {
+    ok('not linked: ' . basename($view),
+        !str_contains((string) file_get_contents($view), 'app-dark.css'));
+}
+
 /* ---- Who each destination is for ------------------------------------- */
 
 // Both cards carry a pill. A member on Free should see at a glance that the
