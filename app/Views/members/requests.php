@@ -2,6 +2,7 @@
 use App\Support\Csrf;
 use App\Support\EmailTemplates;
 use App\Support\Icon;
+use App\Support\Plans;
 use App\Support\View;
 /**
  * @var array $account @var ?array $location @var array $limit @var string $replyTo
@@ -108,14 +109,47 @@ $canSendAnything = $chosen !== null;
           'blurb' => 'They land on your own review page here. You can put these '
                    . 'reviews on your website with the widget, and nobody else '
                    . 'can take them down.',
+          // No gate. Every plan can send one of these.
+          'needs' => null,
         ],
         'google'       => [
           'title' => 'Send a Google review request',
           'blurb' => 'They land on your Google review box. It is what a stranger '
                    . 'searching for you sees first, and the one you cannot '
                    . 'control once it is written.',
+          'needs' => Plans::GOOGLE_PAGE,
         ],
       ];
+
+      /**
+       * What the pill on a card says.
+       *
+       * Generated, never typed. This gate has moved twice in a fortnight --
+       * Pro, then Premium, then back to Pro -- and a sentence typed into this
+       * view would have been wrong for a day each time, on the one screen
+       * where a member is deciding what to send.
+       *
+       * "Pro or Premium required" when more than one plan grants it,
+       * "Premium required" when only one does.
+       */
+      $accessPill = static function (?string $ability): array {
+          if ($ability === null) {
+              return ['text' => 'All membership access', 'paid' => false];
+          }
+
+          $grants = Plans::plansWith($ability);
+          if ($grants === []) {
+              return ['text' => 'Arranged with us', 'paid' => true];
+          }
+
+          return [
+              'text' => implode(' or ', array_map(
+                  static fn (string $k): string => Plans::name($k),
+                  $grants,
+              )) . ' required',
+              'paid' => true,
+          ];
+      };
     ?>
 
     <?php foreach ($cards as $key => $card): ?>
@@ -136,6 +170,15 @@ $canSendAnything = $chosen !== null;
           <?php if (!$usable): ?>
             <span class="dest__problem"><?= View::e($problem) ?></span>
           <?php endif; ?>
+
+          <?php /* At the foot, so the two pills line up across the row. Both
+                   cards carry one: a member on Free should see at a glance
+                   that the left-hand card is already theirs, which is worth
+                   as much as knowing the right-hand one is not. */ ?>
+          <?php $pill = $accessPill($card['needs']); ?>
+          <span class="dest__access<?= $pill['paid'] ? ' dest__access--paid' : '' ?>">
+            <?= View::e($pill['text']) ?>
+          </span>
         </span>
       </label>
     <?php endforeach; ?>

@@ -1529,6 +1529,36 @@ code{ font-family:var(--mono); font-size:.86em; overflow-wrap:anywhere;
 .dest__problem{ display:block; margin-top:.6rem; color:var(--ink);
   font-size:.84rem; line-height:1.5; font-weight:600; }
 
+/* Who each destination is for, at the foot of its card.
+   
+   The cards become a flex column so margin-top:auto can pin these to the
+   bottom: the two cards are different heights -- one carries a reason it is
+   unavailable, the other does not -- and pills that floated at different
+   heights would read as two unrelated labels rather than one comparison. */
+.dest__card{ display:flex; }
+.dest__body{ display:flex; flex-direction:column; flex:1 1 auto; }
+
+/* margin-top:auto is what pins the pill to the bottom of its card, and it is
+   the ONLY margin-top this rule may set: a second one overrides the auto and
+   the pills drift back to wherever the text happens to end. The gap above
+   comes from the elements before it instead. */
+.dest__blurb, .dest__problem{ margin-bottom:1rem; }
+.dest__access{
+  display:inline-block; align-self:flex-start;
+  margin:auto 0 0;
+  padding:.28rem .65rem; border-radius:999px;
+  background:var(--tint); color:var(--brand);
+  font-size:.67rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+  white-space:nowrap;
+}
+/* The same deep amber the locked panels and the review-page steps use, so a
+   member learns the colour once. #8a5a12 on #fff4e0 carries 11px uppercase
+   at 4.5:1, which --star on its own tint does not. */
+.dest__access--paid{ background:#fff4e0; color:#8a5a12; }
+@media (prefers-color-scheme: dark){
+  .dest__access--paid{ background:#2b2114; color:#f3c982; }
+}
+
 .dest__card--off{ cursor:not-allowed; opacity:.72; background:var(--wash); }
 .dest__card--off:hover{ border-color:var(--line); }
 

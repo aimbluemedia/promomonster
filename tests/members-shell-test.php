@@ -64,6 +64,7 @@ $layout  = (string) file_get_contents($views . '/layout.php');
 $welcome = (string) file_get_contents($views . '/_welcome.php');
 $started = (string) file_get_contents($views . '/_getting-started.php');
 $promo   = (string) file_get_contents($views . '/promo-reviews.php');
+$asks    = (string) file_get_contents($views . '/requests.php');
 
 /**
  * The same file with its comments taken out.
@@ -86,6 +87,7 @@ $layoutCode  = code($layout);
 $welcomeCode = code($welcome);
 $startedCode = code($started);
 $promoCode   = code($promo);
+$asksCode    = code($asks);
 $css     = (string) file_get_contents(BASE_PATH . '/public/assets/css/app.css');
 $index   = (string) file_get_contents(BASE_PATH . '/public/index.php');
 
@@ -195,7 +197,7 @@ ok('superadmin still has its nav rules', str_contains($css, '.admin-nav a[aria-c
 // The "no design change" bug: markup renders, class name is a typo, nothing
 // is styled and nothing complains.
 $classes = [];
-foreach ([$sidebar, $welcome, $layout, $started, $promo] as $source) {
+foreach ([$sidebar, $welcome, $layout, $started, $promo, $asks] as $source) {
     if (preg_match_all('~class="([^"<>$]+)"~', $source, $m) > 0) {
         foreach ($m[1] as $attr) {
             foreach (preg_split('/\s+/', trim($attr)) ?: [] as $name) {
@@ -211,6 +213,7 @@ foreach ([
     'side__link', 'is-here', 'hello__btn--solid',
     'gs', 'gs--done', 'gs__card', 'is-next', 'is-done', 'gs__btn--go', 'is-full',
     'stepcard', 'stepcard--paid', 'stepcard--locked',
+    'dest__access', 'dest__access--paid', 'dest__card--off',
 ] as $name) {
     $classes[$name] = true;
 }
@@ -369,6 +372,32 @@ foreach (['Your review page', 'Put them on your website', 'Add a review yourself
     ok("Free sees: {$heading}", str_contains($asFree, $heading));
     ok("Premium sees: {$heading}", str_contains($asPremium, $heading));
 }
+
+/* ---- Who each destination is for ------------------------------------- */
+
+// Both cards carry a pill. A member on Free should see at a glance that the
+// left one is already theirs, which is worth as much as knowing the right
+// one is not.
+ok('the free destination says so', str_contains($asks, 'All membership access'));
+ok('and the gated one is generated', str_contains($asksCode, 'Plans::plansWith($ability)'));
+ok('with no plan name typed into the view',
+    !preg_match('~[\'"](Pro|Premium)( or (Pro|Premium))? required[\'"]~', $asksCode));
+
+// The wording follows the gate. This one has moved twice in a fortnight --
+// Pro, then Premium, then back to Pro -- and a sentence typed here would
+// have been wrong for a day each time, on the screen where somebody is
+// choosing what to send.
+$grants = App\Support\Plans::plansWith(App\Support\Plans::GOOGLE_PAGE);
+$wanted = implode(' or ', array_map(
+    static fn (string $k): string => App\Support\Plans::name($k),
+    $grants,
+)) . ' required';
+ok("the Google card would read \"{$wanted}\"", $grants !== []);
+
+// Only the Google card is gated. The PromoMonster one has no ability at all,
+// because every plan can send one.
+check('one gated destination', substr_count($asksCode, "'needs' => Plans::"), 1);
+ok('and one that is not', str_contains($asksCode, "'needs' => null"));
 
 /* ---- The callout on a locked section --------------------------------- */
 
