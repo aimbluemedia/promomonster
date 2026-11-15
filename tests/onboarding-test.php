@@ -113,7 +113,9 @@ check('no link, no tick',            step($s, 'google')['done'], false);
 check('nothing sent, no tick',       step($s, 'send')['done'], false);
 check('nothing collected, no tick',  step($s, 'collect')['done'], false);
 
-[$s, ] = run(['plan' => Plans::PRO, 'hasPage' => true, 'hasGoogleLink' => true,
+// Premium, because that is the cheapest plan the Google step is on now. A
+// saved link on a plan that cannot use it must not tick anything.
+[$s, ] = run(['plan' => Plans::PREMIUM, 'hasPage' => true, 'hasGoogleLink' => true,
               'requestsSent' => 1, 'reviewsCollected' => 1]);
 check('a saved link ticks it',   step($s, 'google')['done'], true);
 check('one request ticks it',    step($s, 'send')['done'], true);
@@ -141,14 +143,20 @@ ok('and still names a next step', $p['next'] !== null);
 $g = step($free, 'google');
 check('on Free the Google step is locked', $g['locked'], true);
 check('and is not counted',                $g['checkable'], false);
-check('and names the plan that would do it', $g['needs'], Plans::PRO);
+check('and names the plan that would do it', $g['needs'], Plans::PREMIUM);
 
 // The step still SHOWS. Hiding it would leave somebody wondering why the
 // Google page in the nav does nothing.
 ok('but it is still listed', step($free, 'google') !== []);
 
+// Three on both Free and Pro, because the Google step is locked on both now.
+// Premium is the one with four. The number is read from progress() rather
+// than typed into the view, so the heading follows whichever it is.
 check('Free counts three steps, not four', $freeProgress['total'], 3);
-check('Pro counts four',                   Onboarding::progress(Onboarding::steps(FRESH_PRO))['total'], 4);
+check('Pro counts three as well',
+    Onboarding::progress(Onboarding::steps(FRESH_PRO))['total'], 3);
+check('Premium counts four', Onboarding::progress(Onboarding::steps(
+    ['plan' => Plans::PREMIUM, 'hasPage' => true]))['total'], 4);
 
 // The one that matters: a Free account must be able to REACH the end. Leaving
 // the locked step in the denominator would park them at "3 of 4" forever,
@@ -219,8 +227,11 @@ $locked = step($free, 'google');
 check('the locked step carries its ability', $locked['ability'], Plans::GOOGLE_PAGE);
 
 $grants = Plans::plansWith((string) $locked['ability']);
-ok('more than one plan grants it', count($grants) > 1);
-check('and both paid plans do', $grants, [Plans::PRO, Plans::PREMIUM]);
+// One, since the Google link moved to Premium. The point of carrying the
+// ability rather than a plan name is that the screen asks Plans and gets
+// whatever is true today -- which is what this is checking.
+ok('at least one plan grants it', count($grants) >= 1);
+check('and it is Premium', $grants, [Plans::PREMIUM]);
 
 // The cheapest stays on the step too: it is what decides which plan is named
 // first, and the two must not disagree.
@@ -236,11 +247,18 @@ foreach ($free as $s) {
 }
 
 // On a plan that already has it, the step is not locked and names nothing.
+// Premium, since that is now the only plan the Google step is on.
+[$prem, ] = run(['plan' => Plans::PREMIUM, 'hasPage' => true]);
+$open = step($prem, 'google');
+check('on Premium it is not locked', $open['locked'], false);
+check('and names no ability',        $open['ability'], null);
+check('and names no plan',           $open['needs'], null);
+
+// And on Pro it IS locked now, which is the change itself.
 [$pro, ] = run(['plan' => Plans::PRO, 'hasPage' => true]);
-$open = step($pro, 'google');
-check('on Pro it is not locked',   $open['locked'], false);
-check('and names no ability',      $open['ability'], null);
-check('and names no plan',         $open['needs'], null);
+$shut = step($pro, 'google');
+check('on Pro it is locked',    $shut['locked'], true);
+check('and names Premium',      $shut['needs'], Plans::PREMIUM);
 
 // Whatever is named has to actually grant the thing, on every plan, or the
 // upgrade button sends somebody to a tier that will refuse them again.
@@ -263,13 +281,24 @@ foreach ([Plans::FREE, Plans::PRO, Plans::PREMIUM] as $plan) {
 // The bar
 // =====================================================================
 
-[, $p] = run(FRESH_PRO);
+// Premium, because it is the plan with four countable steps now -- Pro has
+// three, the Google one having moved up. Quarters are what make a rounding
+// mistake visible, so the arithmetic is checked where quarters exist.
+const FRESH_PREMIUM = ['plan' => Plans::PREMIUM, 'hasPage' => true, 'hasGoogleLink' => false,
+                       'requestsSent' => 0, 'reviewsCollected' => 0];
+
+[, $p] = run(FRESH_PREMIUM);
 check('one of four is 25%', $p['percent'], 25);
 check('and not complete',   $p['complete'], false);
 
-[, $p] = run(['plan' => Plans::PRO, 'hasPage' => true, 'hasGoogleLink' => true,
+[, $p] = run(['plan' => Plans::PREMIUM, 'hasPage' => true, 'hasGoogleLink' => true,
               'requestsSent' => 1, 'reviewsCollected' => 0]);
 check('three of four is 75%', $p['percent'], 75);
+
+// And thirds, on Pro, where three is the count. 1 of 3 rounds to 33.
+[, $p] = run(FRESH_PRO);
+check('one of three is 33%', $p['percent'], 33);
+check('and still not complete', $p['complete'], false);
 
 // Percent must stay inside the rails whatever is thrown at it.
 foreach ([

@@ -389,7 +389,8 @@ $lockFor = static function (string $ability) use ($upgrade): string {
 
 // One plan grants it: "Premium only".
 foreach ([App\Support\Plans::ADD_REVIEWS, App\Support\Plans::REPLY_DRAFTS,
-          App\Support\Plans::MONTHLY_REPORT, App\Support\Plans::UNBRANDED] as $ability) {
+          App\Support\Plans::MONTHLY_REPORT, App\Support\Plans::UNBRANDED,
+          App\Support\Plans::GOOGLE_PAGE] as $ability) {
     $html = $lockFor($ability);
     $name = App\Support\Plans::name((string) App\Support\Plans::cheapestWith($ability));
     check("{$ability}: one plan grants it",
@@ -400,7 +401,7 @@ foreach ([App\Support\Plans::ADD_REVIEWS, App\Support\Plans::REPLY_DRAFTS,
 }
 
 // More than one grants it: "Pro and above", never "Premium only".
-foreach ([App\Support\Plans::GOOGLE_PAGE, App\Support\Plans::ALL_TEMPLATES] as $ability) {
+foreach ([App\Support\Plans::ALL_TEMPLATES] as $ability) {
     $html  = $lockFor($ability);
     $plans = App\Support\Plans::plansWith($ability);
     ok("{$ability}: more than one plan grants it", count($plans) > 1);

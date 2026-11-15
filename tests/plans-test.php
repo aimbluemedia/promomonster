@@ -169,8 +169,8 @@ check('the score IS live',
 // The four gated abilities are all built, so wherever a plan grants one the
 // catalogue must not tag it "in build" -- that would be selling a thing the
 // product would then refuse to let them not have.
-check('the Google page is live on Pro',
-    stateOf(Plans::PRO, 'Your Google review page'), Plans::STATE_NOW);
+check('the Google page is live on Premium',
+    stateOf(Plans::PREMIUM, 'Your Google review page'), Plans::STATE_NOW);
 check('own wording is live on Pro',
     stateOf(Plans::PRO, 'Every email template, and your own wording'), Plans::STATE_NOW);
 check('adding by hand is live on Pro',
@@ -201,7 +201,10 @@ check('free: standard wording',    Plans::can(Plans::FREE, Plans::ALL_TEMPLATES)
 check('free: no adding by hand',   Plans::can(Plans::FREE, Plans::ADD_REVIEWS), false);
 check('free: branded website code', Plans::can(Plans::FREE, Plans::UNBRANDED), false);
 
-check('pro: Google page',          Plans::can(Plans::PRO, Plans::GOOGLE_PAGE), true);
+// Premium's now. Pro keeps the allowance and its own wording; the saved
+// Google link, and everything that happens after a review arrives, is the
+// tier above.
+check('pro: no Google page',       Plans::can(Plans::PRO, Plans::GOOGLE_PAGE), false);
 check('pro: all wording',          Plans::can(Plans::PRO, Plans::ALL_TEMPLATES), true);
 // Premium's, not Pro's. Pro buys the Google link and your own wording; the
 // page you curate by hand is the next tier up.
@@ -225,7 +228,8 @@ check('an empty plan is refused',       Plans::can('', Plans::GOOGLE_PAGE), fals
 // --- Where an upgrade button points -------------------------------------
 // Worked out by price rather than hard-coded, so a feature moving tier cannot
 // leave a button pointing at a plan that does not grant it.
-check('Google page is cheapest on Pro',  Plans::cheapestWith(Plans::GOOGLE_PAGE), Plans::PRO);
+check('Google page is cheapest on Premium',
+    Plans::cheapestWith(Plans::GOOGLE_PAGE), Plans::PREMIUM);
 check('wording is cheapest on Pro',      Plans::cheapestWith(Plans::ALL_TEMPLATES), Plans::PRO);
 check('adding by hand is cheapest on Premium',
     Plans::cheapestWith(Plans::ADD_REVIEWS), Plans::PREMIUM);
@@ -324,8 +328,12 @@ foreach (Plans::SELECTABLE as $key) {
 // Every plan that grants it, cheapest first, not just the cheapest: somebody
 // who upgrades to Pro for one thing and then needs Premium for the next has
 // been led there one plan at a time.
-check('the Google page names both paid plans',
-    Plans::plansWith(Plans::GOOGLE_PAGE), [Plans::PRO, Plans::PREMIUM]);
+check('the Google page names Premium alone',
+    Plans::plansWith(Plans::GOOGLE_PAGE), [Plans::PREMIUM]);
+// Still one ability where more than one plan qualifies, so the "names every
+// plan that grants it" path is exercised by something.
+check('the templates name both paid plans',
+    Plans::plansWith(Plans::ALL_TEMPLATES), [Plans::PRO, Plans::PREMIUM]);
 check('white-label names Premium alone',
     Plans::plansWith(Plans::UNBRANDED), [Plans::PREMIUM]);
 check('an ability nobody sells names nobody', Plans::plansWith('teleportation'), []);

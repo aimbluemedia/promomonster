@@ -144,7 +144,10 @@ final class Plans
             self::MONTHLY_REPORT => false,
         ],
         self::PRO => [
-            self::GOOGLE_PAGE   => true,
+            // Premium's. Pro keeps the allowance and its own wording; the
+            // saved Google link, and everything that comes after a review
+            // arrives, is the tier above.
+            self::GOOGLE_PAGE   => false,
             self::ALL_TEMPLATES => true,
             self::ADD_REVIEWS   => false,
             self::UNBRANDED     => false,
@@ -384,16 +387,16 @@ final class Plans
             self::PRO => [
                 'name'     => 'Pro',
                 'price'    => 19,
-                'tagline'  => 'Two asks a day, your Google review link, and your own wording.',
+                'tagline'  => 'Two asks a day, six times the Free allowance, and your own wording on every one.',
                 'featured' => true,
                 'limits'   => self::LIMITS[self::PRO],
                 'features' => [
                     ['Everything in Free', true, null],
                     [self::sendingLimit(self::PRO), true, self::STATE_NOW],
-                    ['Your Google review page', true, self::STATE_NOW],
                     ['Every email template, and your own wording', true, self::STATE_NOW],
                     ['See who opened your review link', true, self::STATE_NOW],
                     ['Import your customers from a spreadsheet', true, self::STATE_SOON],
+                    ['Your Google review page', false, null],
                     ['Add reviews by hand', false, null],
                     ['Website code with no PromoMonster name on it', false, null],
                     ['Replies drafted for you', false, null],
@@ -403,12 +406,13 @@ final class Plans
             self::PREMIUM => [
                 'name'     => 'Premium',
                 'price'    => 49,
-                'tagline'  => 'Ten asks a day, and the part that comes after: replies drafted for you, and a monthly report on how you compare.',
+                'tagline'  => 'Your Google review link, so one tap opens the review box -- and everything that comes after: replies drafted for you, and a monthly report on how you compare.',
                 'featured' => false,
                 'limits'   => self::LIMITS[self::PREMIUM],
                 'features' => [
                     ['Everything in Pro', true, null],
                     [self::sendingLimit(self::PREMIUM), true, self::STATE_NOW],
+                    ['Your Google review page', true, self::STATE_NOW],
                     ['Add reviews by hand', true, self::STATE_NOW],
                     ['Website code with no PromoMonster name on it', true, self::STATE_NOW],
                     ['Replies drafted for you', true, self::STATE_NOW],

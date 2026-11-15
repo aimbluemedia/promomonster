@@ -18,10 +18,11 @@ $plans = Plans::selectable();
  */
 $difference = sprintf(
     'How many you can send, and how much of it is yours. Free sends %d a month on our '
-    . 'standard wording. Pro sends %d, unlocks your Google review link so a request opens '
-    . 'the review box in one tap, and lets you write your own wording. Premium sends %d, '
-    . 'lets you add reviews to your page by hand, and the review code you paste on your own '
-    . 'website carries no PromoMonster name.',
+    . 'standard wording. Pro sends %d and lets you write your own wording on every one. '
+    . 'Premium sends %d, saves your Google review link so a request opens the review box '
+    . 'in one tap, lets you add reviews to your page by hand, drafts your replies for you, '
+    . 'emails you a monthly comparison, and the review code you paste on your own website '
+    . 'carries no PromoMonster name.',
     (int) Plans::limit(Plans::FREE, 'requests_per_month'),
     (int) Plans::limit(Plans::PRO, 'requests_per_month'),
     (int) Plans::limit(Plans::PREMIUM, 'requests_per_month'),
